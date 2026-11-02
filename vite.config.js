@@ -42,9 +42,28 @@ function prerender() {
   };
 }
 
+/**
+ * Vite drops `blocking="render"` from the entry script when it rewrites it for production.
+ * Put it back: the page script must run before first paint so view transitions can be set up
+ * (pagereveal) and script-built content (compare table, saved counts) never shifts the layout.
+ */
+function keepRenderBlocking() {
+  return {
+    name: 'v8-render-blocking',
+    apply: 'build',
+    transformIndexHtml: {
+      order: 'post',
+      handler(html, ctx) {
+        if (ctx.filename.endsWith('404.html') || ctx.filename.endsWith('car.html')) return html;
+        return html.replace(/<script type="module" crossorigin src="([^"]+)">/g, '<script type="module" crossorigin src="$1" blocking="render">');
+      },
+    },
+  };
+}
+
 export default defineConfig({
   base: './',
-  plugins: [prerender(), tailwindcss()],
+  plugins: [prerender(), keepRenderBlocking(), tailwindcss()],
   build: {
     sourcemap: false,
     rollupOptions: {
