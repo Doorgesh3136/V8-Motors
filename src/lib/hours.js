@@ -1,0 +1,56 @@
+import { DEALER } from '../data.js';
+
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const toMin = (t) => { const [h, m] = t.split(':'); return +h * 60 + +m; };
+export const fmtTime = (t) => { const [h, m] = t.split(':'); const H = +h; return `${H % 12 || 12}${m !== '00' ? ':' + m : ''} ${H < 12 ? 'am' : 'pm'}`; };
+
+function nowInMauritius() {
+  const p = new Intl.DateTimeFormat('en-GB', { timeZone: DEALER.timeZone, weekday: 'long', hour: '2-digit', minute: '2-digit', hour12: false })
+    .formatToParts(new Date()).reduce((o, x) => ((o[x.type] = x.value), o), {});
+  return { day: DAYS.indexOf(p.weekday), mins: (+p.hour % 24) * 60 + +p.minute };
+}
+
+export function openStatus() {
+  const { day, mins } = nowInMauritius();
+  const h = DEALER.hours[day];
+  if (h && mins >= toMin(h[0]) && mins < toMin(h[1])) return { open: true, text: `Open now, until ${fmtTime(h[1])}`, today: day };
+  let d = day;
+  for (let i = 0; i < 8; i++) {
+    const hh = DEALER.hours[d];
+    if (hh && (i > 0 || mins < toMin(hh[0]))) {
+      const when = i === 0 ? 'today' : i === 1 ? 'tomorrow' : DAYS[d];
+      return { open: false, text: `Closed now. Opens ${when} at ${fmtTime(hh[0])}`, today: day };
+    }
+    d = (d + 1) % 7;
+  }
+  return { open: false, text: 'Closed', today: day };
+}
+
+export function renderStatus(el) {
+  if (!el) return;
+  const s = openStatus();
+  el.textContent = s.text;
+  el.classList.toggle('is-open', s.open);
+}
+
+export function renderHours(tbody) {
+  if (!tbody) return;
+  const { today } = openStatus();
+  tbody.innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => {
+    const h = DEALER.hours[d];
+    return `<tr class="${d === today ? 'is-today' : ''}"><th scope="row">${DAYS[d]}</th>
+      <td class="${h ? '' : 'closed'} tabular-nums">${h ? `${fmtTime(h[0])} to ${fmtTime(h[1])}` : 'Closed'}</td></tr>`;
+  }).join('');
+}
+
+/** Upcoming open days (for test-drive booking). */
+export function nextOpenDays(n = 10) {
+  const out = [];
+  const d = new Date();
+  for (let i = 1; out.length < n && i < 30; i++) {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i);
+    const h = DEALER.hours[x.getDay()];
+    if (h) out.push({ date: x, hours: h });
+  }
+  return out;
+}

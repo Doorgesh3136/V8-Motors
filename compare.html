@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Compare cars — V8 Motors</title>
+  <meta name="description" content="Compare up to three V8 Motors cars side by side." />
+  <meta name="theme-color" content="#E4E6E8" />
+  <link rel="icon" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
+  <style>@view-transition { navigation: auto; }</style>
+  <script type="module" src="/src/pages/compare.js" blocking="render"></script>
+</head>
+<body class="bg-cyc text-asphalt antialiased page-compare">
+  <header data-site-nav></header>
+  <main>
+    <section class="page-head wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><a href="inventory.html">Inventory</a><span aria-hidden="true">/</span><span aria-current="page">Compare</span></nav>
+      <h1 class="page-title" data-rise>Side by side</h1>
+      <p class="page-lede">Compare up to three cars. The best figure in each row is marked.</p>
+      <label class="toggle compare-diff"><input type="checkbox" data-diff /><span>Only show differences</span></label>
+    </section>
+    <section class="wrap compare" data-compare-root aria-live="polite"></section>
+  </main>
+  <footer data-site-footer></footer>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Visit us — V8 Motors</title>
+  <meta name="description" content="V8 Motors showroom on Royal Road, Beau Bassin. Opening hours, directions and contact details." />
+  <meta name="theme-color" content="#E4E6E8" />
+  <link rel="icon" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
+  <style>@view-transition { navigation: auto; }</style>
+  <script type="module" src="/src/pages/contact.js" blocking="render"></script>
+</head>
+<body class="bg-cyc text-asphalt antialiased page-contact">
+  <header data-site-nav></header>
+  <main>
+    <section class="page-head wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Visit us</span></nav>
+      <h1 class="page-title" data-rise>Come and see them</h1>
+      <p class="open-status open-status--lg" data-open-status></p>
+    </section>
+
+    <section class="wrap contact-grid">
+      <div class="map-card">
+        <iframe title="Map showing V8 Motors in Beau Bassin" loading="lazy" referrerpolicy="no-referrer-when-downgrade" data-map></iframe>
+        <div class="map-overlay">
+          <address data-address></address>
+          <a class="btn btn-dark" data-directions target="_blank" rel="noopener" data-magnetic>Get directions</a>
+        </div>
+      </div>
+      <div class="contact-side">
+        <table class="hours" aria-label="Opening hours"><tbody data-hours></tbody></table>
+        <div class="contact-ways">
+          <a class="way" data-call data-cursor="Call"><span class="way-k">Call</span><span class="way-v tabular-nums" data-phone></span></a>
+          <a class="way" data-wa target="_blank" rel="noopener" data-cursor="Chat"><span class="way-k">WhatsApp</span><span class="way-v">Usually replies within the hour</span></a>
+          <a class="way" data-mail data-cursor="Email"><span class="way-k">Email</span><span class="way-v" data-email></span></a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section wrap contact-form-wrap">
+      <div>
+        <h2 class="section-title" data-stretch-view>Send us a message</h2>
+        <p class="section-sub">We reply the same working day.</p>
+      </div>
+      <form class="panel contact-form" data-contact-form novalidate>
+        <fieldset class="pill-row">
+          <legend class="sr-only">What is it about?</legend>
+          <label class="pill"><input type="radio" name="topic" value="Buying a car" checked /><span>Buying a car</span></label>
+          <label class="pill"><input type="radio" name="topic" value="Selling my car" /><span>Selling my car</span></label>
+          <label class="pill"><input type="radio" name="topic" value="Finance" /><span>Finance</span></label>
+          <label class="pill"><input type="radio" name="topic" value="Something else" /><span>Something else</span></label>
+        </fieldset>
+        <div class="form-row form-row--2">
+          <label class="input"><span>Your name</span><input name="name" required autocomplete="name" /></label>
+          <label class="input"><span>Phone or email</span><input name="reach" required /></label>
+        </div>
+        <label class="input"><span>Message</span><textarea name="msg" rows="5" required maxlength="600"></textarea><span class="char tabular-nums" data-char>0 / 600</span></label>
+        <p class="form-error" data-error hidden></p>
+        <button class="btn btn-red" type="submit" data-magnetic>Send message</button>
+      </form>
+    </section>
+  </main>
+  <footer data-site-footer></footer>
+</body>
+</html>

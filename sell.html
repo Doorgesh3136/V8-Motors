@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sell your car — V8 Motors</title>
+  <meta name="description" content="Get an offer for your car within one working day. Paid the same day, NLTA transfer handled." />
+  <meta name="theme-color" content="#E4E6E8" />
+  <link rel="icon" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
+  <style>@view-transition { navigation: auto; }</style>
+  <script type="module" src="/src/pages/sell.js" blocking="render"></script>
+</head>
+<body class="bg-cyc text-asphalt antialiased page-sell">
+  <header data-site-nav></header>
+  <main>
+    <section class="page-head wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Sell your car</span></nav>
+      <h1 class="page-title" data-rise>Sell it to us</h1>
+      <p class="page-lede">Four short steps. You get a rough guide price now and a written offer within one working day.</p>
+    </section>
+
+    <section class="wrap wizard-wrap">
+      <form class="wizard" data-wizard novalidate>
+        <ol class="wizard-steps">
+          <li data-step-label="0" aria-current="step"><span>Your car</span></li>
+          <li data-step-label="1"><span>Condition</span></li>
+          <li data-step-label="2"><span>Photos</span></li>
+          <li data-step-label="3"><span>Contact</span></li>
+        </ol>
+        <div class="wizard-bar" aria-hidden="true"><span data-wizard-bar></span></div>
+
+        <fieldset class="wstep" data-wstep="0">
+          <legend class="wstep-title">Tell us about the car</legend>
+          <div class="form-row form-row--2">
+            <label class="input"><span>Make</span><select name="make" required data-make><option value="">Choose a make</option></select></label>
+            <label class="input"><span>Model</span><input name="model" required placeholder="Aqua, Golf, X5" list="model-list" /><datalist id="model-list" data-models></datalist></label>
+          </div>
+          <div class="form-row form-row--2">
+            <label class="input"><span>Year first registered</span><input name="year" inputmode="numeric" required placeholder="2018" maxlength="4" /></label>
+            <label class="input"><span>Mileage (km)</span><input name="km" inputmode="numeric" required placeholder="64000" /></label>
+          </div>
+          <div class="form-row form-row--2">
+            <label class="input"><span>Gearbox</span><select name="gearbox"><option>Automatic</option><option>Manual</option></select></label>
+            <label class="input"><span>Fuel</span><select name="fuel"><option>Petrol</option><option>Diesel</option><option>Hybrid</option><option>Electric</option></select></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="wstep" data-wstep="1" hidden>
+          <legend class="wstep-title">How is it?</legend>
+          <div class="cond-grid">
+            <label class="cond"><input type="radio" name="condition" value="excellent" /><span><strong>Excellent</strong>Like new. No marks, full service history.</span></label>
+            <label class="cond"><input type="radio" name="condition" value="good" checked /><span><strong>Good</strong>Normal wear for its age, a few small marks.</span></label>
+            <label class="cond"><input type="radio" name="condition" value="fair" /><span><strong>Fair</strong>Visible scratches or dents, some jobs due.</span></label>
+            <label class="cond"><input type="radio" name="condition" value="rough" /><span><strong>Needs work</strong>Mechanical faults or body damage.</span></label>
+          </div>
+          <div class="pill-row pill-row--q">
+            <p>Full service history?</p>
+            <label class="pill"><input type="radio" name="history" value="yes" checked /><span>Yes</span></label>
+            <label class="pill"><input type="radio" name="history" value="partial" /><span>Partial</span></label>
+            <label class="pill"><input type="radio" name="history" value="no" /><span>No</span></label>
+          </div>
+          <div class="pill-row pill-row--q">
+            <p>Ever been in an accident?</p>
+            <label class="pill"><input type="radio" name="accident" value="no" checked /><span>No</span></label>
+            <label class="pill"><input type="radio" name="accident" value="minor" /><span>Minor</span></label>
+            <label class="pill"><input type="radio" name="accident" value="major" /><span>Major</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="wstep" data-wstep="2" hidden>
+          <legend class="wstep-title">Add some photos <span class="optional">(optional)</span></legend>
+          <p class="wstep-sub">Front, back, both sides and the dashboard with the engine on. Photos help us make a firmer offer.</p>
+          <label class="drop" data-drop>
+            <input type="file" accept="image/*" multiple data-files />
+            <span class="drop-icon" aria-hidden="true"></span>
+            <span><strong>Drop photos here</strong> or click to choose. Up to 8.</span>
+          </label>
+          <ul class="previews" data-previews></ul>
+        </fieldset>
+
+        <fieldset class="wstep" data-wstep="3" hidden>
+          <legend class="wstep-title">Where should we send the offer?</legend>
+          <div class="form-row form-row--2">
+            <label class="input"><span>Your name</span><input name="name" required autocomplete="name" /></label>
+            <label class="input"><span>Phone</span><input name="phone" type="tel" required autocomplete="tel" placeholder="5 123 4567" /></label>
+          </div>
+          <div class="pill-row pill-row--q">
+            <p>Best way to reach you</p>
+            <label class="pill"><input type="radio" name="contact" value="WhatsApp" checked /><span>WhatsApp</span></label>
+            <label class="pill"><input type="radio" name="contact" value="Phone call" /><span>Phone call</span></label>
+          </div>
+        </fieldset>
+
+        <p class="form-error" data-error hidden></p>
+        <div class="wizard-nav">
+          <button type="button" class="btn btn-line" data-back hidden>Back</button>
+          <button type="submit" class="btn btn-dark" data-next data-magnetic>Next: condition</button>
+        </div>
+        <div class="wizard-done" data-done hidden></div>
+      </form>
+
+      <aside class="estimate" aria-live="polite">
+        <p class="estimate-label">Rough guide</p>
+        <p class="estimate-figure tabular-nums" data-estimate>Rs ––</p>
+        <p class="estimate-range tabular-nums" data-estimate-range>Tell us the make, year and mileage to see a range.</p>
+        <div class="estimate-gauge" aria-hidden="true"><span data-estimate-needle></span></div>
+        <p class="estimate-note">Based on recent sales of similar cars. Your written offer follows an inspection and can be higher.</p>
+        <ul class="estimate-why" data-estimate-why></ul>
+      </aside>
+    </section>
+
+    <section class="section wrap why-sell">
+      <h2 class="section-title" data-stretch-view>Why sell to us</h2>
+      <ol class="steps steps--row">
+        <li><h3>No haggling with strangers</h3><p>No adverts, no test drives with people you don’t know, no time-wasters.</p></li>
+        <li><h3>Paid the same day</h3><p>Accept the offer and the money is in your account that afternoon.</p></li>
+        <li><h3>Paperwork handled</h3><p>We do the NLTA transfer and settle any outstanding finance with your bank.</p></li>
+      </ol>
+    </section>
+  </main>
+  <footer data-site-footer></footer>
+</body>
+</html>

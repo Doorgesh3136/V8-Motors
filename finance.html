@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Finance — V8 Motors</title>
+  <meta name="description" content="Work out your monthly car payment in rupees, see the repayment schedule, and ask about finance." />
+  <meta name="theme-color" content="#E4E6E8" />
+  <link rel="icon" href="favicon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
+  <style>@view-transition { navigation: auto; }</style>
+  <script type="module" src="/src/pages/finance.js" blocking="render"></script>
+</head>
+<body class="bg-cyc text-asphalt antialiased page-finance">
+  <header data-site-nav></header>
+  <main>
+    <section class="page-head wrap">
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Finance</span></nav>
+      <h1 class="page-title" data-rise>Spread the cost</h1>
+      <p class="page-lede">Work out your monthly payment, then see how the balance comes down year by year.</p>
+    </section>
+
+    <section class="section finance finance--page">
+      <div class="wrap finance-grid">
+        <div class="finance-intro">
+          <h2 class="section-title section-title--sm">Your numbers</h2>
+          <p class="section-sub">An estimate only. Your bank confirms the final rate after approval.</p>
+          <label class="field field-dark">
+            <span class="field-label">Start from a car in the showroom</span>
+            <select data-fin-car><option value="">Choose a car</option></select>
+          </label>
+          <a class="fin-car" data-fin-car-card hidden></a>
+        </div>
+        <div class="calc">
+          <div class="calc-controls">
+            <label class="slider"><span class="slider-top"><span>Car price</span><output class="tabular-nums" data-out="price"></output></span>
+              <input type="range" min="300000" max="22000000" step="50000" value="2450000" data-fin="price" /></label>
+            <label class="slider"><span class="slider-top"><span>Deposit</span><output class="tabular-nums" data-out="deposit"></output></span>
+              <input type="range" min="10" max="60" step="5" value="20" data-fin="deposit" /></label>
+            <label class="slider"><span class="slider-top"><span>Interest rate</span><output class="tabular-nums" data-out="rate"></output></span>
+              <input type="range" min="4" max="12" step="0.1" value="6.9" data-fin="rate" /></label>
+            <fieldset class="terms"><legend>Term</legend><div class="term-row" data-terms></div></fieldset>
+          </div>
+          <div class="calc-result">
+            <p class="calc-figure tabular-nums" aria-live="polite"><span data-monthly>Rs 0</span></p>
+            <p class="calc-per">a month for <span data-term-label>60 months</span></p>
+            <div class="donut" aria-hidden="true">
+              <svg viewBox="0 0 42 42"><circle cx="21" cy="21" r="15.915" class="donut-bg"/><circle cx="21" cy="21" r="15.915" class="donut-seg donut-dep" data-donut="dep"/><circle cx="21" cy="21" r="15.915" class="donut-seg donut-loan" data-donut="loan"/><circle cx="21" cy="21" r="15.915" class="donut-seg donut-int" data-donut="int"/></svg>
+              <ul class="donut-key"><li><i class="k-dep"></i>Deposit</li><li><i class="k-loan"></i>Loan</li><li><i class="k-int"></i>Interest</li></ul>
+            </div>
+            <dl class="calc-break">
+              <div><dt>Loan amount</dt><dd class="tabular-nums" data-loan></dd></div>
+              <div><dt>Deposit</dt><dd class="tabular-nums" data-dep></dd></div>
+              <div><dt>Total interest</dt><dd class="tabular-nums" data-interest></dd></div>
+              <div><dt>Total you pay</dt><dd class="tabular-nums" data-total></dd></div>
+            </dl>
+            <a class="btn btn-red btn-wide" data-fin-wa target="_blank" rel="noopener">Ask about finance on WhatsApp</a>
+          </div>
+        </div>
+      </div>
+      <div class="wrap schedule">
+        <div class="schedule-head">
+          <h2 class="section-title section-title--sm">Balance over time</h2>
+          <p class="section-sub">Point at a year to see what you’ve paid and what’s left.</p>
+        </div>
+        <div class="chart" data-chart></div>
+      </div>
+    </section>
+
+    <section class="section wrap faq-wrap">
+      <h2 class="section-title" data-stretch-view>Questions people ask</h2>
+      <div class="faq" data-faq>
+        <details><summary>Who provides the finance?</summary><div><p>We work with the main local banks and leasing companies. We send your application to the ones most likely to approve it at a good rate, and you choose which offer to take.</p></div></details>
+        <details><summary>How much deposit do I need?</summary><div><p>Most lenders ask for at least 10% of the car’s price. A bigger deposit lowers your monthly payment and the total interest.</p></div></details>
+        <details><summary>Can I use my current car as the deposit?</summary><div><p>Yes. We value your car and that value comes off the price. If you still owe money on it, we settle that with your bank.</p></div></details>
+        <details><summary>What do I need to apply?</summary><div><p>Your national ID card, proof of address, your last three payslips and three months of bank statements. Self-employed buyers also need recent accounts.</p></div></details>
+        <details><summary>How long does approval take?</summary><div><p>Usually two to four working days once we have all your documents. We keep the car for you while you wait.</p></div></details>
+        <details><summary>Can I pay it off early?</summary><div><p>Yes. Most lenders allow early settlement. Some charge a small fee, which we tell you about before you sign.</p></div></details>
+      </div>
+    </section>
+  </main>
+  <footer data-site-footer></footer>
+</body>
+</html>
