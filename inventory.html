@@ -1,80 +1,75 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-MU">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventory — V8 Motors</title>
-  <meta name="description" content="Every pre-owned car at V8 Motors, Beau Bassin. Filter by make, body, price, year, mileage and fuel." />
-  <meta name="theme-color" content="#E4E6E8" />
-  <link rel="icon" href="favicon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!--@head-->
+  <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preconnect" href="https://images.unsplash.com" />
   <style>@view-transition { navigation: auto; }</style>
   <script type="module" src="/src/pages/inventory.js" blocking="render"></script>
 </head>
-<body class="bg-cyc text-asphalt antialiased page-inventory">
+<body class="page-inventory">
   <a href="#results" class="skip-link">Skip to results</a>
-  <header data-site-nav></header>
+  <!--@nav:inventory-->
 
-  <main>
+  <main id="main">
     <section class="page-head wrap">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Inventory</span></nav>
-      <h1 class="page-title" data-rise>Every car on the floor</h1>
-      <p class="page-lede"><span data-total></span> inspected cars, each with a warranty and a full report. Updated <time data-updated></time>.</p>
+      <h1 class="page-title" data-title>Used cars for sale</h1>
+      <p class="page-lede"><!--@total--> inspected cars in the Beau Bassin showroom, each with a warranty and a full report.</p>
     </section>
 
     <div class="wrap inv-layout">
-      <!-- Filters -->
       <aside class="inv-filters" data-filter-panel aria-label="Filters" data-lenis-prevent>
         <div class="inv-filters-head">
           <h2>Filters</h2>
           <button type="button" class="link" data-reset>Reset all</button>
           <button type="button" class="inv-filters-close" data-close-filters aria-label="Close filters"></button>
         </div>
-        <form data-filters onsubmit="return false">
+        <form data-filters action="inventory.html" method="get">
           <label class="field field-search">
             <span class="sr-only">Search make or model</span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-            <input type="search" name="q" placeholder="Search make or model" autocomplete="off" />
+            <input type="search" name="q" placeholder="Search make or model" autocomplete="off" enterkeyhint="search" />
           </label>
 
           <fieldset class="fgroup">
             <legend>Body type</legend>
-            <div class="body-grid" data-body-opts></div>
+            <div class="body-grid"><!--@opts:body--></div>
           </fieldset>
 
           <fieldset class="fgroup">
             <legend>Price</legend>
-            <div class="range2" data-range="price" data-min="500000" data-max="22000000" data-step="50000">
+            <div class="range2" data-range="price" data-step="50000">
               <div class="range2-track"><span class="range2-fill"></span></div>
               <input type="range" aria-label="Minimum price" data-lo />
               <input type="range" aria-label="Maximum price" data-hi />
             </div>
-            <p class="range2-out tabular-nums" data-range-out="price"></p>
+            <p class="range2-out tabular-nums" data-range-out="price">Any price</p>
           </fieldset>
 
           <fieldset class="fgroup">
             <legend>Year</legend>
-            <div class="range2" data-range="year" data-min="2015" data-max="2024" data-step="1">
+            <div class="range2" data-range="year" data-step="1">
               <div class="range2-track"><span class="range2-fill"></span></div>
               <input type="range" aria-label="Earliest year" data-lo />
               <input type="range" aria-label="Latest year" data-hi />
             </div>
-            <p class="range2-out tabular-nums" data-range-out="year"></p>
+            <p class="range2-out tabular-nums" data-range-out="year">Any year</p>
           </fieldset>
 
           <fieldset class="fgroup">
             <legend>Mileage</legend>
-            <label class="slider slider-light">
-              <span class="slider-top"><span>Up to</span><output class="tabular-nums" data-km-out></output></span>
-              <input type="range" name="km" min="10000" max="200000" step="5000" value="200000" />
+            <label class="slider">
+              <span class="slider-top"><span>Up to</span><output class="tabular-nums" data-km-out>Any</output></span>
+              <input type="range" name="km" min="10000" max="220000" step="5000" value="220000" />
             </label>
           </fieldset>
 
           <fieldset class="fgroup">
             <legend>Fuel</legend>
-            <div class="pill-row" data-fuel-opts></div>
+            <div class="pill-row"><!--@opts:fuel--></div>
           </fieldset>
 
           <fieldset class="fgroup">
@@ -87,7 +82,7 @@
 
           <fieldset class="fgroup">
             <legend>Make</legend>
-            <div class="make-list" data-make-opts></div>
+            <div class="make-list"><!--@opts:make--></div>
           </fieldset>
 
           <fieldset class="fgroup fgroup--toggles">
@@ -96,14 +91,13 @@
             <label class="toggle"><input type="checkbox" name="available" /><span>Hide reserved cars</span></label>
           </fieldset>
         </form>
-        <button type="button" class="btn btn-dark btn-wide inv-filters-apply" data-close-filters>Show <span data-count-btn>0</span> cars</button>
+        <div class="inv-filters-apply"><button type="button" class="btn btn-primary" data-close-filters>Show <span class="tabular-nums" data-count-btn><!--@total--></span> cars</button></div>
       </aside>
 
-      <!-- Results -->
       <section class="inv-results" id="results" aria-label="Results">
         <div class="inv-toolbar">
-          <p class="inv-count" aria-live="polite"><strong class="tabular-nums" data-count>0</strong> <span data-count-word>cars</span></p>
-          <button type="button" class="btn btn-line inv-open-filters" data-open-filters>Filters <span class="badge" data-active-n hidden></span></button>
+          <p class="inv-count" aria-live="polite"><strong class="tabular-nums" data-count><!--@total--></strong> <span data-count-word>cars</span></p>
+          <button type="button" class="btn btn-line btn-sm inv-open-filters" data-open-filters>Filters <span class="badge" data-active-n hidden></span></button>
           <label class="field field-compact">
             <span class="field-label">Sort by</span>
             <select name="sort" data-sort>
@@ -122,42 +116,42 @@
         </div>
         <div class="chips" data-chips aria-label="Active filters"></div>
 
-        <ul class="grid-cars" data-grid data-view="grid"></ul>
+        <ul class="grid-cars" data-grid data-view="grid"><!--@grid--></ul>
 
         <div class="inv-more" data-more-wrap>
           <p class="tabular-nums" data-showing></p>
           <div class="inv-more-bar" aria-hidden="true"><span data-more-bar></span></div>
-          <button type="button" class="btn btn-line" data-more data-magnetic>Show more cars</button>
+          <button type="button" class="btn btn-line" data-more>Show more cars</button>
         </div>
 
         <div class="empty" data-empty hidden>
           <p class="empty-title">No cars match these filters.</p>
-          <p>Widen the price or year range, or remove a filter below. New cars arrive most weeks.</p>
+          <p>Widen the price or year range, or remove a filter. New cars arrive most weeks.</p>
           <div class="empty-actions">
-            <button type="button" class="btn btn-dark" data-reset>Clear all filters</button>
-            <a class="btn btn-line" data-wa-alert target="_blank" rel="noopener">Tell me when one arrives</a>
+            <button type="button" class="btn btn-primary" data-reset>Clear all filters</button>
+            <a class="btn btn-line" data-wa-alert rel="noopener">Tell me when one arrives</a>
           </div>
         </div>
       </section>
     </div>
 
-    <section class="section recent wrap" data-recent-wrap hidden>
-      <h2 class="section-title section-title--sm">You looked at</h2>
+    <section class="section wrap" data-recent-wrap hidden>
+      <h2 class="section-title">You looked at</h2>
       <ul class="mini-rail" data-recent></ul>
     </section>
   </main>
 
-  <!-- Compare tray -->
   <div class="tray" data-tray aria-live="polite" hidden>
     <div class="tray-inner">
       <p class="tray-label"><strong data-tray-n>0</strong> of 3 to compare</p>
       <ul class="tray-cars" data-tray-cars></ul>
       <button type="button" class="link" data-tray-clear>Clear</button>
-      <a href="compare.html" class="btn btn-red" data-tray-go>Compare</a>
+      <a href="compare.html" class="btn btn-primary btn-sm" data-tray-go>Compare</a>
     </div>
   </div>
   <div class="scrim" data-scrim hidden></div>
 
-  <footer data-site-footer></footer>
+  <!--@footer-->
+  <!--@tabbar:inventory-->
 </body>
 </html>

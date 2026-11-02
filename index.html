@@ -1,165 +1,169 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-MU">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>V8 Motors — Pre-owned cars in Mauritius</title>
-  <meta name="description" content="Inspected, warrantied pre-owned cars at V8 Motors, Beau Bassin. Browse the showroom, sell your car, and work out finance in rupees." />
-  <meta name="theme-color" content="#E4E6E8" />
-  <link rel="icon" href="favicon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
-  <link rel="preload" href="models/ferrari.glb" as="fetch" crossorigin />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <!--@head-->
+  <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <script>
+    // Decide before first paint whether the intro plays (first visit per session, motion allowed).
+    try { if (!sessionStorage.getItem('v8:intro') && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('play-intro'); } catch (e) {}
+  </script>
+  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="preload" as="image" fetchpriority="high"
+    imagesrcset="https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=2200&q=70 2200w"
+    imagesizes="100vw" />
   <style>@view-transition { navigation: auto; }</style>
   <script type="module" src="/src/pages/home.js" blocking="render"></script>
 </head>
-<body class="bg-cyc text-asphalt antialiased">
-  <a href="#arrivals-title" class="skip-link">Skip to the cars</a>
+<body class="page-home">
+  <a href="#main" class="skip-link">Skip to content</a>
 
-  <!-- ============ LOADER: rev counter ============ -->
-  <div id="loader" class="loader" role="status" aria-live="polite">
-    <div class="loader-inner">
-      <svg class="tach" viewBox="0 0 400 400" aria-hidden="true">
-        <g class="tach-ticks"></g>
-        <path class="tach-redline" />
-        <g class="tach-needle">
-          <line x1="200" y1="200" x2="200" y2="62" />
-          <circle cx="200" cy="200" r="14" />
-        </g>
+  <!-- Intro: the logo is a V8. Two cylinder banks assemble, the eight bores fire in a real
+       V8 firing order while the page loads, then the V opens into the hero photo. -->
+  <div class="intro" data-intro aria-hidden="true">
+    <div class="intro-center">
+      <svg class="intro-mark" viewBox="0 0 64 48" data-intro-mark>
+        <path class="intro-bank" pathLength="1" d="M32 42 8.6 10.8" />
+        <path class="intro-bank" pathLength="1" d="M32 42 55.4 10.8" />
+        <circle class="intro-bore" data-cyl="1" cx="24.8" cy="32.4" r="3.1" />
+        <circle class="intro-bore" data-cyl="3" cx="20" cy="26" r="3.1" />
+        <circle class="intro-bore" data-cyl="5" cx="15.2" cy="19.6" r="3.1" />
+        <circle class="intro-bore" data-cyl="7" cx="10.4" cy="13.2" r="3.1" />
+        <circle class="intro-bore" data-cyl="2" cx="39.2" cy="32.4" r="3.1" />
+        <circle class="intro-bore" data-cyl="4" cx="44" cy="26" r="3.1" />
+        <circle class="intro-bore" data-cyl="6" cx="48.8" cy="19.6" r="3.1" />
+        <circle class="intro-bore" data-cyl="8" cx="53.6" cy="13.2" r="3.1" />
+        <circle class="intro-crank" pathLength="1" cx="32" cy="42" r="4.2" />
       </svg>
-      <div class="loader-readout">
-        <span class="loader-pct tabular-nums" data-pct>0</span>
-        <span class="loader-msg" data-msg>Warming up the showroom</span>
-      </div>
+      <p class="intro-word" data-intro-word>V8 Motors</p>
+      <p class="intro-order tabular-nums" data-intro-order><span>1</span><span>8</span><span>4</span><span>3</span><span>6</span><span>5</span><span>7</span><span>2</span></p>
     </div>
-    <p class="loader-unit">rpm × 1000</p>
   </div>
 
-  <header data-site-nav></header>
+  <!--@nav:home-->
 
-  <main id="top">
-    <!-- ============ 3D STAGE ============ -->
-    <section id="stage" class="stage" aria-label="Featured car">
-      <div class="stage-sticky">
-        <canvas id="gl" class="stage-canvas" aria-label="3D model of a Ferrari 458 Italia on a turntable. Drag to turn it."></canvas>
-        <div class="stage-fallback" aria-hidden="true"></div>
-        <div class="stage-light" aria-hidden="true"></div>
-
-        <!-- Step 0 -->
-        <div class="stage-copy" data-step="0">
-          <h1 class="hero-title" data-stretch>
-            <span class="line"><span>Pre-owned,</span></span>
-            <span class="line"><span>properly.</span></span>
-          </h1>
-          <p class="hero-lede">
-            Every car on our floor is inspected, serviced and priced up front.
-            <span data-car-count>13</span> cars are in the Beau Bassin showroom this week.
-          </p>
-          <div class="hero-ctas">
-            <a href="inventory.html" class="btn btn-dark" data-magnetic>Browse the cars</a>
-            <a href="sell.html" class="btn btn-line" data-magnetic>Sell your car</a>
-          </div>
-        </div>
-
-        <!-- Step 1 -->
-        <div class="stage-copy stage-copy--step" data-step="1" aria-hidden="true">
-          <h2 class="step-title">150 checks before it’s listed.</h2>
-          <p class="step-body">Brakes, suspension, bodywork, electrics and a road test by our own workshop. The full report comes with the car, and so does a 12-month warranty.</p>
-          <ul class="check-list">
-            <li>Brakes and tyres</li>
-            <li>Engine and gearbox</li>
-            <li>Bodywork and paint depth</li>
-            <li>Electrics and diagnostics</li>
-          </ul>
-        </div>
-
-        <!-- Step 2 -->
-        <div class="stage-copy stage-copy--step" data-step="2" aria-hidden="true">
-          <h2 class="step-title">Finance from <span class="tabular-nums" data-min-monthly>Rs 12,600</span> a month.</h2>
-          <p class="step-body">Spread the cost over up to seven years with our partner banks. Work out your own figure before you call us.</p>
-          <a href="finance.html" class="btn btn-dark" tabindex="-1">Work out my payments</a>
-        </div>
-
-        <!-- Featured car panel -->
-        <aside class="featured" aria-label="Car on the turntable">
-          <p class="featured-title"><span data-featured-title></span> <span class="featured-year tabular-nums" data-featured-year></span></p>
-          <dl class="featured-specs" data-featured-specs></dl>
-          <p class="featured-price tabular-nums" data-featured-price></p>
-          <fieldset class="paints">
-            <legend>Paint: <span data-paint-name>Redline</span></legend>
-            <div class="paint-row" data-paints></div>
-          </fieldset>
-          <p class="drag-hint">Drag the car to turn it</p>
-        </aside>
-
-        <ol class="stage-rail" aria-hidden="true">
-          <li data-rail="0"><span>The car</span></li>
-          <li data-rail="1"><span>Inspection</span></li>
-          <li data-rail="2"><span>Finance</span></li>
-        </ol>
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <img class="hero-img" data-hero-img
+        src="https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=1400&q=70"
+        srcset="https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=2200&q=70 2200w"
+        sizes="100vw" width="2200" height="1467" fetchpriority="high" decoding="async"
+        alt="A dark green Range Rover with its headlights on, parked on a track through a pine forest" />
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="wrap hero-inner">
+        <h1 class="hero-title" id="hero-title" data-hero-title><span class="line"><span>Pre-owned,</span></span> <span class="line"><span>properly.</span></span></h1>
+        <p class="hero-lede" data-hero-fade>Every car on our floor is inspected, serviced and priced up front. <!--@count--> cars are ready to view in Beau Bassin this week.</p>
+        <form class="search" action="inventory.html" method="get" data-search data-hero-fade>
+          <label class="field"><span class="field-label">Make</span>
+            <select name="make"><option value="">Any make</option><!--@makeoptions--></select></label>
+          <label class="field"><span class="field-label">Body</span>
+            <select name="body"><option value="">Any body</option><!--@bodyoptions--></select></label>
+          <label class="field"><span class="field-label">Budget</span>
+            <select name="max">
+              <option value="">Any budget</option>
+              <option value="1000000">Up to Rs 1,000,000</option>
+              <option value="2500000">Up to Rs 2,500,000</option>
+              <option value="5000000">Up to Rs 5,000,000</option>
+              <option value="10000000">Up to Rs 10,000,000</option>
+            </select></label>
+          <button class="btn btn-primary search-go" type="submit">Show <span class="tabular-nums" data-search-count><!--@total--></span> cars</button>
+        </form>
       </div>
     </section>
 
-    <!-- ============ JUST ARRIVED (horizontal scroll) ============ -->
     <section class="arrivals" aria-labelledby="arrivals-title">
       <div class="arrivals-pin">
         <div class="arrivals-head wrap">
-          <h2 class="section-title" id="arrivals-title" data-stretch-view>Just arrived</h2>
-          <div class="arrivals-meta">
-            <p class="section-sub">The newest cars on the floor, fresh from the workshop.</p>
-            <a href="inventory.html" class="btn btn-dark" data-magnetic>See all <span data-total-cars>42</span> cars</a>
-          </div>
+          <h2 class="section-title" id="arrivals-title">Just arrived</h2>
+          <p class="section-sub">The newest cars on the floor, fresh from the workshop.</p>
         </div>
-        <div class="arrivals-track-wrap">
-          <ul class="arrivals-track" data-arrivals></ul>
-        </div>
+        <div class="arrivals-track-wrap"><ul class="arrivals-track" data-arrivals><!--@arrivals--></ul></div>
         <div class="arrivals-progress wrap" aria-hidden="true"><span data-arrivals-bar></span></div>
       </div>
     </section>
 
-    <!-- ============ MAKES MARQUEE ============ -->
-    <section class="makes" aria-label="Makes in stock">
-      <div class="marquee" data-marquee><div class="marquee-row" data-marquee-row></div></div>
+    <section class="section inspect" aria-labelledby="check-title">
+      <div class="wrap check-grid">
+        <div class="check-copy">
+          <h2 class="section-title" id="check-title">150 checks before a car goes on sale.</h2>
+          <p class="section-sub">Our own workshop goes over every car. Tap a point on the car to see what we look at.</p>
+          <ul class="check-points" data-points>
+            <li><button type="button" data-point="0" aria-pressed="true"><strong>Brakes and tyres</strong><span>Disc and pad wear measured, tread depth and tyre age checked. Nothing older than five years leaves on our cars.</span></button></li>
+            <li><button type="button" data-point="1" aria-pressed="false"><strong>Engine and gearbox</strong><span>Compression, leaks, fluid condition and a diagnostic scan. On this 911 that means looking in the back.</span></button></li>
+            <li><button type="button" data-point="2" aria-pressed="false"><strong>Bodywork and paint</strong><span>Paint depth measured panel by panel, so we know about any repaint before you do.</span></button></li>
+            <li><button type="button" data-point="3" aria-pressed="false"><strong>Lights and electrics</strong><span>Every lamp, sensor, window and screen tested, fault codes read and cleared.</span></button></li>
+            <li><button type="button" data-point="4" aria-pressed="false"><strong>Interior</strong><span>Seats, belts, air conditioning and every switch. We fix what we find before listing.</span></button></li>
+            <li><button type="button" data-point="5" aria-pressed="false"><strong>Suspension and road test</strong><span>Bushes, dampers and alignment, then 20 km on the road with one of our technicians.</span></button></li>
+          </ul>
+        </div>
+        <figure class="check-figure">
+          <img src="https://images.unsplash.com/photo-1634673970798-a15ae56f6c65?auto=format&fit=crop&w=1400&q=70"
+            srcset="https://images.unsplash.com/photo-1634673970798-a15ae56f6c65?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1634673970798-a15ae56f6c65?auto=format&fit=crop&w=1400&q=70 1400w"
+            sizes="(min-width: 1000px) 60vw, 100vw" width="1600" height="1000" loading="lazy" decoding="async"
+            alt="A grey Porsche 911 GT3 RS parked outside a building, seen from the front three-quarter angle" />
+          <button type="button" class="hotspot" data-point="0" style="--x:53%;--y:58%" aria-label="Brakes and tyres"></button>
+          <button type="button" class="hotspot" data-point="1" style="--x:75%;--y:38%" aria-label="Engine and gearbox"></button>
+          <button type="button" class="hotspot" data-point="2" style="--x:62%;--y:47%" aria-label="Bodywork and paint"></button>
+          <button type="button" class="hotspot" data-point="3" style="--x:27%;--y:48%" aria-label="Lights and electrics"></button>
+          <button type="button" class="hotspot" data-point="4" style="--x:49%;--y:34%" aria-label="Interior"></button>
+          <button type="button" class="hotspot" data-point="5" style="--x:77%;--y:56%" aria-label="Suspension and road test"></button>
+        </figure>
+      </div>
     </section>
 
-    <!-- ============ BODY TYPES ============ -->
-    <section class="section bodies">
+    <section class="makes" aria-label="Makes in stock">
+      <div class="marquee"><div class="marquee-row" data-marquee-row><!--@makes--></div></div>
+    </section>
+
+    <section class="section bodies" aria-labelledby="bodies-title">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="section-title" data-stretch-view>What are you driving next?</h2>
+          <h2 class="section-title" id="bodies-title">What are you driving next?</h2>
           <p class="section-sub">Pick a shape to see everything we have in it.</p>
         </div>
-        <ul class="body-tiles" data-body-tiles></ul>
+        <ul class="body-tiles"><!--@bodies--></ul>
       </div>
     </section>
 
-    <!-- ============ SELL / FINANCE ============ -->
-    <section class="section split">
-      <div class="wrap split-grid">
-        <a href="sell.html" class="split-panel split-panel--sell" data-cursor="Start">
-          <span class="split-kicker">Sell your car</span>
-          <span class="split-title">An offer within a day. Paid the same afternoon.</span>
-          <span class="split-foot"><span class="split-num tabular-nums">24 h</span><span>to a written offer, with the NLTA transfer handled for you</span></span>
-        </a>
-        <a href="finance.html" class="split-panel split-panel--finance" data-cursor="Calculate">
-          <span class="split-kicker">Finance</span>
-          <span class="split-title">See your monthly figure before you call us.</span>
-          <span class="split-foot"><span class="split-num tabular-nums" data-min-monthly-2>Rs 10,000</span><span>a month is where our cheapest car starts, with 20% down</span></span>
-        </a>
+    <section class="section money" aria-labelledby="money-title">
+      <div class="wrap money-grid">
+        <div>
+          <h2 class="section-title" id="money-title">What would it cost a month?</h2>
+          <p class="section-sub">Slide to a price. Worked out with 20% down over five years at 6.9%.</p>
+          <a class="link" href="finance.html" data-money-link>Open the full finance calculator</a>
+        </div>
+        <div class="money-box">
+          <p class="money-figure tabular-nums" aria-live="polite"><span data-money-out>Rs 38,700</span><small>a month</small></p>
+          <label class="slider">
+            <span class="slider-top"><span>Car price</span><output class="tabular-nums" data-money-price>Rs 2,450,000</output></span>
+            <input type="range" min="400000" max="25000000" step="50000" value="2450000" data-money />
+          </label>
+          <a class="money-match" href="inventory.html" data-money-match></a>
+        </div>
       </div>
     </section>
 
-    <!-- ============ VISIT STRIP ============ -->
-    <section class="visit-strip">
+    <section class="section sellband" aria-labelledby="sell-title">
+      <div class="wrap sellband-inner">
+        <div>
+          <h2 class="section-title" id="sell-title">Selling? We’ll make an offer within a day.</h2>
+          <p class="section-sub">Paid the same afternoon. We handle the NLTA transfer and settle any finance on it.</p>
+        </div>
+        <a class="btn btn-line btn-lg" href="sell.html">Value my car</a>
+      </div>
+    </section>
+
+    <section class="visit-strip" aria-label="Showroom">
       <div class="wrap visit-strip-inner">
         <p class="open-status" data-open-status></p>
-        <p class="visit-strip-addr" data-address></p>
-        <a href="contact.html" class="btn btn-line" data-magnetic>Plan a visit</a>
+        <p class="visit-strip-addr">Royal Road, Beau Bassin</p>
+        <a href="contact.html" class="link">Opening hours and directions</a>
       </div>
     </section>
   </main>
 
-  <footer data-site-footer></footer>
+  <!--@footer-->
+  <!--@tabbar:home-->
 </body>
 </html>

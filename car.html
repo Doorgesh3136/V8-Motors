@@ -1,21 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-MU">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Car details — V8 Motors</title>
-  <meta name="theme-color" content="#E4E6E8" />
-  <link rel="icon" href="favicon.svg" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet" />
-  <style>@view-transition { navigation: auto; }</style>
-  <script type="module" src="/src/pages/car.js" blocking="render"></script>
+  <!--@head-->
+  <meta name="robots" content="noindex" />
+  <script>
+    // Old links used car.html?id=...; every car now has its own page.
+    (function () {
+      var id = new URLSearchParams(location.search).get('id');
+      location.replace(id && /^[a-z0-9-]+$/.test(id) ? 'cars/' + id + '.html' : 'inventory.html');
+    })();
+  </script>
 </head>
-<body class="bg-cyc text-asphalt antialiased page-car">
-  <a href="#book" class="skip-link">Skip to booking</a>
-  <header data-site-nav></header>
-  <main data-car-root></main>
-  <footer data-site-footer></footer>
+<body style="background:#0c1722;color:#ece6dc;font-family:system-ui,sans-serif;padding:2rem">
+  <p>Opening the car. If nothing happens, <a href="inventory.html" style="color:#f0a030">browse the inventory</a>.</p>
 </body>
 </html>

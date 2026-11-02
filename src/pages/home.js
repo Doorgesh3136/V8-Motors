@@ -1,201 +1,197 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$, magnetize, tilt, stretchHeadings } from '../lib/layout.js';
-import { carCard, wireCardActions, shapeSvg } from '../lib/card.js';
+import { initLayout, reduced, $, $$ } from '../lib/layout.js';
+import { wireCardActions } from '../lib/card.js';
 import { renderStatus } from '../lib/hours.js';
-import { CARS, DEALER, FEATURED, PAINTS, BODY_TYPES, rs, monthly } from '../data.js';
-import { createTach } from '../loader.js';
+import { CARS, rs, monthly } from '../data.js';
 
-const firstVisit = !sessionStorage.getItem('v8:seen-loader');
-document.body.classList.add('is-loading');
-const { lenis } = initLayout('home', { overlayNav: true });
-lenis?.stop();
+const FIRING = [1, 8, 4, 3, 6, 5, 7, 2]; // V8 firing order
+const { lenis } = initLayout({ home: true });
 wireCardActions();
-
-// ---------------------------------------------------------------- content
-const minMonthly = rs(Math.round(Math.min(...CARS.map((c) => monthly(c.price))) / 100) * 100);
-$('[data-car-count]').textContent = CARS.filter((c) => c.status !== 'Reserved').length;
-$('[data-min-monthly]').textContent = minMonthly;
-$('[data-min-monthly-2]').textContent = minMonthly;
-$('[data-total-cars]').textContent = CARS.length;
-$('[data-address]').textContent = DEALER.address;
 renderStatus($('[data-open-status]'));
-$('[data-featured-title]').textContent = FEATURED.title;
-$('[data-featured-year]').textContent = FEATURED.year;
-$('[data-featured-specs]').innerHTML = FEATURED.specs.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('');
-$('[data-featured-price]').textContent = rs(FEATURED.price);
 
-// Just arrived rail
-const newest = [...CARS].sort((a, b) => b.added.localeCompare(a.added)).slice(0, 8);
-$('[data-arrivals]').innerHTML = newest.map((c) => carCard(c)).join('') +
-  `<li class="arrivals-end"><a href="inventory.html" class="arrivals-end-link" data-cursor="Browse"><span>All ${CARS.length} cars</span><span class="arrivals-end-arrow" aria-hidden="true"></span></a></li>`;
+const playIntro = document.documentElement.classList.contains('play-intro');
+if (playIntro) lenis?.stop();
 
-// Makes marquee
-const makes = [...new Set(CARS.map((c) => c.make))].sort();
-const makeItems = makes.map((m) => `<a href="inventory.html?make=${encodeURIComponent(m)}" class="marquee-item">${m}<sup class="tabular-nums">${CARS.filter((c) => c.make === m).length}</sup></a>`).join('');
-$('[data-marquee-row]').innerHTML = `<div class="marquee-set">${makeItems}</div><div class="marquee-set" aria-hidden="true">${makeItems.replaceAll('<a ', '<a tabindex="-1" ')}</div>`;
-
-// Body tiles
-$('[data-body-tiles]').innerHTML = BODY_TYPES.map((t) => {
-  const list = CARS.filter((c) => c.body === t);
-  if (!list.length) return '';
-  const from = Math.min(...list.map((c) => c.price));
-  return `<li><a href="inventory.html?body=${t}" class="body-tile" data-cursor="Browse">
-    ${shapeSvg(t)}
-    <span class="body-tile-name">${t === 'SUV' ? 'SUVs' : t + 's'}</span>
-    <span class="body-tile-meta tabular-nums">${list.length} in stock, from ${rs(from)}</span>
-  </a></li>`;
-}).join('');
-
-magnetize();
-tilt();
-
-// ---------------------------------------------------------------- loader + 3D
-const tach = firstVisit ? createTach($('#loader'), { reduced }) : null;
-if (!firstVisit) $('#loader').classList.add('loader--quick');
-let stage = null, STOPS = null;
-let fakeP = 0;
-const fake = setInterval(() => { fakeP = Math.min(0.85, fakeP + 0.04); tach?.set(fakeP * 0.6); }, 120);
-
-async function boot() {
-  try {
-    if (!document.createElement('canvas').getContext('webgl2')) throw new Error('WebGL2 unavailable');
-    const mod = await import('../scene.js');
-    if (mod.deviceProfile().skip3D) throw new Error('Data saver or low-memory device, using the photo instead of 3D');
-    STOPS = mod.STOPS;
-    stage = mod.createScene($('#gl'), { reduced, onProgress: (p) => tach?.set(0.15 + p * 0.85) });
-    await Promise.all([stage.ready, document.fonts.ready, wait(firstVisit && !reduced ? 1300 : 0)]);
-  } catch (err) {
-    console.warn('3D showroom unavailable, using photo fallback.', err);
-    document.documentElement.classList.add('no-webgl');
-    stage = null;
-    await document.fonts.ready;
-  }
-  clearInterval(fake);
-  window.scrollTo(0, 0);
-  if (tach) await tach.finish();
-  else await gsap.to('#loader', { opacity: 0, duration: 0.5 }).then(() => $('#loader')?.remove());
-  sessionStorage.setItem('v8:seen-loader', '1');
-  document.body.classList.remove('is-loading');
+runIntro().then(() => {
+  document.documentElement.classList.remove('play-intro');
+  sessionStorage.setItem('v8:intro', '1');
   lenis?.start();
-  intro();
-  setupStage();
+  if (!heroStarted) heroIn();
+  setupSearch();
   setupArrivals();
+  setupChecks();
   setupMarquee();
-  stretchHeadings();
+  setupMoney();
   ScrollTrigger.refresh();
-}
-boot();
+});
 
-function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
-
-function intro() {
-  if (reduced) return;
-  const tl = gsap.timeline({ defaults: { ease: 'expo.out' } });
-  tl.from($$('.hero-title .line > span'), { yPercent: 110, duration: 1.3, stagger: 0.09 })
-    .fromTo('.hero-title', { '--wdth': 62 }, { '--wdth': 125, duration: 1.6, ease: 'expo.inOut' }, 0)
-    .from('.hero-lede, .hero-ctas', { opacity: 0, y: 20, duration: 1, stagger: 0.08 }, 0.5)
-    .from('.featured', { opacity: 0, x: 30, duration: 1.1 }, 0.65)
-    .from('.stage-rail li', { opacity: 0, y: 10, stagger: 0.06, duration: 0.8 }, 0.8)
-    .from('[data-site-nav]', { yPercent: -100, duration: 1, clearProps: 'transform,translate' }, 0.4);
-  if (stage) tl.from(stage.cam, { theta: 4.2, r: 13, y: 2.8, duration: 2.4 }, 0);
+/* ================================================================== intro
+   1. The two cylinder banks extrude out of the crank, the eight bores drop in.
+   2. While the hero photo and fonts load, the bores fire in V8 firing order (1-8-4-3-6-5-7-2).
+   3. Everything fires at once, and the V becomes a window that opens onto the hero photo. */
+function waitForAssets() {
+  const img = $('[data-hero-img]');
+  const loaded = img.complete ? Promise.resolve() : new Promise((r) => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); });
+  const decoded = loaded.then(() => img.decode?.().catch(() => {}));
+  const timeout = new Promise((r) => setTimeout(r, 5000)); // slow connection: never hold the page hostage
+  return Promise.race([Promise.all([decoded, document.fonts.ready]), timeout]);
 }
 
-function setupStage() {
-  const row = $('[data-paints]');
-  row.innerHTML = PAINTS.map((p, i) =>
-    `<button type="button" class="paint" style="--c:${p.hex}" data-paint="${i}" aria-pressed="${i === 0}" aria-label="${p.name} paint"></button>`).join('');
-  row.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-paint]');
-    if (!b) return;
-    const p = PAINTS[+b.dataset.paint];
-    stage?.setPaint(p.hex);
-    $('[data-paint-name]').textContent = p.name;
-    $$('[data-paint]', row).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+async function runIntro() {
+  const intro = $('[data-intro]');
+  if (!playIntro) { intro?.remove(); return; }
+
+  const banks = $$('.intro-bank', intro);
+  const bores = $$('.intro-bore', intro);
+  const crank = $('.intro-crank', intro);
+  const mark = $('[data-intro-mark]', intro);
+  const word = $('[data-intro-word]', intro);
+  const orderWrap = $('[data-intro-order]', intro);
+  const order = $$('span', orderWrap);
+  const byCyl = (n) => bores.find((b) => +b.dataset.cyl === n);
+
+  // 1. assemble
+  gsap.timeline({ defaults: { ease: 'expo.out' } })
+    .fromTo(crank, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.6, ease: 'power2.inOut' }, 0)
+    .fromTo(banks, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.9, stagger: 0.08, ease: 'power3.inOut' }, 0.15)
+    .fromTo(bores, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.6, stagger: 0.05, ease: 'back.out(3)' }, 0.55)
+    .fromTo(word, { opacity: 0, y: 14, '--wdth': 70 }, { opacity: 1, y: 0, '--wdth': 125, duration: 1.1 }, 0.7)
+    .fromTo(order, { opacity: 0 }, { opacity: 0.35, duration: 0.4, stagger: 0.03 }, 0.9);
+
+  // 2. fire in order until the page is ready (at least one full cycle)
+  let ready = false;
+  const assets = waitForAssets().then(() => (ready = true));
+  const fire = gsap.timeline({ repeat: -1, delay: 1.1 });
+  FIRING.forEach((n, i) => {
+    fire.to(byCyl(n), { fill: '#f0a030', duration: 0.05 }, i * 0.11)
+      .to(byCyl(n), { fill: '#0c1722', duration: 0.35, ease: 'power2.out' }, i * 0.11 + 0.06)
+      .to(order[i], { opacity: 1, color: '#f0a030', duration: 0.05 }, i * 0.11)
+      .to(order[i], { opacity: 0.35, color: '#9aa8b5', duration: 0.35 }, i * 0.11 + 0.06);
   });
+  await Promise.all([assets, new Promise((r) => setTimeout(r, 2300))]);
+  while (!ready) await new Promise((r) => setTimeout(r, 100));
+  fire.kill();
 
-  const steps = $$('.stage-copy');
-  const rails = $$('[data-rail]');
-  const setStep = (i) => {
-    rails.forEach((r, k) => r.classList.toggle('is-on', k === i));
-    steps.forEach((s, k) => {
-      s.setAttribute('aria-hidden', String(k !== i));
-      $$('a', s).forEach((a) => (a.tabIndex = k === i ? 0 : -1));
-    });
+  // 3. full throttle, then open the V onto the hero
+  const box = mark.getBoundingClientRect();
+  const cx = box.left + box.width / 2;
+  const cy = box.top + box.height * 0.5;
+  const W = innerWidth, H = innerHeight;
+  // A V with a notch; as it grows the notch closes, so the hole becomes a solid shape that clears the screen.
+  const hole = { s: box.width * 0.45, notch: 0.42 };
+  const draw = () => {
+    const s = hole.s, n = hole.notch;
+    const pts = [[-1, -0.75], [-0.56, -0.75], [0, n], [0.56, -0.75], [1, -0.75], [0.2, 1], [-0.2, 1]]
+      .map(([x, y]) => `${(cx + x * s).toFixed(1)} ${(cy + y * s).toFixed(1)}`);
+    intro.style.clipPath = `path(evenodd, "M0 0H${W}V${H}H0Z M${pts.join(' L')}Z")`;
   };
-  setStep(0);
 
-  const tl = gsap.timeline({
-    defaults: { ease: 'power2.inOut' },
-    scrollTrigger: {
-      trigger: '#stage', start: 'top top', end: 'bottom bottom', scrub: reduced ? true : 1.1,
-      onUpdate: (s) => {
-        setStep(s.progress < 0.3 ? 0 : s.progress < 0.68 ? 1 : 2);
-        stage?.nudgeWheels(Math.abs(s.getVelocity()) / 2500);
-      },
-    },
-  });
-  tl.to('[data-step="0"]', { autoAlpha: 0, y: -40, duration: 0.6 }, 0.25)
-    .to('.hero-title', { '--wdth': 62, duration: 0.6 }, 0.2)
-    .to('.featured', { autoAlpha: 0, y: 20, duration: 0.4 }, 0.25)
-    .fromTo('[data-step="1"]', { autoAlpha: 0, y: 40 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 0.75)
-    .fromTo('[data-step="1"] .check-list li', { autoAlpha: 0, x: -20 }, { autoAlpha: 1, x: 0, stagger: 0.08, duration: 0.3 }, 0.9)
-    .to('[data-step="1"]', { autoAlpha: 0, y: -40, duration: 0.5 }, 1.65)
-    .fromTo('[data-step="2"]', { autoAlpha: 0, y: 40 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 2.05)
-    .to({}, { duration: 0.6 }, 2.55);
-  if (stage && STOPS) {
-    tl.fromTo(stage.cam, { ...STOPS[0] }, { ...STOPS[1], duration: 1.1, immediateRender: false }, 0.1)
-      .fromTo(stage.cam, { ...STOPS[1] }, { ...STOPS[2], duration: 1.1, immediateRender: false }, 1.45);
-    ScrollTrigger.create({ trigger: '#stage', start: 'top bottom', end: 'bottom top', onToggle: (s) => stage.setRunning(s.isActive) });
-  }
+  await gsap.timeline({ defaults: { ease: 'expo.inOut' } })
+    .to(bores, { fill: '#f0a030', duration: 0.12, ease: 'none' })
+    .to(order, { opacity: 1, color: '#f0a030', duration: 0.12 }, '<')
+    .to(mark, { scale: 1.1, transformOrigin: '50% 50%', duration: 0.45, ease: 'power2.in' }, '<')
+    .to([mark, word, orderWrap], { opacity: 0, duration: 0.3, ease: 'power1.in' }, '-=0.12')
+    .add(draw, '-=0.3')
+    .to(hole, { s: Math.hypot(W, H) * 1.7, notch: -0.75, duration: 1.15, onUpdate: draw }, '-=0.3')
+    .fromTo('[data-hero-img]', { scale: 1.16 }, { scale: 1, duration: 1.7, ease: 'expo.out' }, '<')
+    .add(heroIn, '-=1.25'); // the headline rises while the window is still opening
+  intro.remove();
 }
 
-/** Vertical scroll drives the "Just arrived" track sideways (desktop). */
+/* ================================================================== hero */
+let heroStarted = false;
+function heroIn() {
+  heroStarted = true;
+  gsap.set('.hero-inner', { opacity: 1 });
+  if (reduced) return;
+  gsap.timeline({ defaults: { ease: 'expo.out' } })
+    .from($$('[data-hero-title] .line > span'), { yPercent: 110, duration: 1.2, stagger: 0.08 })
+    .fromTo('[data-hero-title]', { '--wdth': 70 }, { '--wdth': 125, duration: 1.4, ease: 'expo.inOut' }, 0)
+    .from('[data-hero-fade]', { opacity: 0, y: 24, duration: 1, stagger: 0.1, clearProps: 'opacity,transform' }, 0.35);
+}
+
+/* ================================================================== search */
+function setupSearch() {
+  const f = $('[data-search]');
+  const out = $('[data-search-count]');
+  const count = () => {
+    const make = f.make.value, body = f.body.value, max = +f.max.value || Infinity;
+    const n = CARS.filter((c) => (!make || c.make === make) && (!body || c.body === body) && c.price <= max).length;
+    out.textContent = n;
+    f.querySelector('button').disabled = n === 0;
+  };
+  f.addEventListener('change', count);
+  // keep the URL tidy: empty fields are left out
+  f.addEventListener('submit', () => $$('select', f).forEach((s) => { s.disabled = !s.value; }));
+  addEventListener('pageshow', () => $$('select', f).forEach((s) => (s.disabled = false)));
+  count();
+}
+
+/* ================================================================== just arrived: scrolling down moves the row sideways (desktop) */
 function setupArrivals() {
   const track = $('[data-arrivals]');
   const bar = $('[data-arrivals-bar]');
-  gsap.matchMedia().add('(min-width: 900px)', () => {
-    {
-      const dist = () => Math.max(0, track.scrollWidth + parseFloat(getComputedStyle(track.parentElement).paddingLeft) - window.innerWidth + 40);
-      const tween = gsap.to(track, {
-        x: () => -dist(), ease: 'none',
-        scrollTrigger: {
-          trigger: '.arrivals', start: 'top top', end: () => '+=' + dist(), pin: '.arrivals-pin', scrub: reduced ? true : 0.8,
-          invalidateOnRefresh: true,
-          onUpdate: (s) => {
-            bar.style.transform = `scaleX(${s.progress})`;
-            if (reduced) return;
-            const v = gsap.utils.clamp(-8, 8, s.getVelocity() / -300);
-            gsap.to('.arrivals-track .car-media', { skewX: v, duration: 0.4, overwrite: true });
-          },
-        },
-      });
-      return () => tween.kill();
-    }
+  gsap.matchMedia().add('(min-width: 900px) and (min-height: 600px)', () => {
+    const dist = () => Math.max(0, track.scrollWidth + parseFloat(getComputedStyle(track.parentElement).paddingLeft) - innerWidth + 40);
+    const tween = gsap.to(track, {
+      x: () => -dist(), ease: 'none',
+      scrollTrigger: {
+        trigger: '.arrivals', start: 'top top', end: () => '+=' + dist(), pin: '.arrivals-pin', scrub: reduced ? true : 0.6,
+        invalidateOnRefresh: true,
+        onUpdate: (s) => (bar.style.transform = `scaleX(${s.progress})`),
+      },
+    });
+    return () => tween.kill();
   });
 }
 
-/** Marquee that runs on its own and speeds up / reverses with scroll velocity. */
+/* ================================================================== inspection hotspots */
+function setupChecks() {
+  const all = $$('[data-point]');
+  all.forEach((b) => b.addEventListener('click', () => all.forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.point === b.dataset.point)))));
+}
+
+/* ================================================================== makes marquee: drifts, reacts to scroll speed, stops on hover/focus */
 function setupMarquee() {
   const row = $('[data-marquee-row]');
-  if (reduced) return;
-  let x = 0, dir = -1, boost = 0;
-  const setW = () => row.firstElementChild.offsetWidth;
-  let w = setW();
-  window.addEventListener('resize', () => (w = setW()));
+  if (reduced || !row) return;
+  let x = 0, boost = 0, dir = -1, paused = false, visible = false;
+  let w = row.firstElementChild.offsetWidth;
+  addEventListener('resize', () => (w = row.firstElementChild.offsetWidth));
+  ['pointerenter', 'focusin'].forEach((ev) => row.addEventListener(ev, () => (paused = true)));
+  ['pointerleave', 'focusout'].forEach((ev) => row.addEventListener(ev, () => (paused = false)));
   ScrollTrigger.create({
     trigger: '.makes', start: 'top bottom', end: 'bottom top',
-    onUpdate: (s) => { dir = s.direction === 1 ? -1 : 1; boost = Math.min(Math.abs(s.getVelocity()) / 120, 18); },
+    onUpdate: (s) => { dir = s.direction === 1 ? -1 : 1; boost = Math.min(Math.abs(s.getVelocity()) / 140, 14); },
   });
-  let hovered = false;
-  row.addEventListener('pointerenter', () => (hovered = true));
-  row.addEventListener('pointerleave', () => (hovered = false));
+  new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(row);
   gsap.ticker.add((t, dt) => {
-    const speed = hovered ? 0.15 : 1;
-    x += dir * (0.6 + boost) * speed * (dt / 16.7);
+    if (!visible) return;
+    x += dir * (0.5 + boost) * (paused ? 0 : 1) * (dt / 16.7);
     boost *= 0.92;
     if (x <= -w) x += w;
     if (x > 0) x -= w;
-    row.style.transform = `translate3d(${x}px,0,0) skewX(${(-dir * boost) / 2}deg)`;
+    row.style.transform = `translate3d(${x}px,0,0)`;
   });
+}
+
+/* ================================================================== monthly cost teaser */
+function setupMoney() {
+  const input = $('[data-money]');
+  const shown = { v: monthly(+input.value) };
+  const update = () => {
+    const price = +input.value;
+    input.style.setProperty('--p', ((price - input.min) / (input.max - input.min)) * 100 + '%');
+    $('[data-money-price]').textContent = rs(price);
+    gsap.to(shown, { v: monthly(price), duration: reduced ? 0 : 0.5, ease: 'expo.out', onUpdate: () => ($('[data-money-out]').textContent = rs(Math.round(shown.v / 100) * 100)) });
+    const lo = Math.round((price * 0.8) / 50000) * 50000, hi = Math.round((price * 1.2) / 50000) * 50000;
+    const n = CARS.filter((c) => c.price >= lo && c.price <= hi).length;
+    const m = $('[data-money-match]');
+    m.textContent = n ? `See the ${n} car${n === 1 ? '' : 's'} we have around this price` : 'Nothing in stock at this price right now. See everything we have.';
+    m.href = n ? `inventory.html?price=${lo}-${hi}` : 'inventory.html';
+    $('[data-money-link]').href = `finance.html?price=${price}`;
+  };
+  input.addEventListener('input', update);
+  update();
 }

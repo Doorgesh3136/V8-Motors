@@ -1,10 +1,9 @@
 import gsap from 'gsap';
-import { initLayout, reduced, $, $$, riseIn, stretchHeadings } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, titleIn } from '../lib/layout.js';
 import { CARS, DEALER, byId, rs, monthly, sized, carName } from '../data.js';
 
-initLayout('finance');
-riseIn($('[data-rise]'));
-stretchHeadings();
+initLayout();
+titleIn($('[data-title]'));
 
 const inputs = Object.fromEntries($$('[data-fin]').map((i) => [i.dataset.fin, i]));
 const out = (k) => $(`[data-out="${k}"]`);
@@ -26,8 +25,8 @@ select.insertAdjacentHTML('beforeend', [...CARS].sort((a, b) => a.price - b.pric
 function showCar(c) {
   carCard.hidden = !c;
   if (!c) return;
-  carCard.href = `car.html?id=${c.id}`;
-  carCard.innerHTML = `<img src="${sized(c.images[0], 400)}" alt="" /><span><strong>${carName(c)}</strong><span>${c.trim}</span></span>`;
+  carCard.href = `cars/${c.id}.html`;
+  carCard.innerHTML = `<img src="${sized(c.images[0], 400)}" width="96" height="60" alt="" /><span><strong>${carName(c)}</strong><span>${c.trim}</span></span>`;
   if (!reduced) gsap.from(carCard, { opacity: 0, y: 12, duration: 0.6, ease: 'expo.out' });
 }
 select.addEventListener('change', () => {
@@ -86,6 +85,7 @@ Object.values(inputs).forEach((i) => i.addEventListener('input', () => { if (i =
 
 // ---------------------------------------------------------------- balance chart
 const chart = $('[data-chart]');
+let chartDrawn = false;
 function drawChart(loan, rate, months, pay) {
   const r = rate / 100 / 12;
   const years = months / 12;
@@ -107,14 +107,15 @@ function drawChart(loan, rate, months, pay) {
           <span class="bar-left" style="--h:${row.bal / max}"></span>
         </div>
         <span class="bar-y">Year ${row.y}</span>
-        <div class="bar-tip" role="tooltip"><strong>End of year ${row.y}</strong>
+        <div class="bar-tip ${row.y <= rows.length / 2 ? 'is-start' : 'is-end'}" role="tooltip"><strong>End of year ${row.y}</strong>
           <span>Left to pay <b class="tabular-nums">${rs(row.bal)}</b></span>
           <span>Paid off <b class="tabular-nums">${rs(row.paidPrin)}</b></span>
           <span>Interest so far <b class="tabular-nums">${rs(row.paidInt)}</b></span></div>
       </div>`).join('')}
     </div>
     <ul class="chart-key"><li><i class="k-left"></i>Still owed</li><li><i class="k-paid"></i>Paid off</li></ul>`;
-  if (!reduced) gsap.from($$('.bar-col > span', chart), { scaleY: 0, transformOrigin: 'bottom', duration: 0.8, ease: 'expo.out', stagger: 0.02 });
+  if (!reduced && !chartDrawn) gsap.from($$('.bar-left', chart), { scaleY: 0, transformOrigin: 'bottom', duration: 0.9, ease: 'expo.out', stagger: 0.04 });
+  chartDrawn = true;
 }
 
 // ---------------------------------------------------------------- FAQ with animated open/close

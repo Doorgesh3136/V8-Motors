@@ -1,29 +1,19 @@
-import gsap from 'gsap';
-import { initLayout, reduced, $, riseIn, stretchHeadings } from '../lib/layout.js';
+import { initLayout, $, titleIn, looksLikeSpam, validateFields } from '../lib/layout.js';
 import { renderStatus, renderHours } from '../lib/hours.js';
 import { DEALER } from '../data.js';
+import { esc } from '../lib/templates.js';
 
-initLayout('contact');
-riseIn($('[data-rise]'));
-stretchHeadings();
+initLayout();
+titleIn($('[data-title]'));
 renderStatus($('[data-open-status]'));
 renderHours($('[data-hours]'));
 
-$('[data-address]').textContent = DEALER.address;
-$('[data-directions]').href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(DEALER.mapsQuery)}`;
-$('[data-map]').src = `https://maps.google.com/maps?q=${encodeURIComponent(DEALER.mapsQuery)}&z=15&output=embed`;
-$('[data-call]').href = DEALER.phoneHref;
-$('[data-phone]').textContent = DEALER.phone;
-$('[data-wa]').href = `https://wa.me/${DEALER.whatsapp}`;
-$('[data-mail]').href = `mailto:${DEALER.email}`;
-$('[data-email]').textContent = DEALER.email;
+$('[data-ways]').innerHTML = `
+  <a class="way" href="${DEALER.phoneHref}"><span class="way-k">Call ${DEALER.phone}</span><span class="way-v">Monday to Saturday, during opening hours</span></a>
+  <a class="way" href="https://wa.me/${DEALER.whatsapp}" rel="noopener"><span class="way-k">WhatsApp</span><span class="way-v">Usually replies within the hour</span></a>
+  <a class="way" href="mailto:${DEALER.email}"><span class="way-k">Email</span><span class="way-v">${DEALER.email}</span></a>`;
 
-if (!reduced) {
-  gsap.from('.map-card', { clipPath: 'inset(0 0 100% 0 round 22px)', duration: 1.4, ease: 'expo.inOut', delay: 0.2 });
-  gsap.from('.hours tr, .way', { opacity: 0, x: 20, stagger: 0.05, duration: 0.8, ease: 'expo.out', delay: 0.4 });
-}
-
-// message form
+// message form: inline validation, honeypot + timing spam check
 const f = $('[data-contact-form]');
 const ta = f.msg;
 ta.addEventListener('input', () => {
@@ -33,11 +23,20 @@ ta.addEventListener('input', () => {
 });
 f.addEventListener('submit', (e) => {
   e.preventDefault();
-  const missing = [...f.elements].filter((x) => x.required && !x.value.trim());
-  [...f.elements].forEach((x) => x.setAttribute?.('aria-invalid', String(missing.includes(x))));
-  const err = $('[data-error]', f);
-  if (missing.length) { err.hidden = false; err.textContent = 'Add your name, a way to reach you and a message.'; missing[0].focus(); return; }
+  const reach = f.reach.value.trim();
+  const reachOk = /\S+@\S+\.\S+/.test(reach) || reach.replace(/\D/g, '').length >= 7;
+  const bad = validateFields([
+    [f.name, f.name.value.trim() ? '' : 'Add your name.'],
+    [f.reach, !reach ? 'Add a mobile number or email so we can reply.' : reachOk ? '' : 'That doesn’t look like a phone number or email.'],
+    [ta, ta.value.trim().length >= 5 ? '' : 'Write a short message.'],
+  ]);
+  if (bad) return;
+  if (looksLikeSpam(f)) { const err = $('[data-error]', f); err.hidden = false; err.textContent = 'That was very quick. Please try again in a moment.'; return; }
   const topic = new FormData(f).get('topic');
-  f.innerHTML = `<div class="form-done form-done--big"><strong>Message sent.</strong><p>Thanks. We'll reply about “${topic.toLowerCase()}” the same working day.</p></div>`;
-  if (!reduced) gsap.from('.form-done--big', { opacity: 0, y: 20, duration: 0.7, ease: 'expo.out' });
+  const done = document.createElement('div');
+  done.className = 'form-done';
+  done.setAttribute('role', 'status');
+  done.innerHTML = `<strong>Message sent.</strong><p>Thanks, ${esc(f.name.value.trim())}. We’ll reply about ${esc(topic.toLowerCase())} the same working day.</p>`;
+  f.replaceWith(done);
 });
+

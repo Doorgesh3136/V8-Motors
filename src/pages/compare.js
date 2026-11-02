@@ -1,12 +1,12 @@
 import gsap from 'gsap';
-import { initLayout, reduced, $, $$, riseIn, magnetize } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, titleIn } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { store, COMPARE_MAX } from '../lib/store.js';
 import { CARS, byId, rs, km, monthly, sized, carName } from '../data.js';
 
-initLayout('compare');
+initLayout();
 wireCardActions();
-riseIn($('[data-rise]'));
+titleIn($('[data-title]'));
 
 // URL ids win over stored ones (shareable links)
 const urlIds = (new URLSearchParams(location.search).get('ids') || '').split(',').filter((id) => byId(id));
@@ -38,8 +38,7 @@ function render(animate) {
   if (!cars.length) {
     root.innerHTML = `<div class="empty"><p class="empty-title">Nothing to compare yet.</p>
       <p>Tap the scales icon on any car in the inventory to add it here. You can compare up to three.</p>
-      <a href="inventory.html" class="btn btn-dark" data-magnetic>Browse the inventory</a></div>`;
-    magnetize(root);
+      <a href="inventory.html" class="btn btn-primary">Browse the inventory</a></div>`;
     return;
   }
   const slots = [...cars, ...Array(COMPARE_MAX - cars.length).fill(null)];
@@ -48,13 +47,13 @@ function render(animate) {
 
   root.style.setProperty('--cols', COMPARE_MAX);
   root.innerHTML = `
-    <div class="cmp" role="table" aria-label="Car comparison">
+    <div class="cmp-scroll"><div class="cmp" role="table" aria-label="Car comparison">
       <div class="cmp-row cmp-row--head" role="row">
         <div class="cmp-key" role="rowheader"></div>
         ${slots.map((c) => c ? `
           <div class="cmp-car" role="columnheader">
-            <a href="car.html?id=${c.id}" class="cmp-img" data-cursor="View"><img src="${sized(c.images[0], 700)}" alt="" /></a>
-            <a href="car.html?id=${c.id}" class="cmp-name">${carName(c)}</a>
+            <a href="cars/${c.id}.html" class="cmp-img" tabindex="-1" aria-hidden="true"><img src="${sized(c.images[0], 700)}" width="700" height="460" alt="" /></a>
+            <a href="cars/${c.id}.html" class="cmp-name">${carName(c)}</a>
             <p class="cmp-trim">${c.trim}</p>
             <button type="button" class="link cmp-remove" data-remove="${c.id}">Remove</button>
           </div>` : `
@@ -80,9 +79,9 @@ function render(animate) {
       }).join('')}
       <div class="cmp-row cmp-row--cta" role="row">
         <div class="cmp-key" role="rowheader"></div>
-        ${slots.map((c) => c ? `<div role="cell"><a href="car.html?id=${c.id}#book" class="btn btn-dark btn-wide">Book a test drive</a></div>` : '<div role="cell"></div>').join('')}
+        ${slots.map((c) => c ? `<div role="cell"><a href="cars/${c.id}.html#book" class="btn btn-primary btn-wide">Book a test drive</a></div>` : '<div role="cell"></div>').join('')}
       </div>
-    </div>`;
+    </div></div>`;
   root.classList.toggle('only-diff', diff.checked);
   if (animate && !reduced) {
     gsap.from('.cmp-car', { y: 30, opacity: 0, stagger: 0.08, duration: 0.9, ease: 'expo.out' });

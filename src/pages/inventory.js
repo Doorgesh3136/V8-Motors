@@ -1,33 +1,23 @@
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$, tilt, riseIn, magnetize, scrollToEl, stretchHeadings } from '../lib/layout.js';
-import { carCard, wireCardActions, shapeSvg } from '../lib/card.js';
+import { initLayout, reduced, $, $$, scrollToEl, titleIn, syncStoreUI } from '../lib/layout.js';
+import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
 import { CARS, BODY_TYPES, FUELS, DEALER, byId, rs, sized, carName } from '../data.js';
 
 gsap.registerPlugin(Flip);
-initLayout('inventory');
+initLayout();
 
 const PAGE = 12;
 const KM_MAX = Math.ceil(Math.max(...CARS.map((c) => c.km)) / 10000) * 10000;
-const form = $('[data-filters]');
 const grid = $('[data-grid]');
+const form = $('[data-filters]');
 const RANGES = {};
 let shown = PAGE;
 
-// ---------------------------------------------------------------- build filter UI
-$('[data-total]').textContent = CARS.length;
-$('[data-updated]').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
-
-$('[data-body-opts]').innerHTML = BODY_TYPES.map((t) => {
-  const n = CARS.filter((c) => c.body === t).length;
-  return `<label class="body-opt"><input type="checkbox" name="body" value="${t}" />
-    <span>${shapeSvg(t)}<span class="body-opt-name">${t}</span><span class="body-opt-n tabular-nums" data-n-body="${t}">${n}</span></span></label>`;
-}).join('');
-$('[data-fuel-opts]').innerHTML = FUELS.map((f) => `<label class="pill"><input type="checkbox" name="fuel" value="${f}" /><span>${f} <span class="pill-n tabular-nums" data-n-fuel="${f}"></span></span></label>`).join('');
+// ---------------------------------------------------------------- filter UI (options are pre-rendered in the HTML)
 const makes = [...new Set(CARS.map((c) => c.make))].sort();
-$('[data-make-opts]').innerHTML = makes.map((m) => `<label class="check"><input type="checkbox" name="make" value="${m}" /><span>${m}</span><span class="check-n tabular-nums" data-n-make="${m}"></span></label>`).join('');
 
 // dual range sliders
 $$('[data-range]').forEach((wrap) => {
@@ -99,7 +89,8 @@ function applyUrl() {
     $$(`[name="${k}"]`, form).forEach((i) => (i.checked = v.includes(i.value)));
   });
   const pr = (p.get('price') || '').split('-').map(Number);
-  RANGES.price.set(pr[0] || undefined, pr[1] || undefined);
+  // ?max= comes from the home page search (works without JavaScript too)
+  RANGES.price.set(pr[0] || undefined, pr[1] || +p.get('max') || undefined);
   const yr = (p.get('year') || '').split('-').map(Number);
   RANGES.year.set(yr[0] || undefined, yr[1] || undefined);
   form.km.value = p.get('km') || KM_MAX;
@@ -132,12 +123,11 @@ const SORTS = {
   power: (a, b) => b.power - a.power,
 };
 
-grid.innerHTML = CARS.map((c) => carCard(c)).join('');
+// Cards are already in the HTML; we only move and hide them.
 const cards = new Map($$('.car', grid).map((li) => [li.dataset.id, li]));
-tilt(grid);
 
 function updateFacetCounts(s) {
-  BODY_TYPES.forEach((t) => { const n = CARS.filter((c) => c.body === t && matches(c, s, 'body')).length; const el = $(`[data-n-body="${t}"]`); el.textContent = n; el.closest('.body-opt').classList.toggle('is-zero', !n); });
+  BODY_TYPES.filter((t) => $(`[data-n-body="${t}"]`)).forEach((t) => { const n = CARS.filter((c) => c.body === t && matches(c, s, 'body')).length; const el = $(`[data-n-body="${t}"]`); el.textContent = n; el.closest('.body-opt').classList.toggle('is-zero', !n); });
   FUELS.forEach((f) => { $(`[data-n-fuel="${f}"]`).textContent = CARS.filter((c) => c.fuel === f && matches(c, s, 'fuel')).length; });
   makes.forEach((m) => { const n = CARS.filter((c) => c.make === m && matches(c, s, 'make')).length; const el = $(`[data-n-make="${m}"]`); el.textContent = n; el.closest('.check').classList.toggle('is-zero', !n); });
 }
@@ -181,7 +171,7 @@ function render({ animate = true, keepShown = false } = {}) {
   renderChips(s);
   updateFacetCounts(s);
 
-  const wa = encodeURIComponent(`Hi V8 Motors, please let me know when you have a car matching: ${$$('.chip', $('[data-chips]')).map((c) => c.textContent).join(', ') || 'my search'}.`);
+  const wa = encodeURIComponent(`Hi V8 Motors, please let me know when you have a car matching: ${$$('.chip', $('[data-chips]')).map((c) => c.textContent.trim()).join(', ') || 'my search'}.`);
   $('[data-wa-alert]').href = `https://wa.me/${DEALER.whatsapp}?text=${wa}`;
 
   if (flip) {
@@ -226,7 +216,7 @@ document.addEventListener('click', (e) => {
 function setView(v, animate = true) {
   const flip = animate && !reduced ? Flip.getState($$('.car:not([hidden]), .car:not([hidden]) .car-media, .car:not([hidden]) .car-info', grid)) : null;
   grid.dataset.view = v;
-  $$('[data-view]').forEach((b) => b.getAttribute('data-view') && b.tagName === 'BUTTON' && b.setAttribute('aria-pressed', String(b.dataset.view === v)));
+  $$('.view-toggle [data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
   if (flip) Flip.from(flip, { duration: 0.7, ease: 'expo.inOut', nested: true, absolute: false, onComplete: () => ScrollTrigger.refresh() });
 }
 $$('.view-toggle [data-view]').forEach((b) => b.addEventListener('click', () => { setView(b.dataset.view); writeUrl(readState()); }));
@@ -254,8 +244,8 @@ function renderTray() {
   $('[data-tray-n]').textContent = ids.length;
   $('[data-tray-cars]').innerHTML = ids.map((id) => {
     const c = byId(id);
-    return c ? `<li><img src="${sized(c.images[0], 160)}" alt="" /><span>${c.make} ${c.model}</span>
-      <button type="button" data-compare="${id}" aria-pressed="true" aria-label="Remove ${c.make} ${c.model} from compare">×</button></li>` : '';
+    return c ? `<li><img src="${sized(c.images[0], 160)}" width="48" height="34" alt="" /><span>${c.make} ${c.model}</span>
+      <button type="button" data-compare="${id}" aria-pressed="true" aria-label="Remove the ${c.make} ${c.model} from compare">×</button></li>` : '';
   }).join('') + Array.from({ length: 3 - ids.length }, () => '<li class="tray-empty"><span>Add a car</span></li>').join('');
   const go = $('[data-tray-go]');
   go.href = `compare.html?ids=${ids.join(',')}`;
@@ -263,7 +253,7 @@ function renderTray() {
   go.classList.toggle('is-disabled', ids.length < 2);
   if (!was && !tray.hidden && !reduced) gsap.fromTo(tray, { yPercent: 120 }, { yPercent: 0, duration: 0.7, ease: 'expo.out' });
 }
-$('[data-tray-clear]').addEventListener('click', () => { store.setCompare([]); $$('[data-compare]').forEach((b) => b.setAttribute('aria-pressed', 'false')); });
+$('[data-tray-clear]').addEventListener('click', () => { store.setCompare([]); syncStoreUI(); });
 $('[data-tray-go]').addEventListener('click', (e) => { if (store.compare().length < 2) e.preventDefault(); });
 window.addEventListener('store:change', () => { renderTray(); if (form.saved.checked) render({ keepShown: true }); });
 wireCardActions();
@@ -273,15 +263,13 @@ renderTray();
 const recent = store.recent().map(byId).filter(Boolean);
 if (recent.length) {
   $('[data-recent-wrap]').hidden = false;
-  $('[data-recent]').innerHTML = recent.map((c) => `<li><a href="car.html?id=${c.id}" class="mini" data-cursor="View">
-    <img src="${sized(c.images[0], 480)}" alt="" loading="lazy" /><span class="mini-name">${carName(c)}</span><span class="mini-price tabular-nums">${rs(c.price)}</span></a></li>`).join('');
+  $('[data-recent]').innerHTML = recent.map((c) => `<li><a href="cars/${c.id}.html" class="mini">
+    <img src="${sized(c.images[0], 480)}" width="480" height="300" alt="" loading="lazy" /><span class="mini-name">${carName(c)}</span><span class="mini-price tabular-nums">${rs(c.price)}</span></a></li>`).join('');
 }
 
 // ---------------------------------------------------------------- go
 applyUrl();
 render({ animate: false });
-riseIn($('[data-rise]'));
-magnetize();
-stretchHeadings();
-if (!reduced) gsap.from(matchMedia('(min-width: 1000px)').matches ? '.inv-filters, .inv-toolbar' : '.inv-toolbar',
-  { opacity: 0, y: 30, duration: 1, ease: 'expo.out', stagger: 0.1, delay: 0.3, clearProps: 'transform,opacity,translate' });
+titleIn($('[data-title]'));
+// the native form submit (Enter in the search box) is handled live instead
+form.addEventListener('submit', (e) => { e.preventDefault(); openFilters(false); });

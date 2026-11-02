@@ -1,46 +1,53 @@
 # V8 Motors
 
-Showroom and marketplace site for V8 Motors (Mauritius). Built with Vite, Tailwind CSS v4, three.js, GSAP and Lenis.
+Showroom and stock website for V8 Motors, a pre-owned car dealer in Beau Bassin, Mauritius.
+Vite, Tailwind CSS v4, GSAP and Lenis. No framework, no 3D library: about 55 KB of JavaScript (gzipped) on most pages.
 
-Live site: https://doorgesh3136.github.io/V8-Motors/ (served by GitHub Pages from the `gh-pages` branch).
+Live site: https://doorgesh3136.github.io/V8-Motors/
 
-To publish changes: `npm run deploy` (builds the site and pushes `dist/` to `gh-pages`).
+```
+npm install
+npm run dev       # http://localhost:5173
+npm run build     # static site in dist/
+npm run deploy    # build + publish dist/ to the gh-pages branch (GitHub Pages)
+```
 
-    npm install
-    npm run dev      # http://localhost:5173
-    npm run build    # static site in dist/
+## Design
+
+"Instrument panel at night": midnight-lacquer navy (`#0c1722`), bone text (`#ece6dc`), blue-grey secondary text (`#9aa8b5`) and a single amber accent (`#f0a030`) used only for the main action and live states. One typeface, Archivo, self-hosted, using its width axis for headlines.
+
+The logo is a V8: two cylinder banks forming a V with the eight bores in them. On the first visit of a session the home page intro assembles that logo, fires the cylinders in a real V8 firing order (1-8-4-3-6-5-7-2) while the page loads, then the V opens like a window onto the hero photo. Return visits and visitors with reduced motion skip it.
 
 ## Pages
-- `index.html` Home: rev-counter loader (first visit per session), 3D showroom with scroll walkaround, "Just arrived" sideways-scrolling rail, makes marquee, body types, sell/finance panels.
-- `inventory.html` Full stock list: filters (body, price and year ranges, mileage, fuel, gearbox, make), removable filter chips, sort, grid/list view, filters saved in the URL, compare tray, recently viewed.
-- `car.html?id=…` Car page: gallery with full-screen zoom, specs, features, inspection report, finance estimate, test-drive booking with calendar file, similar cars.
-- `compare.html` Up to 3 cars side by side, best values marked, "only show differences".
-- `sell.html` Four-step sell wizard with a live rough valuation and photo upload.
-- `finance.html` Calculator, cost breakdown donut, year-by-year balance chart, FAQ.
-- `contact.html` Map, opening hours with live open/closed status, contact form.
 
-Shared code lives in `src/lib/` (layout, page transitions, cursor, cards, saved/compare store, opening hours).
+| Page | What it does |
+| --- | --- |
+| `index.html` | Intro, hero with quick search, "Just arrived" row (scroll moves it sideways on desktop, swipe on phones), tap-to-explore 150-point inspection, makes, body types, monthly cost slider |
+| `inventory.html` | Every car, with filters (body, price and year ranges, mileage, fuel, gearbox, make), removable filter chips, sort, grid/list, filters kept in the URL, compare tray |
+| `cars/<id>.html` | One real page per car (generated at build): gallery with full screen and zoom, specs, features, inspection report, finance estimate, test-drive booking with calendar file, similar cars |
+| `compare.html` | Up to three cars side by side, best value per row marked |
+| `sell.html` | Three-step valuation request with a live rough guide price |
+| `finance.html` | Calculator, cost split, year-by-year balance chart, FAQ |
+| `contact.html` | Map, opening hours with a live open or closed status, contact form |
+| `privacy.html`, `terms.html` | Privacy policy and terms of sale |
+| `404.html` | Not-found page (GitHub Pages serves it for any missing URL) |
 
-## 3D on phones
-The home-page car is tuned for mobile in `src/scene.js` (`deviceProfile()`):
-- Pixel ratio capped at 1.5 on phones, and stepped down automatically to 1 if the phone can't hold about 45 fps.
-- No anti-aliasing on high-density screens, and simple tinted glass instead of the costly see-through glass.
-- 30 fps while the car is idling on the turntable, full frame rate while you drag or scroll.
-- Rendering stops completely when the 3D section is scrolled off screen or the tab is hidden.
-- Phones in data-saver mode or with 2 GB of memory or less get a photo instead of the 1.7 MB model.
-- If the phone's GPU drops the 3D context, the page swaps to the photo instead of showing a blank area.
+## How it is built
 
-## Page transitions
-Chrome, Edge and Safari use native cross-page view transitions (the car photo morphs from its card into the car page). Firefox gets a curtain wipe instead. Open the site through `npm run dev`, `npm run preview` or the live URL, not by double-clicking an HTML file: browsers block the scripts on `file://` pages.
+- `src/data.js`: the cars, dealer details, opening hours, finance rate. **Change stock and contact details here.**
+- `src/lib/templates.js`: HTML templates shared by the build and the browser (nav, footer, cards, car pages, meta tags, structured data).
+- `vite.config.js`: a small plugin fills `<!--@...-->` placeholders, so every page ships complete HTML (no empty shells, no content popping in).
+- `scripts/prerender.mjs` (runs before `dev` and `build`): writes `cars/*.html`, `public/sitemap.xml`, `public/robots.txt` and `public/llms.txt`. These are generated, so they are not committed.
+- `src/site.css`: the whole design system. `src/pages/*.js`: behaviour for each page.
 
-## Where to change things
-- `src/data.js`: dealer phone, WhatsApp, address, opening hours, finance rate, the car list, and the featured 3D car's specs.
-- `src/scene.js`: 3D studio, camera stops for the scroll walkaround, paint material.
-- `src/style.css`: design tokens (colours, font) live in the `@theme` block at the top.
+## Launch checklist status
 
-The phone number, WhatsApp number, email and address are placeholders. Replace them before going live.
-Forms (sell your car, test drive) only show a confirmation on screen. Connect them to email or a CRM to receive leads.
+Done: unique titles and meta descriptions, canonical URLs, Open Graph and Twitter cards with a share image (`public/og.jpg`), favicon set and web manifest, AutoDealer, Car and BreadcrumbList structured data, sitemap.xml, robots.txt, llms.txt, custom 404, privacy and terms pages, alt text, breadcrumbs, internal links, no source maps in production, responsive images (`srcset`), self-hosted font with a metric-matched fallback (no layout shift), 44 px minimum tap targets, tap-to-call numbers, bottom tab bar on phones, no horizontal scrolling at 360 to 1440 px wide, portrait and landscape checked, form validation with messages under each field, honeypot and minimum-time spam checks, no cookies or trackers (a small privacy notice explains this), HTTPS enforced on GitHub Pages.
 
-## Credits
-- 3D model: Ferrari 458 Italia by vicent091036, from the three.js examples.
-- Car photos: Unsplash (hotlinked from images.unsplash.com).
+Still needs you:
+- **Real details:** the phone number, WhatsApp number, email and street address in `src/data.js` are placeholders.
+- **Forms:** booking, selling and contact forms validate and confirm on screen but do not send anywhere yet. Connect them to a form service (for example Formspree or Web3Forms) or your CRM. Server-side spam protection then comes from that service.
+- **Legal text:** `privacy.html` and `terms.html` are sensible starting points (including the Mauritius Data Protection Act 2017), but the deposit amount, warranty cover and retention periods are assumptions. Have them checked.
+- **Analytics:** none is installed. If you add one (Plausible or Google Analytics), update the privacy notice and policy, and add a consent banner if it sets cookies.
+- **Custom domain:** add it in the repository's Pages settings and update `SITE` in `src/lib/templates.js`.
+- **Photos:** car photos are hotlinked from Unsplash. Replace them with photos of your own stock.

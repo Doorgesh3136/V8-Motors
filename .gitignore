@@ -1,2 +1,6 @@
 node_modules
 dist
+cars/
+public/sitemap.xml
+public/robots.txt
+public/llms.txt
