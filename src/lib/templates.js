@@ -181,7 +181,7 @@ export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   <meta name="twitter:title" content="${esc(title)}" />
   <meta name="twitter:description" content="${esc(desc)}" />
   <meta name="twitter:image" content="${img}" />
-  <meta name="theme-color" content="#0c1722" />
+  <meta name="theme-color" content="#08130f" />
   <link rel="icon" href="${P}favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="${P}favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="apple-touch-icon" href="${P}apple-touch-icon.png" />
@@ -379,11 +379,8 @@ export function carPageHTML(c, P = '../') {
     </section>`}
 
     <section class="car-section" aria-labelledby="sim-h">
-      <div class="section-head">
-        <h2 class="car-h" id="sim-h">Similar cars</h2>
-        <div class="rail-arrows"><button type="button" data-rail="-1" aria-label="Scroll back">${ICON.arrowL}</button><button type="button" data-rail="1" aria-label="Scroll forward">${ICON.arrowR}</button></div>
-      </div>
-      <ul class="similar">${similarCars(c).map((x) => carCard(x, P, { sizes: '(min-width: 1000px) 22rem, 78vw' })).join('')}</ul>
+      <h2 class="car-h" id="sim-h">Similar cars</h2>
+      <ul class="grid-cars similar">${similarCars(c, 4).map((x) => carCard(x, P)).join('')}</ul>
     </section>
   </div>
 
@@ -404,9 +401,7 @@ export function carPageHTML(c, P = '../') {
 
 /* ------------------------------------------------------------------ home blocks */
 export function arrivalsHTML(P = '') {
-  const newest = [...CARS].sort((a, b) => b.added.localeCompare(a.added)).slice(0, 8);
-  return newest.map((c) => carCard(c, P, { sizes: '(min-width: 900px) 24rem, 78vw' })).join('') +
-    `<li class="arrivals-end"><a href="${P}inventory.html" class="arrivals-end-link"><span>See all ${CARS.length} cars</span><span class="arrivals-end-arrow" aria-hidden="true"></span></a></li>`;
+  return [...CARS].sort((a, b) => b.added.localeCompare(a.added)).slice(0, 6).map((c) => carCard(c, P)).join('');
 }
 
 export function bodyTilesHTML(P = '') {
@@ -421,8 +416,7 @@ export function bodyTilesHTML(P = '') {
 
 export function makesHTML(P = '') {
   const makes = [...new Set(CARS.map((c) => c.make))].sort();
-  const items = (hidden) => makes.map((m) => `<a href="${P}inventory.html?make=${encodeURIComponent(m)}" class="marquee-item"${hidden ? ' tabindex="-1"' : ''}>${m}<sup class="tabular-nums">${CARS.filter((c) => c.make === m).length}</sup></a>`).join('');
-  return `<div class="marquee-set">${items(false)}</div><div class="marquee-set" aria-hidden="true">${items(true)}</div>`;
+  return makes.map((m) => `<li><a href="${P}inventory.html?make=${encodeURIComponent(m)}" class="make-link"><span>${m}</span><span class="make-n tabular-nums">${CARS.filter((c) => c.make === m).length}</span></a></li>`).join('');
 }
 
 export function inventoryGridHTML(P = '') {

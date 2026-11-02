@@ -17,7 +17,6 @@ if (c) {
   setupReport();
   setupFinance();
   if (c.status !== 'Reserved') setupBooking();
-  setupSimilar();
   setupShare();
   titleIn($('.summary-title'), 0.05);
 }
@@ -153,12 +152,6 @@ function setupBooking() {
     f.replaceWith(done);
     done.querySelector('a').focus();
   });
-}
-
-/* ---------------------------------------------------------------- similar cars rail */
-function setupSimilar() {
-  const rail = $('.similar');
-  $$('[data-rail]').forEach((b) => b.addEventListener('click', () => rail.scrollBy({ left: +b.dataset.rail * rail.clientWidth * 0.8, behavior: reduced ? 'auto' : 'smooth' })));
 }
 
 /* ---------------------------------------------------------------- share */

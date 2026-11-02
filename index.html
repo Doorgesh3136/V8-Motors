@@ -43,11 +43,22 @@
         <div class="hero-dark" data-hero-dark aria-hidden="true"></div>
         <span class="haze" data-haze aria-hidden="true"></span>
         <span class="spill" data-spill aria-hidden="true"></span>
-        <span class="lamp lamp--l" data-lamp aria-hidden="true"><span class="lamp-bloom"></span><span class="lamp-core"></span><span class="lamp-drl"></span></span>
-        <span class="lamp lamp--r" data-lamp aria-hidden="true"><span class="lamp-bloom"></span><span class="lamp-core"></span><span class="lamp-drl"></span></span>
+        <!-- the headlights' real shapes, cut from the photo: sharp light and its soft glow, aligned to the photo exactly -->
+        <img class="hero-img hero-glow" data-glow src="intro/glow.webp" width="1100" height="740" alt="" aria-hidden="true" decoding="async" />
+        <img class="hero-img hero-lights" data-lights src="intro/lights.webp" width="2200" height="1480" alt="" aria-hidden="true" decoding="async" />
         <span class="flare" data-flare aria-hidden="true"></span>
       </div>
       <div class="hero-shade" aria-hidden="true"></div>
+
+      <!-- Intro gate: browsers only allow sound after a tap, so the intro starts with the car's start button -->
+      <div class="gate" data-gate>
+        <button type="button" class="ignition" data-ignite aria-label="Start the engine and enter the site with sound">
+          <span class="ignition-ring" aria-hidden="true"></span>
+          <span class="ignition-face" aria-hidden="true"><span>Engine</span><strong>Start</strong><span>Stop</span></span>
+        </button>
+        <p class="gate-hint">Sound on. Press to start.</p>
+        <p class="gate-alt"><button type="button" data-ignite-quiet>Enter without sound</button><button type="button" data-skip>Skip intro</button></p>
+      </div>
       <div class="wrap hero-inner">
         <h1 class="hero-title" id="hero-title" data-hero-title><span class="line"><span>Pre-owned,</span></span> <span class="line"><span>properly.</span></span></h1>
         <p class="hero-lede" data-hero-fade>Every car on our floor is inspected, serviced and priced up front. <!--@count--> cars are ready to view in Beau Bassin this week.</p>
@@ -69,14 +80,13 @@
       </div>
     </section>
 
-    <section class="arrivals" aria-labelledby="arrivals-title">
-      <div class="arrivals-pin">
-        <div class="arrivals-head wrap">
+    <section class="section arrivals" aria-labelledby="arrivals-title">
+      <div class="wrap">
+        <div class="section-head">
           <h2 class="section-title" id="arrivals-title">Just arrived</h2>
-          <p class="section-sub">The newest cars on the floor, fresh from the workshop.</p>
+          <a class="btn btn-line" href="inventory.html">See all <!--@total--> cars</a>
         </div>
-        <div class="arrivals-track-wrap"><ul class="arrivals-track" data-arrivals><!--@arrivals--></ul></div>
-        <div class="arrivals-progress wrap" aria-hidden="true"><span data-arrivals-bar></span></div>
+        <ul class="grid-cars arrivals-grid"><!--@arrivals--></ul>
       </div>
     </section>
 
@@ -109,8 +119,14 @@
       </div>
     </section>
 
-    <section class="makes" aria-label="Makes in stock">
-      <div class="marquee"><div class="marquee-row" data-marquee-row><!--@makes--></div></div>
+    <section class="section makes" aria-labelledby="makes-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="section-title" id="makes-title">Makes in stock</h2>
+          <p class="section-sub">From city hatchbacks to V10 supercars.</p>
+        </div>
+        <ul class="makes-grid"><!--@makes--></ul>
+      </div>
     </section>
 
     <section class="section bodies" aria-labelledby="bodies-title">
