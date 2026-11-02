@@ -43,6 +43,7 @@ export const BORES = [
 ];
 export function markSVG(cls = 'mark') {
   return `<svg class="${cls}" viewBox="0 0 64 48" aria-hidden="true">
+    <defs><linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f9fd"/><stop offset=".46" stop-color="#c3cbdb"/><stop offset=".54" stop-color="#8e98b3"/><stop offset="1" stop-color="#e4e9f3"/></linearGradient></defs>
     <path class="mark-bank" d="M32 42 8.6 10.8"/><path class="mark-bank" d="M32 42 55.4 10.8"/>
     ${BORES.map(([x, y, n]) => `<circle class="mark-bore" data-cyl="${n}" cx="${x}" cy="${y}" r="3.1"/>`).join('')}
     <circle class="mark-crank" cx="32" cy="42" r="4.2"/>
@@ -181,7 +182,7 @@ export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   <meta name="twitter:title" content="${esc(title)}" />
   <meta name="twitter:description" content="${esc(desc)}" />
   <meta name="twitter:image" content="${img}" />
-  <meta name="theme-color" content="#08130f" />
+  <meta name="theme-color" content="#0a1230" />
   <link rel="icon" href="${P}favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="${P}favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="apple-touch-icon" href="${P}apple-touch-icon.png" />

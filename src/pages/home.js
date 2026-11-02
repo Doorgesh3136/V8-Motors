@@ -5,8 +5,6 @@ import { wireCardActions } from '../lib/card.js';
 import { renderStatus } from '../lib/hours.js';
 import { CARS, rs, monthly } from '../data.js';
 
-import { createEngine } from '../lib/engine-sound.js';
-
 const LAMPS = [[0.352, 0.66], [0.615, 0.66]]; // headlight centres as fractions of the photo
 
 const media = $('[data-hero-media]');
@@ -41,11 +39,16 @@ runIntro().then(async () => {
 
 /* ================================================================== intro
    Browsers only allow sound after a tap, so the intro opens on the car's start button in the dark.
-   Pressing it runs one continuous shot on the real hero photo, about seven seconds:
-   crank (the lamps dim and brighten with the starter) -> the engine catches (jolt, the light signature
-   sweeps on from the grille outwards) -> idle burble -> a blip of the throttle with a high-beam flash ->
-   full rev with a second flash as the camera pulls back and the forest lights up -> the headline lands.
-   One GSAP timeline drives both picture and sound (engine rpm and throttle are tweened in it). */
+   Pressing it plays a real engine recording (public/intro/engine.mp3, built from two CC0 Freesound
+   recordings: an Aston Martin Rapide cold start and a Mercedes S63 AMG V8 revving) and the picture is
+   keyed to the moments in that recording, driven by the audio clock so the two can never drift:
+     0.9s  the engine catches: jolt, the light signature sweeps on from the grille outwards
+     idle  the camera creeps in, the glow breathes
+     4.7s  first rev: high beams flash
+     5.9s  second, sustained rev: flash, the camera pulls back and the forest lights up
+     7.2s  third rev: a last pulse of light as the page lands */
+
+function engineUrl() { return new URL('intro/engine.mp3', document.baseURI).href; }
 
 /** Where the headlights sit on screen (the photo is object-fit: cover). */
 function layoutScene() {
@@ -72,6 +75,15 @@ function waitForPhoto() {
   return Promise.race([Promise.all([decoded, document.fonts.ready]), new Promise((r) => setTimeout(r, 5000))]);
 }
 
+/** Fetch and decode the engine recording while the visitor looks at the start button. */
+function prepareSound() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return null;
+  const ctx = new AC(); // starts suspended until the tap
+  const buffer = fetch(engineUrl()).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, bad) => ctx.decodeAudioData(b, ok, bad))).catch(() => null);
+  return { ctx, buffer };
+}
+
 function waitForChoice(gate) {
   return new Promise((resolve) => {
     let done = false;
@@ -90,6 +102,7 @@ async function runIntro() {
   const dark = $('[data-hero-dark]');
   const spill = $('[data-spill]'), haze = $('[data-haze]');
   const gate = $('[data-gate]');
+  const audio = prepareSound();
 
   let geo = layoutScene();
   img.addEventListener('load', () => (geo = layoutScene()), { once: true });
@@ -102,10 +115,13 @@ async function runIntro() {
   gsap.from(gate.children, { opacity: 0, y: 16, duration: 0.9, stagger: 0.1, ease: 'expo.out', delay: 0.2 });
 
   const choice = await waitForChoice(gate);
-  await gsap.to(gate, { opacity: 0, scale: 0.96, duration: 0.35, ease: 'power2.in' });
+  // resume audio inside the tap itself (iOS and Safari require it)
+  if (choice === 'sound' && audio) audio.ctx.resume();
+  await gsap.to(gate, { opacity: 0, scale: 0.96, duration: 0.3, ease: 'power2.in' });
   gate.remove();
 
   if (choice === 'skip') {
+    audio?.ctx.close();
     await gsap.timeline()
       .to(media, { scale: 1, rotation: 0, duration: 1.1, ease: 'expo.inOut' }, 0)
       .to(dark, { opacity: 0, duration: 0.9, ease: 'power2.inOut' }, 0)
@@ -117,9 +133,7 @@ async function runIntro() {
     return;
   }
 
-  const sound = choice === 'sound' ? createEngine() : null;
-  if (sound) await sound.start();
-  await waitForPhoto();
+  const [buffer] = await Promise.all([choice === 'sound' && audio ? audio.buffer : null, waitForPhoto()]);
   geo = layoutScene();
 
   // the light signature sweeps on from the grille outwards: an inset clip opening from the centre
@@ -128,56 +142,66 @@ async function runIntro() {
     const l = geo.mx * (1 - sweep.p), r = (geo.iw - geo.mx) * (1 - sweep.p);
     lights.style.clipPath = glow.style.clipPath = `inset(0 ${r}px 0 ${l}px)`;
   };
-  const eng = { rpm: 0, thr: 0 };
-  const tl = gsap.timeline({ paused: true, onUpdate: () => sound?.set(eng.rpm, eng.thr) });
-  const flash = (at, depth) => tl
-    .to(dark, { keyframes: [{ opacity: depth, duration: 0.06 }, { opacity: 0.86, duration: 0.45, ease: 'power2.out' }] }, at)
-    .to(glow, { keyframes: [{ opacity: 1, scale: 1.04, duration: 0.06 }, { opacity: 0.92, scale: 1, duration: 0.45 }] }, at)
-    .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.15, duration: 0.08 }, { opacity: 0.6, scaleX: 1, duration: 0.5 }] }, at);
+  const tl = gsap.timeline({ paused: true });
+  const flash = (at, depth, rest = 0.86) => tl
+    .to(dark, { keyframes: [{ opacity: depth, duration: 0.06 }, { opacity: rest, duration: 0.5, ease: 'power2.out' }] }, at)
+    .to(glow, { keyframes: [{ opacity: 1, scale: 1.05, duration: 0.06 }, { opacity: 0.92, scale: 1, duration: 0.5 }] }, at)
+    .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.18, duration: 0.08 }, { opacity: 0.6, scaleX: 1, duration: 0.55 }] }, at);
 
-  // 1. crank: the lamps dim and brighten with the starter's load
-  tl.call(() => sound?.crank(true), null, 0)
-    .to(glow, { keyframes: [0.07, 0.02, 0.1, 0.03, 0.09, 0.02, 0.12, 0.04].map((o) => ({ opacity: o, duration: 0.14 })) }, 0)
-    .to(media, { keyframes: { x: [0, -1.2, 1, -1, 1.2, -1, 1, 0], y: [0, 0.8, -1, 1, -0.8, 1, -1, 0] }, duration: 1.15, ease: 'none' }, 0.05)
-    // 2. it catches
-    .call(() => { sound?.crank(false); sound?.ignite(); }, null, 1.25)
-    .to(eng, { rpm: 1800, thr: 0.65, duration: 0.22, ease: 'power2.out' }, 1.25)
-    .to(eng, { rpm: 760, thr: 0.08, duration: 1.2, ease: 'power3.out' }, 1.5)
-    .to(media, { keyframes: { x: [0, -6, 7, -4, 3, -1, 0], y: [0, 4, -3, 2, -1, 1, 0] }, duration: 0.45, ease: 'none' }, 1.25)
-    .set(lights, { opacity: 1 }, 1.3)
-    .add(clip, 1.3)
-    .to(sweep, { p: 1, duration: 0.8, ease: 'power3.out', onUpdate: clip }, 1.3)
-    .to(glow, { opacity: 0.92, duration: 1, ease: 'power2.out' }, 1.35)
-    .to(dark, { opacity: 0.86, duration: 1.4, ease: 'power2.out' }, 1.4)
-    .to(spill, { opacity: 1, scaleY: 1, duration: 1.1, ease: 'expo.out' }, 1.5)
-    .to(haze, { opacity: 1, duration: 1.1, ease: 'power2.out' }, 1.5)
-    .to(flare, { opacity: 0.6, scaleX: 1, duration: 1.3, ease: 'expo.out' }, 1.45)
-    // a slow camera creep towards the car through the idle, so the shot never sits still
-    .to(media, { scale: zoom * 1.07, rotation: -0.6, duration: 3.6, ease: 'sine.inOut' }, 1.6)
-    // 3. idle: the glow breathes with the burble
-    .to(eng, { keyframes: { rpm: [760, 720, 795, 735, 770, 750] }, duration: 1.1, ease: 'none' }, 2.7)
-    .to(glow, { opacity: 0.8, duration: 0.55, yoyo: true, repeat: 1, ease: 'sine.inOut' }, 2.7);
-  // 4. a blip of the throttle, high beams flash
-  tl.to(eng, { rpm: 3400, thr: 0.9, duration: 0.18, ease: 'power2.out' }, 3.85)
-    .to(eng, { rpm: 900, thr: 0.1, duration: 0.6, ease: 'power2.in' }, 4.05);
-  flash(3.97, 0.45);
-  // 5. full rev, second flash, the camera pulls back as the forest lights up
-  tl.to(eng, { rpm: 5900, thr: 1, duration: 0.5, ease: 'power2.out' }, 4.8);
-  flash(5.05, 0.3);
-  tl.to(media, { scale: 1, rotation: 0, x: 0, y: 0, duration: 2.3, ease: 'expo.inOut' }, 5.1)
-    .to(eng, { rpm: 2300, thr: 0.35, duration: 1.2, ease: 'power2.inOut' }, 5.4)
-    .to(eng, { rpm: 800, thr: 0.04, duration: 1.4, ease: 'power2.out' }, 6.6)
-    .to(dark, { opacity: 0, duration: 1.9, ease: 'power2.inOut' }, 5.3)
-    .to(flare, { opacity: 0, scaleX: 1.6, duration: 1.3, ease: 'power2.out' }, 5.6)
-    .to([spill, haze], { opacity: 0, duration: 1.4, ease: 'power2.inOut' }, 5.6)
+  // crank (0.3 to 0.9s): the lamps dim and brighten with the starter
+  tl.to(glow, { keyframes: [0.05, 0.01, 0.08, 0.02, 0.07].map((o) => ({ opacity: o, duration: 0.12 })) }, 0.3)
+    .to(media, { keyframes: { x: [0, -1, 1, -1, 0], y: [0, 0.8, -0.8, 0.8, 0] }, duration: 0.6, ease: 'none' }, 0.3)
+    // 0.9s: it catches
+    .to(media, { keyframes: { x: [0, -7, 8, -5, 3, -1, 0], y: [0, 5, -4, 2, -1, 1, 0] }, duration: 0.5, ease: 'none' }, 0.9)
+    .set(lights, { opacity: 1 }, 0.92)
+    .add(clip, 0.92)
+    .to(sweep, { p: 1, duration: 0.85, ease: 'power3.out', onUpdate: clip }, 0.92)
+    .to(glow, { opacity: 0.95, duration: 1, ease: 'power2.out' }, 0.95)
+    .to(dark, { opacity: 0.86, duration: 1.5, ease: 'power2.out' }, 1.0)
+    .to(spill, { opacity: 1, scaleY: 1, duration: 1.2, ease: 'expo.out' }, 1.1)
+    .to(haze, { opacity: 1, duration: 1.2, ease: 'power2.out' }, 1.1)
+    .to(flare, { opacity: 0.6, scaleX: 1, duration: 1.4, ease: 'expo.out' }, 1.0)
+    // idle: the camera creeps in, the glow breathes
+    .to(media, { scale: zoom * 1.08, rotation: -0.5, duration: 3.6, ease: 'sine.inOut' }, 1.4)
+    .to(glow, { opacity: 0.8, duration: 0.7, yoyo: true, repeat: 3, ease: 'sine.inOut' }, 1.9);
+  // 4.7s: first rev
+  flash(4.68, 0.42);
+  // 5.9s: second rev, the camera pulls back hard and the forest lights up
+  flash(5.86, 0.28);
+  tl.to(media, { scale: 1, rotation: 0, x: 0, y: 0, duration: 2.6, ease: 'expo.inOut' }, 5.95)
+    .to(dark, { opacity: 0, duration: 2.1, ease: 'power2.inOut' }, 6.3)
+    // 7.2s: third rev, a last pulse of light as the scene opens up
+    .to(glow, { keyframes: [{ opacity: 1, duration: 0.06 }, { opacity: 0.7, duration: 0.6 }] }, 7.18)
+    .to(flare, { keyframes: [{ opacity: 0.9, scaleX: 1.3, duration: 0.08 }, { opacity: 0, scaleX: 1.7, duration: 1.1, ease: 'power2.out' }] }, 7.18)
+    .to([spill, haze], { opacity: 0, duration: 1.5, ease: 'power2.inOut' }, 7.0)
     // the cut-out lights fade into the photo's own headlights, so nothing pops at the end
-    .to([lights, glow], { opacity: 0, duration: 1.3, ease: 'power1.inOut' }, 6.3)
-    .to(['[data-nav]', '.tabbar'], { opacity: 1, duration: 0.9, ease: 'power2.out' }, 6.3)
-    .add(heroIn, 6.15)
-    .call(() => sound?.stop(1.8), null, 7.0);
+    .to([lights, glow], { opacity: 0, duration: 1.4, ease: 'power1.inOut' }, 8.0)
+    .add(heroIn, 7.85)
+    .to(['[data-nav]', '.tabbar'], { opacity: 1, duration: 0.9, ease: 'power2.out' }, 8.1);
 
-  tl.play();
-  await tl;
+  if (buffer) {
+    // picture follows the audio clock: if a frame drops, the picture catches up instead of drifting
+    const { ctx } = audio;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const vol = ctx.createGain(); vol.gain.value = 0.9;
+    src.connect(vol).connect(ctx.destination);
+    const t0 = ctx.currentTime + 0.05;
+    src.start(t0);
+    src.onended = () => ctx.close().catch(() => {});
+    await new Promise((resolve) => {
+      const tick = () => {
+        const t = Math.max(0, ctx.currentTime - t0);
+        tl.time(Math.min(t, tl.duration()));
+        if (t >= tl.duration()) { gsap.ticker.remove(tick); resolve(); }
+      };
+      gsap.ticker.add(tick);
+    });
+  } else {
+    audio?.ctx.close();
+    tl.play();
+    await tl;
+  }
   gsap.set(media, { clearProps: 'transform' });
   gsap.set([lights, glow], { clearProps: 'clipPath' });
   gsap.set(['[data-nav]', '.tabbar'], { clearProps: 'opacity' }); // never touch the nav's transform: it slides via CSS
