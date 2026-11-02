@@ -163,22 +163,38 @@
   .tab--call { color: var(--amber); }
   @media (max-width: 899px) { .tabbar { display: grid; } }
 
-  /* ---------------------------------------------------------------- intro */
-  .intro { display: none; }
-  html.play-intro .intro { position: fixed; inset: 0; z-index: 400; display: grid; place-items: center; background: var(--ink); }
-  .intro-center { display: grid; justify-items: center; gap: var(--s5); }
-  .intro-mark { width: min(46vw, 15rem); overflow: visible; }
-  .intro-bank { stroke: var(--bone); stroke-width: 11; stroke-linecap: round; fill: none; stroke-dasharray: 1; stroke-dashoffset: 1; }
-  .intro-bore { fill: var(--ink); }
-  .intro-crank { fill: none; stroke: var(--amber); stroke-width: 2.4; stroke-dasharray: 1; stroke-dashoffset: 1; }
-  .intro-word { font-weight: 850; font-size: clamp(1.5rem, 4vw, 2.25rem); letter-spacing: -.02em; opacity: 0; }
-  .intro-order { display: flex; gap: var(--s3); font-weight: 700; font-size: .9375rem; color: var(--fog); }
-  .intro-order span { opacity: 0; }
-  @media (max-height: 480px) { .intro-mark { width: 7.5rem; } .intro-center { gap: var(--s3); } }
-
   /* ---------------------------------------------------------------- hero */
   .hero { position: relative; min-height: 100vh; min-height: 100svh; display: grid; align-items: end; overflow: hidden; isolation: isolate; }
-  .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; z-index: -2; }
+  .hero-media { position: absolute; inset: 0; z-index: -2; overflow: hidden; will-change: transform; --u: 14px; }
+  .hero-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 60%; }
+
+  /* ---- intro: darkness, headlights, pull-back. Only opacity and transform are animated. ---- */
+  .hero-dark { position: absolute; inset: 0; background: #03070b; opacity: 0; pointer-events: none; will-change: opacity; }
+  html.play-intro .hero-dark { opacity: 1; }
+  html.play-intro .hero-inner, html.play-intro .nav, html.play-intro .tabbar { opacity: 0; }
+  html.play-intro body { overflow: hidden; }
+  .lamp { position: absolute; left: 0; top: 0; width: calc(var(--u) * 6.4); height: calc(var(--u) * 2.4); translate: -50% -50%; pointer-events: none; opacity: 0; }
+  .lamp > span { position: absolute; will-change: transform, opacity; }
+  /* wide soft light thrown towards the camera */
+  .lamp-bloom { left: 50%; top: 50%; width: calc(var(--u) * 46); height: calc(var(--u) * 30); translate: -50% -50%; border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(226 242 255 / .75), rgb(170 212 255 / .28) 30%, rgb(120 180 255 / .08) 60%, transparent 100%); }
+  /* the lamp itself */
+  .lamp-core { inset: -70% -30%; border-radius: 50%;
+    background: radial-gradient(closest-side, #fff 0 28%, rgb(232 246 255 / .95) 40%, rgb(170 214 255 / .5) 62%, rgb(130 190 255 / .12) 82%, transparent 100%); }
+  /* LED daytime-running strip that sweeps on first, from the grille outwards */
+  .lamp-drl { left: 2%; right: 2%; top: 4%; height: calc(var(--u) * .45); border-radius: 99px; background: #eef8ff; transform: scaleX(0);
+    box-shadow: 0 0 calc(var(--u) * 1.2) calc(var(--u) * .35) rgb(180 222 255 / .85), 0 0 calc(var(--u) * 4) calc(var(--u) * .6) rgb(140 195 255 / .35); }
+  .lamp--l .lamp-drl { transform-origin: 100% 50%; }
+  .lamp--r .lamp-drl { transform-origin: 0% 50%; }
+  /* light thrown on the track in front of the car, and the air lit up around it */
+  .spill { position: absolute; left: 0; top: 0; width: calc(var(--u) * 70); height: calc(var(--u) * 22); translate: -50% 0; border-radius: 50%; pointer-events: none; opacity: 0; will-change: transform, opacity;
+    background: radial-gradient(closest-side, rgb(190 222 255 / .32), rgb(150 200 255 / .1) 55%, transparent 100%); }
+  .haze { position: absolute; left: 0; top: 0; width: calc(var(--u) * 120); height: calc(var(--u) * 80); translate: -50% -50%; border-radius: 50%; pointer-events: none; opacity: 0; will-change: opacity;
+    background: radial-gradient(closest-side, rgb(120 170 220 / .22), rgb(80 130 190 / .08) 50%, transparent 100%); }
+  /* anamorphic lens streak through both lamps */
+  .flare { position: absolute; left: -25%; right: -25%; top: 0; height: calc(var(--u) * .5); translate: 0 -50%; pointer-events: none; opacity: 0; will-change: transform, opacity;
+    background: linear-gradient(90deg, transparent 8%, rgb(120 185 255 / .18) 30%, rgb(190 225 255 / .7) 47%, #fff 50%, rgb(190 225 255 / .7) 53%, rgb(120 185 255 / .18) 70%, transparent 92%);
+    box-shadow: 0 0 calc(var(--u) * 2) rgb(150 205 255 / .25); border-radius: 50%; }
   /* legibility shade, not decoration: darkens the bottom where the text sits */
   .hero-shade { position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgb(12 23 34 / .55) 0%, rgb(12 23 34 / .05) 30%, rgb(12 23 34 / .35) 55%, rgb(12 23 34 / .94) 88%); }
   .hero-inner { padding-top: calc(var(--nav-h) + var(--s7)); padding-bottom: clamp(2rem, 6vh, 4.5rem); }
@@ -199,6 +215,15 @@
     .search-go { grid-column: 1 / -1; }
   }
   .search-go { min-height: 3.6rem; }
+  /* Portrait phones: a wide photo can't fill a tall screen without cutting the car off, so the photo
+     sits at the top showing the whole car, and the headline and search sit beneath it. */
+  @media (max-aspect-ratio: 4/5) {
+    .hero-img { inset: auto 0; top: var(--nav-h); width: 100%; height: 56svh; object-position: 50% 64%;
+      -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent 100%); mask-image: linear-gradient(180deg, #000 68%, transparent 100%); }
+    .hero-shade { background: linear-gradient(180deg, rgb(12 23 34 / .6) 0, transparent calc(var(--nav-h) + 10%)); }
+    .hero { align-items: start; }
+    .hero-inner { padding-top: calc(var(--nav-h) + 56svh - 4.5rem); padding-bottom: var(--s6); }
+  }
   @media (max-height: 520px) and (orientation: landscape) {
     .hero { min-height: 0; }
     .hero-title { font-size: clamp(2.2rem, 7vw, 4rem); }

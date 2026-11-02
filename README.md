@@ -16,7 +16,7 @@ npm run deploy    # build + publish dist/ to the gh-pages branch (GitHub Pages)
 
 "Instrument panel at night": midnight-lacquer navy (`#0c1722`), bone text (`#ece6dc`), blue-grey secondary text (`#9aa8b5`) and a single amber accent (`#f0a030`) used only for the main action and live states. One typeface, Archivo, self-hosted, using its width axis for headlines.
 
-The logo is a V8: two cylinder banks forming a V with the eight bores in them. On the first visit of a session the home page intro assembles that logo, fires the cylinders in a real V8 firing order (1-8-4-3-6-5-7-2) while the page loads, then the V opens like a window onto the hero photo. Return visits and visitors with reduced motion skip it.
+The home page intro is one continuous shot on the hero photo itself, with no overlay to cut away from: darkness, the Range Rover's LED strips sweep on and the lamps flicker awake (they keep glowing while the photo loads), light spills onto the track, then the camera pulls back as the scene lights up and the headline rises. Only transform and opacity are animated, so it holds a steady frame rate on phones. On portrait phones the photo sits in a band at the top so the whole car is visible. First visit per session only; reduced-motion visitors skip it.
 
 ## Pages
 
