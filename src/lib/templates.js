@@ -101,8 +101,15 @@ export const NAV_PAGES = [
   { key: 'contact', href: 'contact.html', label: 'Visit us' },
 ];
 
+/** Page-change curtain: three layers per side sweep in, meet in the middle, then open on the next page. */
+export function curtainHTML() {
+  const side = (k) => `<div class="curtain-side curtain-side--${k}"><span class="cl cl-1"></span><span class="cl cl-2"></span><span class="cl cl-3"></span></div>`;
+  return `<div class="curtain" data-curtain aria-hidden="true">${side('l')}${side('r')}
+    <div class="curtain-mid">${markSVG('mark curtain-mark')}<span class="curtain-label" data-curtain-label></span></div></div>`;
+}
+
 export function navHTML(page, P = '') {
-  return `<header class="nav" data-nav>
+  return `${curtainHTML()}<header class="nav" data-nav>
     <a href="${P}./" class="wordmark" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark')}<span>V8 Motors</span></a>
     <nav aria-label="Main" class="nav-links">
       ${NAV_PAGES.map((p) => `<a href="${P}${p.href}"${p.key === page ? ' aria-current="page"' : ''}>${p.label}</a>`).join('')}
@@ -159,7 +166,8 @@ export function footerHTML(P = '') {
 export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   const url = SITE + path;
   const img = image || `${SITE}og.jpg`;
-  return `<title>${esc(title)}</title>
+  return `<script>try{if(sessionStorage.getItem('v8:curtain')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('curtain-in')}catch(e){}</script>
+  <title>${esc(title)}</title>
   <meta name="description" content="${esc(desc)}" />
   <link rel="canonical" href="${url}" />
   <meta property="og:type" content="website" />

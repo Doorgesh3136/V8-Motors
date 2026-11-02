@@ -446,10 +446,23 @@
   .notice.is-on { opacity: 1; translate: 0 0; }
   .notice a { color: var(--bone); text-decoration: underline; text-underline-offset: 3px; }
   body.page-car .notice { bottom: calc(5.5rem + var(--tab-h)); }
-  .curtain { position: fixed; inset: 0; z-index: 300; pointer-events: none; background: var(--ink); clip-path: inset(100% 0 0 0); transition: clip-path .45s cubic-bezier(.7, 0, .84, 0); }
-  .curtain.is-entering, .curtain.is-covering { clip-path: inset(0 0 0 0); }
-  .curtain.is-covering { transition: none; }
-  .curtain.is-leaving { clip-path: inset(0 0 100% 0); transition: clip-path .75s var(--ease); }
+  /* Page-change curtain: hidden when idle; the script slides the layers in (leaving) and out (arriving). */
+  .curtain { position: fixed; inset: 0; z-index: 600; visibility: hidden; pointer-events: none; }
+  .curtain.is-active, html.curtain-in .curtain { visibility: visible; pointer-events: auto; }
+  .curtain-side { position: absolute; top: 0; bottom: 0; width: 50.2%; overflow: hidden; }
+  .curtain-side--l { left: 0; }
+  .curtain-side--r { right: 0; }
+  .cl { position: absolute; inset: 0; will-change: transform; }
+  /* layer 1 leads with the amber edge, layer 2 is a lighter panel, layer 3 is the ink that settles on top */
+  .cl-1 { background: var(--amber); }
+  .cl-2 { background: var(--panel-2); }
+  .cl-3 { background: var(--ink); }
+  .curtain-side--l .cl-3 { box-shadow: inset -1px 0 0 var(--line); }
+  .curtain-mid { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--s4); opacity: 0; text-align: center; padding: var(--s5); }
+  html.curtain-in .curtain-mid { opacity: 1; }
+  .curtain-mark { width: 3.5rem; }
+  .curtain-mark .mark-bore { fill: var(--ink); }
+  .curtain-label { font-weight: 850; font-size: clamp(1.75rem, 5vw, 3.25rem); line-height: 1; letter-spacing: -.025em; font-variation-settings: "wdth" 120; max-width: 18ch; }
 
   /* ---------------------------------------------------------------- inventory */
   .inv-layout { display: grid; gap: var(--s6); padding-bottom: var(--s9); }

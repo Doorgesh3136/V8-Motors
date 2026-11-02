@@ -13,7 +13,6 @@ export function shell({ head, page, body, script, P = '', bodyClass = '' }) {
   ${head}
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preconnect" href="https://images.unsplash.com" />
-  <style>@view-transition { navigation: auto; }</style>
   <script type="module" src="/src/pages/${script}.js" blocking="render"></script>
 </head>
 <body class="${bodyClass}">

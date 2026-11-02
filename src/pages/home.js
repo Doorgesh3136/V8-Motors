@@ -1,6 +1,6 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$ } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, curtainOpen } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { renderStatus } from '../lib/hours.js';
 import { CARS, rs, monthly } from '../data.js';
@@ -17,14 +17,19 @@ wireCardActions();
 renderStatus($('[data-open-status]'));
 
 const playIntro = document.documentElement.classList.contains('play-intro');
-if (playIntro) lenis?.stop();
+if (playIntro) {
+  // a refresh always lands at the top of the home page, wherever you were
+  const top = () => { scrollTo(0, 0); lenis?.scrollTo(0, { immediate: true, force: true }); };
+  top();
+  addEventListener('load', top, { once: true });
+  lenis?.stop();
+}
 
-runIntro().then(() => {
+runIntro().then(async () => {
   document.documentElement.classList.remove('play-intro');
   addEventListener('resize', layoutLamps);
-  sessionStorage.setItem('v8:intro', '1');
   lenis?.start();
-  if (!heroStarted) heroIn();
+  if (!heroStarted) { await curtainOpen; heroIn(); }
   setupSearch();
   setupArrivals();
   setupChecks();
@@ -67,7 +72,6 @@ function waitForPhoto() {
   const timeout = new Promise((r) => setTimeout(r, 5000)); // slow connection: never hold the page hostage
   return Promise.race([Promise.all([decoded, document.fonts.ready]), timeout]);
 }
-function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 async function runIntro() {
   if (!playIntro) return;
@@ -89,41 +93,61 @@ async function runIntro() {
   gsap.set(spill, { opacity: 0, scaleY: 0.4, transformOrigin: '50% 0%' });
 
   // 1. wake up
-  const wake = gsap.timeline({ delay: 0.3 });
-  wake.to(drls, { scaleX: 1, duration: 0.55, ease: 'power3.out', stagger: 0.09 })
+  const wake = gsap.timeline({ delay: 0.25 });
+  wake.to(drls, { scaleX: 1, duration: 0.5, ease: 'power3.out', stagger: 0.08 })
     .to(cores, {
       keyframes: [
-        { opacity: 0.9, scale: 0.9, duration: 0.06 },
-        { opacity: 0.15, duration: 0.08 },
-        { opacity: 1, scale: 1, duration: 0.06 },
-        { opacity: 0.55, duration: 0.12 },
-        { opacity: 1, duration: 0.3, ease: 'power2.out' },
-      ], stagger: 0.06,
-    }, '-=0.15')
-    .to(blooms, { opacity: 1, scale: 1, duration: 1.1, ease: 'expo.out', stagger: 0.06 }, '-=0.45')
-    .to(flare, { opacity: 0.85, scaleX: 1, duration: 1.2, ease: 'expo.out' }, '<')
-    .to(spill, { opacity: 1, scaleY: 1, duration: 1.1, ease: 'expo.out' }, '<0.1')
-    .to(haze, { opacity: 1, duration: 1.2, ease: 'power2.out' }, '<')
-    // the bonnet and grille start to catch the light
-    .to(dark, { opacity: 0.84, duration: 1.1, ease: 'power2.out' }, '<0.15');
-  await Promise.all([wake, waitForPhoto(), sleep(1400)]);
+        { opacity: 0.9, scale: 0.9, duration: 0.05 },
+        { opacity: 0.1, duration: 0.07 },
+        { opacity: 1, scale: 1, duration: 0.05 },
+        { opacity: 0.45, duration: 0.09 },
+        { opacity: 1, duration: 0.18, ease: 'power2.out' },
+      ], stagger: 0.05,
+    }, '-=0.2')
+    .addLabel('ignite', '-=0.05')
+    // the engine catches: a short jolt through the whole frame
+    .to(media, { keyframes: { x: [0, -5, 6, -4, 3, -1, 0], y: [0, 3, -3, 2, -1, 1, 0] }, duration: 0.42, ease: 'none' }, 'ignite')
+    // high beams flash twice and light up the scene for an instant
+    .to(blooms, {
+      keyframes: [
+        { opacity: 1, scale: 1.35, duration: 0.07 },
+        { opacity: 0.55, scale: 0.95, duration: 0.11 },
+        { opacity: 1, scale: 1.45, duration: 0.07 },
+        { opacity: 0.95, scale: 1, duration: 0.6, ease: 'power3.out' },
+      ],
+    }, 'ignite')
+    .to(dark, {
+      keyframes: [
+        { opacity: 0.45, duration: 0.07 },
+        { opacity: 0.93, duration: 0.11 },
+        { opacity: 0.4, duration: 0.07 },
+        { opacity: 0.82, duration: 0.6, ease: 'power3.out' },
+      ],
+    }, 'ignite')
+    .to(flare, { opacity: 1, scaleX: 1, duration: 0.3, ease: 'power4.out' }, 'ignite')
+    .to(flare, { opacity: 0.7, duration: 0.6 }, '>')
+    .to(spill, { opacity: 1, scaleY: 1, duration: 0.8, ease: 'expo.out' }, 'ignite+=0.05')
+    .to(haze, { opacity: 1, duration: 0.8, ease: 'power2.out' }, 'ignite+=0.05');
+  await Promise.all([wake, waitForPhoto()]);
 
   // 2. (if still loading, the lamps simply keep glowing; the wait above covers it)
   geo = layoutLamps();
 
-  // 3. pull back, light comes up, headline settles in
+  // 3. pull back hard, light comes up, the page lands
+  gsap.set(media, { rotation: -1.6 });
   await gsap.timeline()
-    .to(media, { scale: 1, duration: 2.0, ease: 'expo.inOut' }, 0)
-    .to(dark, { opacity: 0, duration: 1.6, ease: 'power2.inOut' }, 0.15)
-    .to(blooms, { opacity: 0.18, scale: 0.85, duration: 1.6, ease: 'power2.inOut' }, 0.35)
-    .to(cores, { opacity: 0.35, duration: 1.6, ease: 'power2.inOut' }, 0.35)
-    .to(drls, { opacity: 0.2, duration: 1.4 }, 0.5)
-    .to(flare, { opacity: 0, scaleX: 1.35, duration: 1.5, ease: 'power2.out' }, 0.25)
-    .to([spill, haze], { opacity: 0, duration: 1.5, ease: 'power2.inOut' }, 0.4)
-    .to(['[data-nav]', '.tabbar'], { opacity: 1, duration: 0.9, ease: 'power2.out' }, 1.2)
-    .add(heroIn, 1.05)
-    .to(lamps, { opacity: 0, duration: 1.2, ease: 'power1.inOut' }, 2.0);
-  gsap.set([media, '[data-nav]', '.tabbar'], { clearProps: 'transform,opacity' });
+    .to(media, { scale: 1, rotation: 0, duration: 1.75, ease: 'expo.inOut' }, 0)
+    .to(dark, { opacity: 0, duration: 1.35, ease: 'power2.inOut' }, 0.1)
+    .to(blooms, { opacity: 0.2, scale: 0.85, duration: 1.3, ease: 'power2.inOut' }, 0.25)
+    .to(cores, { opacity: 0.35, duration: 1.3, ease: 'power2.inOut' }, 0.25)
+    .to(drls, { opacity: 0.2, duration: 1.2 }, 0.4)
+    .to(flare, { opacity: 0, scaleX: 1.6, duration: 1.1, ease: 'power2.out' }, 0.1)
+    .to([spill, haze], { opacity: 0, duration: 1.2, ease: 'power2.inOut' }, 0.3)
+    .to(['[data-nav]', '.tabbar'], { opacity: 1, duration: 0.8, ease: 'power2.out' }, 1.0)
+    .add(heroIn, 0.85)
+    .to(lamps, { opacity: 0, duration: 1.0, ease: 'power1.inOut' }, 1.6);
+  gsap.set(media, { clearProps: 'transform' });
+  gsap.set(['[data-nav]', '.tabbar'], { clearProps: 'opacity' }); // never touch the nav's transform: it slides via CSS
 }
 
 /* ================================================================== hero: headline rises (transform only, no reflow) */
@@ -133,8 +157,8 @@ function heroIn() {
   gsap.set('.hero-inner', { opacity: 1 });
   if (reduced) return;
   gsap.timeline({ defaults: { ease: 'expo.out' } })
-    .from($$('[data-hero-title] .line > span'), { yPercent: 115, duration: 1.3, stagger: 0.1 })
-    .from('[data-hero-fade]', { opacity: 0, y: 28, duration: 1.1, stagger: 0.12, clearProps: 'opacity,transform' }, 0.35);
+    .from($$('[data-hero-title] .line > span'), { yPercent: 120, skewY: 8, transformOrigin: '0% 100%', duration: 1.15, stagger: 0.09 })
+    .from('[data-hero-fade]', { opacity: 0, y: 32, duration: 1, stagger: 0.1, clearProps: 'opacity,transform' }, 0.3);
 }
 
 /* ================================================================== search */

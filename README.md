@@ -16,7 +16,9 @@ npm run deploy    # build + publish dist/ to the gh-pages branch (GitHub Pages)
 
 "Instrument panel at night": midnight-lacquer navy (`#0c1722`), bone text (`#ece6dc`), blue-grey secondary text (`#9aa8b5`) and a single amber accent (`#f0a030`) used only for the main action and live states. One typeface, Archivo, self-hosted, using its width axis for headlines.
 
-The home page intro is one continuous shot on the hero photo itself, with no overlay to cut away from: darkness, the Range Rover's LED strips sweep on and the lamps flicker awake (they keep glowing while the photo loads), light spills onto the track, then the camera pulls back as the scene lights up and the headline rises. Only transform and opacity are animated, so it holds a steady frame rate on phones. On portrait phones the photo sits in a band at the top so the whole car is visible. First visit per session only; reduced-motion visitors skip it.
+The home page intro is one continuous shot on the hero photo itself, with no overlay to cut away from: darkness, the Range Rover's LED strips sweep on, the lamps flicker awake, the engine catches (a short jolt through the frame) and the high beams flash twice, then the camera pulls back with a slight roll as the forest lights up and the headline snaps in. The lamps keep glowing while the photo loads. It plays on every fresh visit and every refresh of the home page (always from the top); arriving from another page on the site uses the curtain instead. Only transform and opacity are animated. Reduced-motion visitors skip it.
+
+Page changes use curtains: amber, slate and ink layers sweep in from both sides, meet on the logo and the name of the page you're going to (or the car's name), and open outwards on the next page. The next page is prefetched when a link is hovered or touched, so the curtain rarely waits. Works the same in every browser.
 
 ## Pages
 

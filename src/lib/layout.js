@@ -64,68 +64,101 @@ function privacyNotice() {
   });
 }
 
-/* ------------------------------------------------------------------ page transitions */
-const supportsCrossDocVT = 'onpagereveal' in window && CSS.supports('view-transition-name: a');
-const HERO_KEY = 'v8:vt-hero';
+/* ------------------------------------------------------------------ page transitions: curtains
+   Leaving: three layers per side (amber edge, panel, ink) sweep in and meet in the middle,
+   showing the logo and where you're going. The next page paints with the curtain already
+   closed (a class set in <head> before first paint), then the layers open outwards. */
+const html = document.documentElement;
+export const viaCurtain = html.classList.contains('curtain-in');
+const ROUTES = {
+  'index.html': 'Home', 'inventory.html': 'Inventory', 'sell.html': 'Sell your car', 'finance.html': 'Finance',
+  'contact.html': 'Visit us', 'compare.html': 'Compare', 'privacy.html': 'Privacy policy', 'terms.html': 'Terms of sale',
+};
 const fileOf = (url) => new URL(url, location.href).pathname.split('/').pop() || 'index.html';
-const clearNames = () => $$('[style*="view-transition-name"]').forEach((x) => (x.style.viewTransitionName = ''));
 
-function initTransitions() {
-  if (supportsCrossDocVT) {
-    document.documentElement.classList.add('vt');
-    window.addEventListener('pageswap', (e) => {
-      const to = e.activation?.entry?.url;
-      const heroId = sessionStorage.getItem(HERO_KEY);
-      if (!e.viewTransition || !to || fileOf(to) !== `${heroId}.html`) { clearNames(); sessionStorage.removeItem(HERO_KEY); }
-    });
-    window.addEventListener('pagereveal', (e) => {
-      const heroId = sessionStorage.getItem(HERO_KEY);
-      sessionStorage.removeItem(HERO_KEY);
-      const hero = $('[data-vt-hero]');
-      if (e.viewTransition && hero && heroId && hero.dataset.vtHero === heroId) {
-        hero.style.viewTransitionName = 'car-hero';
-        e.viewTransition.finished.finally(() => (hero.style.viewTransitionName = ''));
-      }
-    });
-    window.addEventListener('pageshow', (e) => { if (e.persisted) clearNames(); });
-    return;
-  }
+let resolveOpen;
+/** Resolves once the arrival curtain has opened (immediately if there wasn't one). */
+export const curtainOpen = new Promise((r) => (resolveOpen = r));
 
-  // Fallback (Firefox): a short wipe in the brand colour.
-  const curtain = document.createElement('div');
-  curtain.className = 'curtain';
-  curtain.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(curtain);
-  if (sessionStorage.getItem('v8:curtain') && !reduced) {
-    curtain.classList.add('is-covering');
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      curtain.classList.remove('is-covering');
-      curtain.classList.add('is-leaving');
-      setTimeout(() => curtain.classList.remove('is-leaving'), 900);
-    }));
+function initCurtain() {
+  const c = $('[data-curtain]');
+  const label = $('[data-curtain-label]');
+  if (!c) { resolveOpen(); return; }
+  const L = $$('.curtain-side--l .cl', c), R = $$('.curtain-side--r .cl', c);
+  const mid = $('.curtain-mid', c);
+
+  // arriving: open
+  if (viaCurtain) {
+    label.textContent = sessionStorage.getItem('v8:curtain') || '';
+    sessionStorage.removeItem('v8:curtain');
+    gsap.timeline({ onComplete: () => { html.classList.remove('curtain-in'); gsap.set([...L, ...R, mid], { clearProps: 'all' }); resolveOpen(); } })
+      .to(mid, { opacity: 0, y: -14, duration: 0.25, ease: 'power2.in' }, 0.05)
+      .to([...L].reverse(), { xPercent: -101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15)
+      .to([...R].reverse(), { xPercent: 101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15);
+    setTimeout(resolveOpen, 550); // let the page start its own entrance while the curtain is still opening
+  } else {
+    sessionStorage.removeItem('v8:curtain');
+    resolveOpen();
   }
-  sessionStorage.removeItem('v8:curtain');
+  if (reduced) return;
+
+  // warm up the next page as soon as a link is hovered or touched
+  const warmed = new Set();
+  const warm = (e) => {
+    const a = e.target.closest?.('a[href]');
+    if (!a || !isInternal(a, e)) return;
+    const href = new URL(a.href, location.href).href.split('#')[0];
+    if (warmed.has(href)) return;
+    warmed.add(href);
+    const l = document.createElement('link');
+    l.rel = 'prefetch'; l.href = href;
+    document.head.appendChild(l);
+  };
+  addEventListener('pointerover', warm, { passive: true });
+  addEventListener('touchstart', warm, { passive: true });
+
+  // leaving: close, then go
+  let leaving = false;
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
-    if (!a || reduced || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || a.target === '_blank' || a.hasAttribute('download')) return;
-    const url = new URL(a.href, location.href);
-    if (url.origin !== location.origin || !/(\.html|\/)$/.test(url.pathname)) return;
-    if (url.pathname === location.pathname && url.search === location.search) return;
+    if (!a || leaving || !isInternal(a, e)) return;
     e.preventDefault();
-    sessionStorage.setItem('v8:curtain', '1');
-    curtain.classList.add('is-entering');
-    setTimeout(() => location.assign(url.href), 480);
+    leaving = true;
+    const url = new URL(a.href, location.href);
+    const file = fileOf(url);
+    const name = url.pathname.includes('/cars/')
+      ? (a.closest('.car')?.querySelector('.car-title')?.textContent || a.textContent || '').trim()
+      : ROUTES[file] || 'V8 Motors';
+    label.textContent = name;
+    c.classList.add('is-active');
+    gsap.timeline({ onComplete: () => { sessionStorage.setItem('v8:curtain', name); location.assign(url.href); } })
+      .fromTo(L, { xPercent: -101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
+      .fromTo(R, { xPercent: 101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
+      .fromTo(mid, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 0.5)
+      .to({}, { duration: 0.08 });
   });
-  window.addEventListener('pageshow', (e) => { if (e.persisted) curtain.className = 'curtain'; });
+  // coming back via the back button restores the old page from cache: make sure it's open
+  addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    leaving = false;
+    c.classList.remove('is-active');
+    html.classList.remove('curtain-in');
+    gsap.set([...L, ...R, mid], { clearProps: 'all' });
+  });
 }
 
-/** Mark a card photo to morph into the car page's main photo on the next navigation. */
-export function nameForTransition(el, carId) {
-  if (!supportsCrossDocVT || !el) return;
-  clearNames();
-  el.style.viewTransitionName = 'car-hero';
-  sessionStorage.setItem(HERO_KEY, carId);
+function isInternal(a, e) {
+  if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
+  if (a.target === '_blank' || a.hasAttribute('download')) return false;
+  const url = new URL(a.href, location.href);
+  if (url.origin !== location.origin) return false;
+  if (!/(\.html|\/)$/.test(url.pathname)) return false;
+  if (url.pathname === location.pathname && url.search === location.search) return false; // same page or #hash
+  return true;
 }
+
+/** Kept for card links; the curtain handles the transition now. */
+export function nameForTransition() {}
 
 /* ------------------------------------------------------------------ scrolling */
 function initScroll() {
@@ -164,6 +197,7 @@ export function scrollToEl(el, offset = -88) {
 /* ------------------------------------------------------------------ page title entrance */
 export function titleIn(el, delay = 0.1) {
   if (!el || reduced) return;
+  if (viaCurtain) delay += 0.55; // rise as the curtain opens
   // transform + clip only: animating the font width here would re-wrap the title and shift the page
   gsap.fromTo(el, { clipPath: 'inset(0 0 100% 0)', y: 28 }, { clipPath: 'inset(0 0 -10% 0)', y: 0, duration: 1.1, ease: 'expo.out', delay, clearProps: 'clipPath,transform' });
 }
@@ -206,7 +240,7 @@ export const phoneOk = (v) => v.replace(/\D/g, '').length >= 7;
 /* ------------------------------------------------------------------ boot */
 export function initLayout({ home = false } = {}) {
   if ('scrollRestoration' in history) history.scrollRestoration = home ? 'manual' : 'auto';
-  initTransitions();
+  initCurtain();
   initScroll();
   syncStoreUI();
   window.addEventListener('store:change', syncStoreUI);

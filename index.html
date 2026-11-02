@@ -6,14 +6,23 @@
   <!--@head-->
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
   <script>
-    // Decide before first paint whether the intro plays (first visit per session, motion allowed).
-    try { if (!sessionStorage.getItem('v8:intro') && !matchMedia('(prefers-reduced-motion: reduce)').matches) document.documentElement.classList.add('play-intro'); } catch (e) {}
+    // The intro plays on every fresh load and every refresh of the home page, but not when you arrive
+    // from another page on the site (the curtain covers that) or come back with the back button.
+    try {
+      var nav = performance.getEntriesByType('navigation')[0], type = nav ? nav.type : 'navigate';
+      var fromSite = document.referrer && new URL(document.referrer).origin === location.origin;
+      var viaCurtain = sessionStorage.getItem('v8:curtain');
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !viaCurtain && (type === 'reload' || (type === 'navigate' && !fromSite))) {
+        document.documentElement.classList.add('play-intro');
+        if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
+        scrollTo(0, 0);
+      }
+    } catch (e) {}
   </script>
   <link rel="preconnect" href="https://images.unsplash.com" />
   <link rel="preload" as="image" fetchpriority="high"
     imagesrcset="https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=2200&q=70 2200w"
     imagesizes="100vw" />
-  <style>@view-transition { navigation: auto; }</style>
   <script type="module" src="/src/pages/home.js" blocking="render"></script>
 </head>
 <body class="page-home">
