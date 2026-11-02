@@ -71,7 +71,7 @@ function privacyNotice() {
 const html = document.documentElement;
 export const viaCurtain = html.classList.contains('curtain-in');
 const ROUTES = {
-  'index.html': 'Home', 'inventory.html': 'Inventory', 'sell.html': 'Sell your car', 'finance.html': 'Finance',
+  'index.html': 'Home', 'inventory.html': 'Cars for sale', 'sell.html': 'Sell or exchange', 'finance.html': 'Leasing',
   'contact.html': 'Visit us', 'compare.html': 'Compare', 'privacy.html': 'Privacy policy', 'terms.html': 'Terms of sale',
 };
 const fileOf = (url) => new URL(url, location.href).pathname.split('/').pop() || 'index.html';
@@ -244,7 +244,62 @@ export function initLayout({ home = false } = {}) {
   initScroll();
   syncStoreUI();
   window.addEventListener('store:change', syncStoreUI);
-  setTimeout(privacyNotice, home ? 4000 : 900);
+  // on the home page the notice waits until the intro is over, so it never covers the start button
+  if (home && html.classList.contains('play-intro')) addEventListener('v8:intro-done', () => setTimeout(privacyNotice, 2500), { once: true });
+  else setTimeout(privacyNotice, home ? 2500 : 900);
   $$('form').forEach(armForm);
+  wirePhotoScrub();
   return { lenis };
+}
+
+/**
+ * Forms reach the dealership through WhatsApp (or email): the message is written for the visitor,
+ * they press send in their own app. Nothing is stored on a server.
+ */
+export function sendMessage(text, via = 'wa') {
+  const href = via === 'email'
+    ? `mailto:${DEALER_EMAIL}?subject=${encodeURIComponent('Enquiry from the V8 Motors website')}&body=${encodeURIComponent(text)}`
+    : `https://wa.me/${DEALER_WA}?text=${encodeURIComponent(text)}`;
+  if (via === 'email') location.href = href;
+  else window.open(href, '_blank', 'noopener');
+  return href;
+}
+const DEALER_WA = '23052590327';
+const DEALER_EMAIL = 'veightmotorsv8@gmail.com';
+
+/** Cards: move across the photo to flick through the car's pictures (mouse and pen only).
+    The whole card is one big link laid over the photo, so this works from the card and the photo's position. */
+export function wirePhotoScrub(root = document) {
+  if (!matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  const reset = (media) => {
+    if (!media?._orig) return;
+    const img = media.querySelector('img');
+    img.src = media._orig.src; img.srcset = media._orig.srcset;
+    media._i = -1;
+    media.classList.remove('is-scrubbing');
+  };
+  let current = null;
+  root.addEventListener('pointermove', (e) => {
+    const media = e.target.closest?.('.car')?.querySelector('[data-scrub]');
+    if (current && current !== media) { reset(current); current = null; }
+    if (!media) return;
+    const r = media.getBoundingClientRect();
+    if (e.clientY > r.bottom || e.clientY < r.top) { reset(media); return; }
+    const list = media.dataset.scrub.split('|');
+    if (list.length < 2) return;
+    current = media;
+    const i = Math.min(list.length - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * list.length)));
+    if (media._i === i) return;
+    media._i = i;
+    const img = media.querySelector('img');
+    if (!media._orig) {
+      media._orig = { src: img.src, srcset: img.srcset };
+      media._pre = list.slice(1).map((u) => Object.assign(new Image(), { src: u })); // warm the rest
+    }
+    img.srcset = '';
+    img.src = i === 0 ? media._orig.src : list[i];
+    media.querySelectorAll('.car-ticks i').forEach((t, k) => t.classList.toggle('is-on', k === i));
+    media.classList.add('is-scrubbing');
+  }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', () => { reset(current); current = null; });
 }

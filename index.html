@@ -43,12 +43,17 @@
         <div class="hero-dark" data-hero-dark aria-hidden="true"></div>
         <span class="haze" data-haze aria-hidden="true"></span>
         <span class="spill" data-spill aria-hidden="true"></span>
+        <span class="bloom" data-bloom aria-hidden="true"></span>
         <!-- the headlights' real shapes, cut from the photo: sharp light and its soft glow, aligned to the photo exactly -->
         <img class="hero-img hero-glow" data-glow src="intro/glow.webp" width="1100" height="740" alt="" aria-hidden="true" decoding="async" />
         <img class="hero-img hero-lights" data-lights src="intro/lights.webp" width="2200" height="1480" alt="" aria-hidden="true" decoding="async" />
         <span class="flare" data-flare aria-hidden="true"></span>
       </div>
       <div class="hero-shade" aria-hidden="true"></div>
+      <!-- intro only: letterbox, the V8 badge that flies into the menu bar, and controls while it plays -->
+      <div class="bars" data-bars aria-hidden="true"><span></span><span></span></div>
+      <div class="intro-badge" data-badge aria-hidden="true"><img src="brand/v8-mark.png" width="364" height="343" alt="" /></div>
+      <div class="intro-controls" data-intro-controls hidden><button type="button" data-mute aria-pressed="false">Sound off</button><button type="button" data-intro-skip>Skip</button></div>
 
       <!-- Intro gate: browsers only allow sound after a tap, so the intro starts with the car's start button -->
       <div class="gate" data-gate>
@@ -60,8 +65,8 @@
         <p class="gate-alt"><button type="button" data-ignite-quiet>Enter without sound</button><button type="button" data-skip>Skip intro</button></p>
       </div>
       <div class="wrap hero-inner">
-        <h1 class="hero-title" id="hero-title" data-hero-title><span class="line"><span>Pre-owned,</span></span> <span class="line"><span>properly.</span></span></h1>
-        <p class="hero-lede" data-hero-fade>Every car on our floor is inspected, serviced and priced up front. <!--@count--> cars are ready to view in Beau Bassin this week.</p>
+        <h1 class="hero-title" id="hero-title" data-hero-title><span class="line"><span>Drive</span></span> <span class="line"><span>smarter.</span></span></h1>
+        <p class="hero-lede" data-hero-fade><!--@count--> checked cars on the forecourt at 59B Royal Road, Coromandel. Buy, sell or exchange, and lease through Rogers Capital.</p>
         <form class="search" action="inventory.html" method="get" data-search data-hero-fade>
           <label class="field"><span class="field-label">Make</span>
             <select name="make"><option value="">Any make</option><!--@makeoptions--></select></label>
@@ -70,10 +75,10 @@
           <label class="field"><span class="field-label">Budget</span>
             <select name="max">
               <option value="">Any budget</option>
+              <option value="300000">Up to Rs 300,000</option>
+              <option value="500000">Up to Rs 500,000</option>
+              <option value="750000">Up to Rs 750,000</option>
               <option value="1000000">Up to Rs 1,000,000</option>
-              <option value="2500000">Up to Rs 2,500,000</option>
-              <option value="5000000">Up to Rs 5,000,000</option>
-              <option value="10000000">Up to Rs 10,000,000</option>
             </select></label>
           <button class="btn btn-primary search-go" type="submit">Show <span class="tabular-nums" data-search-count><!--@total--></span> cars</button>
         </form>
@@ -83,49 +88,10 @@
     <section class="section arrivals" aria-labelledby="arrivals-title">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="section-title" id="arrivals-title">Just arrived</h2>
+          <h2 class="section-title" id="arrivals-title">Just in</h2>
           <a class="btn btn-line" href="inventory.html">See all <!--@total--> cars</a>
         </div>
         <ul class="grid-cars arrivals-grid"><!--@arrivals--></ul>
-      </div>
-    </section>
-
-    <section class="section inspect" aria-labelledby="check-title">
-      <div class="wrap check-grid">
-        <div class="check-copy">
-          <h2 class="section-title" id="check-title">150 checks before a car goes on sale.</h2>
-          <p class="section-sub">Our own workshop goes over every car. Tap a point on the car to see what we look at.</p>
-          <ul class="check-points" data-points>
-            <li><button type="button" data-point="0" aria-pressed="true"><strong>Brakes and tyres</strong><span>Disc and pad wear measured, tread depth and tyre age checked. Nothing older than five years leaves on our cars.</span></button></li>
-            <li><button type="button" data-point="1" aria-pressed="false"><strong>Engine and gearbox</strong><span>Compression, leaks, fluid condition and a diagnostic scan. On this 911 that means looking in the back.</span></button></li>
-            <li><button type="button" data-point="2" aria-pressed="false"><strong>Bodywork and paint</strong><span>Paint depth measured panel by panel, so we know about any repaint before you do.</span></button></li>
-            <li><button type="button" data-point="3" aria-pressed="false"><strong>Lights and electrics</strong><span>Every lamp, sensor, window and screen tested, fault codes read and cleared.</span></button></li>
-            <li><button type="button" data-point="4" aria-pressed="false"><strong>Interior</strong><span>Seats, belts, air conditioning and every switch. We fix what we find before listing.</span></button></li>
-            <li><button type="button" data-point="5" aria-pressed="false"><strong>Suspension and road test</strong><span>Bushes, dampers and alignment, then 20 km on the road with one of our technicians.</span></button></li>
-          </ul>
-        </div>
-        <figure class="check-figure">
-          <img src="https://images.unsplash.com/photo-1634673970798-a15ae56f6c65?auto=format&fit=crop&w=1400&q=70"
-            srcset="https://images.unsplash.com/photo-1634673970798-a15ae56f6c65?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1634673970798-a15ae56f6c65?auto=format&fit=crop&w=1400&q=70 1400w"
-            sizes="(min-width: 1000px) 60vw, 100vw" width="1600" height="1000" loading="lazy" decoding="async"
-            alt="A grey Porsche 911 GT3 RS parked outside a building, seen from the front three-quarter angle" />
-          <button type="button" class="hotspot" data-point="0" style="--x:53%;--y:58%" aria-label="Brakes and tyres"></button>
-          <button type="button" class="hotspot" data-point="1" style="--x:75%;--y:38%" aria-label="Engine and gearbox"></button>
-          <button type="button" class="hotspot" data-point="2" style="--x:62%;--y:47%" aria-label="Bodywork and paint"></button>
-          <button type="button" class="hotspot" data-point="3" style="--x:27%;--y:48%" aria-label="Lights and electrics"></button>
-          <button type="button" class="hotspot" data-point="4" style="--x:49%;--y:34%" aria-label="Interior"></button>
-          <button type="button" class="hotspot" data-point="5" style="--x:77%;--y:56%" aria-label="Suspension and road test"></button>
-        </figure>
-      </div>
-    </section>
-
-    <section class="section makes" aria-labelledby="makes-title">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 class="section-title" id="makes-title">Makes in stock</h2>
-          <p class="section-sub">From city hatchbacks to V10 supercars.</p>
-        </div>
-        <ul class="makes-grid"><!--@makes--></ul>
       </div>
     </section>
 
@@ -139,38 +105,53 @@
       </div>
     </section>
 
-    <section class="section money" aria-labelledby="money-title">
-      <div class="wrap money-grid">
-        <div>
-          <h2 class="section-title" id="money-title">What would it cost a month?</h2>
-          <p class="section-sub">Slide to a price. Worked out with 20% down over five years at 6.9%.</p>
-          <a class="link" href="finance.html" data-money-link>Open the full finance calculator</a>
+    <section class="section swap" aria-labelledby="swap-title">
+      <div class="wrap swap-grid">
+        <div class="swap-copy">
+          <h2 class="section-title" id="swap-title">Bring your car. Drive away in one of ours.</h2>
+          <p class="section-sub">Choose a car from the forecourt and slide to roughly what yours is worth. Your car comes off the price, and the rest can be leased through Rogers Capital.</p>
+          <a class="link" href="sell.html">Get a guide price for your car</a>
         </div>
-        <div class="money-box">
-          <p class="money-figure tabular-nums" aria-live="polite"><span data-money-out>Rs 38,700</span><small>a month</small></p>
-          <label class="slider">
-            <span class="slider-top"><span>Car price</span><output class="tabular-nums" data-money-price>Rs 2,450,000</output></span>
-            <input type="range" min="400000" max="25000000" step="50000" value="2450000" data-money />
-          </label>
-          <a class="money-match" href="inventory.html?price=1950000-2950000" data-money-match>See the cars we have around this price</a>
+        <div class="swap-box" data-swap>
+          <label class="field"><span class="field-label">The car you want</span>
+            <select data-swap-car><!--@caroptions--></select></label>
+          <a class="swap-car" data-swap-card href="inventory.html"><!--@swapcard--></a>
+          <label class="slider"><span class="slider-top"><span>Your car is worth about</span><output class="tabular-nums" data-swap-trade-out>Rs 200,000</output></span>
+            <input type="range" min="0" max="1500000" step="25000" value="200000" data-swap-trade /></label>
+          <dl class="swap-sum">
+            <div><dt>Price</dt><dd class="tabular-nums" data-swap-price></dd></div>
+            <div><dt>Your car</dt><dd class="tabular-nums" data-swap-minus></dd></div>
+            <div class="swap-total"><dt>Left to pay</dt><dd class="tabular-nums" data-swap-left></dd></div>
+          </dl>
+          <p class="swap-monthly tabular-nums" aria-live="polite"><span data-swap-month></span><small>a month on lease over 5 years, example rate</small></p>
         </div>
+      </div>
+    </section>
+
+    <section class="section makes" aria-labelledby="makes-title">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 class="section-title" id="makes-title">Makes on the forecourt</h2>
+          <p class="section-sub">New stock arrives every week.</p>
+        </div>
+        <ul class="makes-grid"><!--@makes--></ul>
       </div>
     </section>
 
     <section class="section sellband" aria-labelledby="sell-title">
       <div class="wrap sellband-inner">
         <div>
-          <h2 class="section-title" id="sell-title">Selling? We’ll make an offer within a day.</h2>
-          <p class="section-sub">Paid the same afternoon. We handle the NLTA transfer and settle any finance on it.</p>
+          <h2 class="section-title" id="sell-title">Best deals every Saturday.</h2>
+          <p class="section-sub">Come by on a Saturday, 9:00 to 16:00. Selling instead? We buy cars too, or take yours in part-exchange.</p>
         </div>
-        <a class="btn btn-line btn-lg" href="sell.html">Value my car</a>
+        <a class="btn btn-primary btn-lg" href="sell.html">Sell or exchange your car</a>
       </div>
     </section>
 
     <section class="visit-strip" aria-label="Showroom">
       <div class="wrap visit-strip-inner">
         <p class="open-status" data-open-status></p>
-        <p class="visit-strip-addr">Royal Road, Beau Bassin</p>
+        <p class="visit-strip-addr">59B Royal Road, Coromandel</p>
         <a href="contact.html" class="link">Opening hours and directions</a>
       </div>
     </section>

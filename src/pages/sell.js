@@ -1,5 +1,5 @@
 import gsap from 'gsap';
-import { initLayout, reduced, $, $$, scrollToEl, titleIn, looksLikeSpam, validateFields, phoneOk } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, scrollToEl, titleIn, looksLikeSpam, validateFields, phoneOk, sendMessage } from '../lib/layout.js';
 import { CARS, rs } from '../data.js';
 import { esc } from '../lib/templates.js';
 
@@ -8,15 +8,15 @@ titleIn($('[data-title]'));
 
 const f = $('[data-wizard]');
 const steps = $$('[data-wstep]');
-const NEXT = ['Next: condition', 'Next: contact details', 'Get my offer'];
+const NEXT = ['Next: condition', 'Next: contact details', 'Send on WhatsApp'];
 let step = 0;
 let files = [];
 
 // Rough "new price" per make, used only for the guide figure (Rs)
 const MAKE_BASE = {
-  Toyota: 1.9e6, Nissan: 1.6e6, Honda: 1.7e6, Suzuki: 0.95e6, Hyundai: 1.4e6, Kia: 1.5e6, Mazda: 1.7e6, Mitsubishi: 1.5e6,
-  Volkswagen: 2.1e6, Opel: 1.5e6, Ford: 2.4e6, Peugeot: 1.6e6, Renault: 1.3e6, Mini: 2.2e6, Jeep: 3.4e6, Tesla: 3.6e6,
-  BMW: 4.2e6, 'Mercedes-Benz': 4.8e6, Audi: 4.2e6, 'Land Rover': 7.5e6, Porsche: 9.5e6, Lamborghini: 22e6, Other: 1.6e6,
+  Toyota: 1.4e6, Nissan: 1.2e6, Honda: 1.3e6, Suzuki: 0.9e6, Hyundai: 1.2e6, Kia: 1.3e6, Mazda: 1.3e6, Mitsubishi: 1.3e6,
+  Volkswagen: 1.4e6, Skoda: 1.5e6, Ford: 1.4e6, Peugeot: 1.2e6, Renault: 1.0e6, Jeep: 1.9e6, Isuzu: 1.5e6,
+  BMW: 2.4e6, 'Mercedes-Benz': 2.6e6, Audi: 2.3e6, 'Land Rover': 3.2e6, Other: 1.1e6,
 };
 const makeSel = $('[data-make]');
 makeSel.insertAdjacentHTML('beforeend', Object.keys(MAKE_BASE).map((m) => `<option>${m}</option>`).join(''));
@@ -117,17 +117,20 @@ function finish() {
   $$('.wizard-nav, .wizard-steps, .wizard-bar, [data-error]').forEach((x) => (x.hidden = true));
   const done = $('[data-done]');
   done.hidden = false;
+  const what = `${fd.get('year')} ${fd.get('make')} ${fd.get('model')}`;
+  const text = `Hi V8 Motors, I'd like to ${fd.get('contact') === 'exchange' ? 'exchange' : 'sell'} my ${what}.\nMileage: ${kmValue().toLocaleString('en-US')} km\nCondition: ${fd.get('condition')}\n${e ? `Website guide price: ${rs(e.v)}\n` : ''}Name: ${fd.get('name')}\nMobile: ${fd.get('phone')}${files.length ? `\nI'll send ${files.length} photo${files.length > 1 ? 's' : ''} in this chat.` : ''}`;
+  const href = sendMessage(text);
   done.innerHTML = `
     <svg class="done-tick" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="m15 27 7 7 15-15"/></svg>
-    <h2>Request sent.</h2>
-    <p>We’ll ${fd.get('contact') === 'WhatsApp' ? 'message' : 'call'} ${esc(fd.get('phone'))} within one working day with a written offer for your ${esc(fd.get('year'))} ${esc(fd.get('make'))} ${esc(fd.get('model'))}.</p>
+    <h2>Almost done: press send in WhatsApp.</h2>
+    <p>The details of your ${esc(what)} are written for you there.${files.length ? ' Attach your photos in the same chat.' : ''} We reply with an offer in that chat.</p>
     <dl class="done-sum">
       <div><dt>Rough guide</dt><dd class="tabular-nums">${e ? rs(e.v) : 'To follow'}</dd></div>
       <div><dt>Mileage</dt><dd class="tabular-nums">${kmValue().toLocaleString('en-US')} km</dd></div>
       <div><dt>Condition</dt><dd>${esc(String(fd.get('condition')).replace(/^./, (x) => x.toUpperCase()))}</dd></div>
-      <div><dt>Photos</dt><dd>${files.length}</dd></div>
+      <div><dt>You want to</dt><dd>${fd.get('contact') === 'exchange' ? 'Exchange' : 'Sell'}</dd></div>
     </dl>
-    <a href="inventory.html" class="btn btn-line">Browse cars while you wait</a>`;
+    <div class="done-actions"><a href="${href}" class="btn btn-primary" target="_blank" rel="noopener">Open WhatsApp again</a><a href="inventory.html" class="btn btn-line">Browse our cars</a></div>`;
   if (!reduced) {
     gsap.from(done.children, { y: 16, opacity: 0, stagger: 0.06, duration: 0.7, ease: 'expo.out' });
     gsap.fromTo('.done-tick circle', { strokeDashoffset: 151 }, { strokeDashoffset: 0, duration: 0.8, ease: 'power2.out' });

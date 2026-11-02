@@ -1,6 +1,6 @@
 import gsap from 'gsap';
 import { initLayout, reduced, $, $$, titleIn } from '../lib/layout.js';
-import { CARS, DEALER, byId, rs, monthly, sized, carName } from '../data.js';
+import { CARS, DEALER, byId, rs, monthly, thumb, carName } from '../data.js';
 
 initLayout();
 titleIn($('[data-title]'));
@@ -26,7 +26,7 @@ function showCar(c) {
   carCard.hidden = !c;
   if (!c) return;
   carCard.href = `cars/${c.id}.html`;
-  carCard.innerHTML = `<img src="${sized(c.images[0], 400)}" width="96" height="60" alt="" /><span><strong>${carName(c)}</strong><span>${c.trim}</span></span>`;
+  carCard.innerHTML = `<img src="${thumb(c)}" width="96" height="63" alt="" /><span><strong>${carName(c)}</strong><span>${c.trim}</span></span>`;
   if (!reduced) gsap.from(carCard, { opacity: 0, y: 12, duration: 0.6, ease: 'expo.out' });
 }
 select.addEventListener('change', () => {
@@ -77,7 +77,7 @@ function update() {
   setDonut('dep', 0, a); setDonut('loan', a, b); setDonut('int', a + b, c);
 
   const car = byId(select.value);
-  const text = `Hi V8 Motors, I'd like to ask about finance${car ? ` on the ${carName(car)}` : ''}: ${rs(price)} with ${dep}% down over ${term} months (about ${rs(m)} a month).`;
+  const text = `Hi V8 Motors, I'd like to ask about leasing${car ? ` on the ${carName(car)}` : ''}: ${rs(price)} with ${dep}% down over ${term} months (about ${rs(m)} a month).`;
   $('[data-fin-wa]').href = `https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(text)}`;
   drawChart(loan, rate, term, m);
 }

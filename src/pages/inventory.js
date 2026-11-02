@@ -4,13 +4,12 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { initLayout, reduced, $, $$, scrollToEl, titleIn, syncStoreUI } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
-import { CARS, BODY_TYPES, FUELS, DEALER, byId, rs, sized, carName } from '../data.js';
+import { CARS, BODY_TYPES, FUELS, DEALER, byId, rs, thumb, carName } from '../data.js';
 
 gsap.registerPlugin(Flip);
 initLayout();
 
 const PAGE = 12;
-const KM_MAX = Math.ceil(Math.max(...CARS.map((c) => c.km)) / 10000) * 10000;
 const grid = $('[data-grid]');
 const form = $('[data-filters]');
 const RANGES = {};
@@ -55,7 +54,6 @@ $$('[data-range]').forEach((wrap) => {
   paint();
 });
 
-form.km.max = KM_MAX; form.km.value = KM_MAX;
 
 // ---------------------------------------------------------------- state <-> URL
 function readState() {
@@ -63,8 +61,8 @@ function readState() {
   return {
     q: (fd.get('q') || '').trim(),
     body: fd.getAll('body'), make: fd.getAll('make'), fuel: fd.getAll('fuel'), gearbox: fd.getAll('gearbox'),
-    price: RANGES.price.get(), year: RANGES.year.get(), km: +form.km.value,
-    saved: form.saved.checked, available: form.available.checked,
+    price: RANGES.price.get(), year: RANGES.year.get(),
+    saved: form.saved.checked,
     sort: $('[data-sort]').value, view: grid.dataset.view,
   };
 }
@@ -74,9 +72,7 @@ function writeUrl(s) {
   ['body', 'make', 'fuel', 'gearbox'].forEach((k) => s[k].length && p.set(k, s[k].join(',')));
   if (!RANGES.price.isDefault()) p.set('price', s.price.join('-'));
   if (!RANGES.year.isDefault()) p.set('year', s.year.join('-'));
-  if (s.km < KM_MAX) p.set('km', s.km);
   if (s.saved) p.set('saved', '1');
-  if (s.available) p.set('available', '1');
   if (s.sort !== 'new') p.set('sort', s.sort);
   if (s.view !== 'grid') p.set('view', s.view);
   history.replaceState(null, '', p.toString() ? `?${p}` : location.pathname);
@@ -93,9 +89,7 @@ function applyUrl() {
   RANGES.price.set(pr[0] || undefined, pr[1] || +p.get('max') || undefined);
   const yr = (p.get('year') || '').split('-').map(Number);
   RANGES.year.set(yr[0] || undefined, yr[1] || undefined);
-  form.km.value = p.get('km') || KM_MAX;
   form.saved.checked = p.get('saved') === '1';
-  form.available.checked = p.get('available') === '1';
   $('[data-sort]').value = p.get('sort') || 'new';
   setView(p.get('view') || 'grid', false);
 }
@@ -109,18 +103,15 @@ function matches(c, s, skip) {
     (!s.gearbox.length || s.gearbox.includes(c.gearbox)) &&
     c.price >= s.price[0] && c.price <= s.price[1] &&
     c.year >= s.year[0] && c.year <= s.year[1] &&
-    c.km <= s.km &&
     (!s.saved || store.isSaved(c.id)) &&
-    (!s.available || c.status !== 'Reserved') &&
-    (!q || `${c.make} ${c.model} ${c.trim} ${c.year} ${c.colour}`.toLowerCase().includes(q));
+    (!q || `${c.make} ${c.model} ${c.trim} ${c.year} ${c.body} ${c.gearbox}`.toLowerCase().includes(q));
 }
 const SORTS = {
   new: (a, b) => b.added.localeCompare(a.added),
   'price-asc': (a, b) => a.price - b.price,
   'price-desc': (a, b) => b.price - a.price,
-  km: (a, b) => a.km - b.km,
   year: (a, b) => b.year - a.year || b.added.localeCompare(a.added),
-  power: (a, b) => b.power - a.power,
+  'year-asc': (a, b) => a.year - b.year || b.added.localeCompare(a.added),
 };
 
 // Cards are already in the HTML; we only move and hide them.
@@ -128,7 +119,7 @@ const cards = new Map($$('.car', grid).map((li) => [li.dataset.id, li]));
 
 function updateFacetCounts(s) {
   BODY_TYPES.filter((t) => $(`[data-n-body="${t}"]`)).forEach((t) => { const n = CARS.filter((c) => c.body === t && matches(c, s, 'body')).length; const el = $(`[data-n-body="${t}"]`); el.textContent = n; el.closest('.body-opt').classList.toggle('is-zero', !n); });
-  FUELS.forEach((f) => { $(`[data-n-fuel="${f}"]`).textContent = CARS.filter((c) => c.fuel === f && matches(c, s, 'fuel')).length; });
+  FUELS.filter((f) => $(`[data-n-fuel="${f}"]`)).forEach((f) => { $(`[data-n-fuel="${f}"]`).textContent = CARS.filter((c) => c.fuel === f && matches(c, s, 'fuel')).length; });
   makes.forEach((m) => { const n = CARS.filter((c) => c.make === m && matches(c, s, 'make')).length; const el = $(`[data-n-make="${m}"]`); el.textContent = n; el.closest('.check').classList.toggle('is-zero', !n); });
 }
 
@@ -138,9 +129,7 @@ function renderChips(s) {
   ['body', 'make', 'fuel', 'gearbox'].forEach((k) => s[k].forEach((v) => chips.push([k, v, v])));
   if (!RANGES.price.isDefault()) chips.push(['price', '', `${rs(s.price[0])} to ${rs(s.price[1])}`]);
   if (!RANGES.year.isDefault()) chips.push(['year', '', `${s.year[0]} to ${s.year[1]}`]);
-  if (s.km < KM_MAX) chips.push(['km', '', `Under ${s.km.toLocaleString('en-US')} km`]);
   if (s.saved) chips.push(['saved', '', 'Saved only']);
-  if (s.available) chips.push(['available', '', 'Available now']);
   $('[data-chips]').innerHTML = chips.map(([k, v, label]) =>
     `<button type="button" class="chip" data-chip="${k}" data-chip-v="${v}" aria-label="Remove filter: ${label}">${label}<span aria-hidden="true"></span></button>`).join('') +
     (chips.length > 1 ? '<button type="button" class="link chip-clear" data-reset>Clear all</button>' : '');
@@ -167,7 +156,6 @@ function render({ animate = true, keepShown = false } = {}) {
   $('[data-more]').hidden = shown >= list.length;
   $('[data-showing]').textContent = `Showing ${Math.min(shown, list.length)} of ${list.length}`;
   $('[data-more-bar]').style.transform = `scaleX(${Math.min(1, shown / list.length)})`;
-  $('[data-km-out]').textContent = s.km >= KM_MAX ? 'Any' : s.km.toLocaleString('en-US') + ' km';
   renderChips(s);
   updateFacetCounts(s);
 
@@ -205,8 +193,7 @@ document.addEventListener('click', (e) => {
     const k = chip.dataset.chip, v = chip.dataset.chipV;
     if (k === 'q') form.q.value = '';
     else if (k === 'price' || k === 'year') RANGES[k].set();
-    else if (k === 'km') form.km.value = KM_MAX;
-    else if (k === 'saved' || k === 'available') form[k].checked = false;
+    else if (k === 'saved') form[k].checked = false;
     else $(`[name="${k}"][value="${CSS.escape(v)}"]`, form).checked = false;
     render();
   }
@@ -244,7 +231,7 @@ function renderTray() {
   $('[data-tray-n]').textContent = ids.length;
   $('[data-tray-cars]').innerHTML = ids.map((id) => {
     const c = byId(id);
-    return c ? `<li><img src="${sized(c.images[0], 160)}" width="48" height="34" alt="" /><span>${c.make} ${c.model}</span>
+    return c ? `<li><img src="${thumb(c)}" width="48" height="34" alt="" /><span>${c.make} ${c.model}</span>
       <button type="button" data-compare="${id}" aria-pressed="true" aria-label="Remove the ${c.make} ${c.model} from compare">×</button></li>` : '';
   }).join('') + Array.from({ length: 3 - ids.length }, () => '<li class="tray-empty"><span>Add a car</span></li>').join('');
   const go = $('[data-tray-go]');
@@ -264,7 +251,7 @@ const recent = store.recent().map(byId).filter(Boolean);
 if (recent.length) {
   $('[data-recent-wrap]').hidden = false;
   $('[data-recent]').innerHTML = recent.map((c) => `<li><a href="cars/${c.id}.html" class="mini">
-    <img src="${sized(c.images[0], 480)}" width="480" height="300" alt="" loading="lazy" /><span class="mini-name">${carName(c)}</span><span class="mini-price tabular-nums">${rs(c.price)}</span></a></li>`).join('');
+    <img src="${thumb(c)}" width="480" height="317" alt="" loading="lazy" /><span class="mini-name">${carName(c)}</span><span class="mini-price tabular-nums">${rs(c.price)}</span></a></li>`).join('');
 }
 
 // ---------------------------------------------------------------- go

@@ -4,7 +4,11 @@ import { resolve, relative, sep } from 'node:path';
 import { readdirSync, existsSync } from 'node:fs';
 import { headHTML, navHTML, footerHTML, mobileBarHTML, arrivalsHTML, bodyTilesHTML, makesHTML, inventoryGridHTML, filterOptionsHTML } from './src/lib/templates.js';
 import { META } from './src/lib/meta.js';
-import { CARS, BODY_TYPES } from './src/data.js';
+import { CARS, BODY_TYPES, thumb } from './src/data.js';
+
+// part-exchange calculator on the home page: cheapest first, a mid-priced car preselected
+const SWAP_LIST = [...CARS].sort((a, b) => a.price - b.price);
+const SWAP_PICK = SWAP_LIST[Math.floor(SWAP_LIST.length * 0.6)];
 
 const root = import.meta.dirname;
 const pages = readdirSync(root).filter((f) => f.endsWith('.html'));
@@ -32,9 +36,12 @@ function prerender() {
           .replace('<!--@bodies-->', () => bodyTilesHTML(P))
           .replace('<!--@makes-->', () => makesHTML(P))
           .replace('<!--@grid-->', () => inventoryGridHTML(P))
-          .replace('<!--@count-->', () => String(CARS.filter((c) => c.status !== 'Reserved').length))
+          .replace('<!--@count-->', () => String(CARS.length))
           .replace(/<!--@opts:(\w+)-->/g, (_, k) => filterOptionsHTML(k))
           .replace('<!--@total-->', () => String(CARS.length))
+          .replace('<!--@caroptions-->', () => SWAP_LIST.map((c) => `<option value="${c.id}"${c === SWAP_PICK ? ' selected' : ''}>${c.year} ${c.make} ${c.model}, Rs ${c.price.toLocaleString('en-US')}</option>`).join(''))
+          .replace('<!--@swapcard-->', () => `<img src="${thumb(SWAP_PICK)}" width="480" height="317" alt="" /><span><strong>${SWAP_PICK.year} ${SWAP_PICK.make} ${SWAP_PICK.model}</strong><span>${SWAP_PICK.trim}</span></span>`)
+          .replace('data-swap-card href="inventory.html"', () => `data-swap-card href="cars/${SWAP_PICK.id}.html"`)
           .replace('<!--@makeoptions-->', () => [...new Set(CARS.map((c) => c.make))].sort().map((m) => `<option>${m}</option>`).join(''))
           .replace('<!--@bodyoptions-->', () => BODY_TYPES.filter((t) => CARS.some((c) => c.body === t)).map((t) => `<option>${t}</option>`).join(''));
       },

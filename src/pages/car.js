@@ -1,10 +1,10 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$, toast, looksLikeSpam, validateFields, phoneOk, titleIn } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, toast, looksLikeSpam, validateFields, phoneOk, titleIn, sendMessage } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
 import { nextOpenDays, fmtTime } from '../lib/hours.js';
-import { DEALER, byId, rs, monthly, carName } from '../data.js';
+import { byId, rs, monthly, carName } from '../data.js';
 
 initLayout();
 wireCardActions();
@@ -14,9 +14,8 @@ const c = byId($('[data-car]')?.dataset.car);
 if (c) {
   store.pushRecent(c.id);
   setupGallery();
-  setupReport();
   setupFinance();
-  if (c.status !== 'Reserved') setupBooking();
+  setupBooking();
   setupShare();
   titleIn($('.summary-title'), 0.05);
 }
@@ -30,7 +29,7 @@ function setupGallery() {
   const n = c.images.length;
   const show = (k, dir = 1) => {
     i = (k + n) % n;
-    const src = c.images[i].replace(/w=\d+/, 'w=1600');
+    const src = c.images[i];
     if (reduced) { img.src = src; img.srcset = ''; }
     else gsap.to(img, { opacity: 0, x: -24 * dir, duration: 0.18, onComplete: () => { img.srcset = ''; img.src = src; gsap.fromTo(img, { opacity: 0, x: 24 * dir }, { opacity: 1, x: 0, duration: 0.5, ease: 'expo.out' }); } });
     img.alt = `${carName(c)}, photo ${i + 1} of ${n}`;
@@ -44,7 +43,7 @@ function setupGallery() {
   $$('[data-gal-thumb]').forEach((b) => b.addEventListener('click', () => show(+b.dataset.galThumb, +b.dataset.galThumb > i ? 1 : -1)));
 
   const openLb = () => {
-    lbImg.src = c.images[i].replace(/w=\d+/, 'w=2000');
+    lbImg.src = c.images[i];
     lbImg.alt = img.alt;
     $('[data-lb-count]').textContent = `${i + 1} / ${n}`;
     lb.showModal();
@@ -68,15 +67,6 @@ function setupGallery() {
   const origin = (e) => { const r = lbImg.getBoundingClientRect(); lbImg.style.transformOrigin = `${((e.clientX - r.left) / r.width) * 100}% ${((e.clientY - r.top) / r.height) * 100}%`; };
   lbImg.addEventListener('click', (e) => { origin(e); lbImg.classList.toggle('is-zoomed'); });
   lbImg.addEventListener('pointermove', (e) => lbImg.classList.contains('is-zoomed') && origin(e));
-}
-
-/* ---------------------------------------------------------------- inspection bars fill when seen */
-function setupReport() {
-  const bars = $$('.report-fill');
-  ScrollTrigger.create({
-    trigger: '.report', start: 'top 80%', once: true,
-    onEnter: () => bars.forEach((b, k) => setTimeout(() => b.classList.add('is-in'), reduced ? 0 : k * 80)),
-  });
 }
 
 /* ---------------------------------------------------------------- monthly payment */
@@ -112,9 +102,8 @@ function setupBooking() {
     const [ch] = day.hours[1].split(':').map(Number);
     const times = [];
     for (let h = oh + 1; h < ch; h++) times.push(`${String(h).padStart(2, '0')}:00`);
-    // a few slots show as taken so the diary looks like a real one
     slotsEl.innerHTML = times.map((t, k) => {
-      const taken = ((c.id.length + day.date.getDate() + k) % 4) === 0;
+      const taken = false;
       return `<button type="button" class="slot" data-slot="${t}" aria-pressed="false" ${taken ? 'disabled' : ''}>${fmtTime(t)}${taken ? '<span class="sr-only"> (booked)</span>' : ''}</button>`;
     }).join('');
   });
@@ -138,17 +127,14 @@ function setupBooking() {
     if (bad) return;
     if (looksLikeSpam(f)) { err.hidden = false; err.textContent = 'That was very quick. Please try again in a moment.'; return; }
     const when = `${day.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} at ${fmtTime(slot)}`;
-    const start = new Date(day.date); start.setHours(+slot.split(':')[0], 0, 0);
-    const end = new Date(start.getTime() + 45 * 60000);
-    const z = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
-    const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//V8 Motors//EN\r\nBEGIN:VEVENT\r\nUID:${Date.now()}@v8motors.mu\r\nDTSTAMP:${z(new Date())}\r\nDTSTART:${z(start)}\r\nDTEND:${z(end)}\r\nSUMMARY:Test drive: ${carName(c)}\r\nLOCATION:${DEALER.address}\r\nEND:VEVENT\r\nEND:VCALENDAR`;
-    const href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    const text = `Hi V8 Motors, I'd like to view the ${carName(c)} (${rs(c.price)}) on ${when}.\nName: ${f.name.value.trim()}\nMobile: ${f.phone.value.trim()}\n${location.href}`;
+    const href = sendMessage(text);
     const done = document.createElement('div');
     done.className = 'form-done';
     done.setAttribute('role', 'status');
-    done.innerHTML = `<strong>Test drive requested for ${when}.</strong>
-      <p>We’ll call ${f.phone.value.replace(/[<>&"]/g, '')} to confirm. The ${c.make} ${c.model} will be washed and waiting.</p>
-      <a class="btn btn-primary" href="${href}" download="v8-motors-test-drive.ics">Add to my calendar</a>`;
+    done.innerHTML = `<strong>Almost done: press send in WhatsApp.</strong>
+      <p>Your request for ${when} is written for you in WhatsApp. We confirm the time in that chat.</p>
+      <a class="btn btn-primary" href="${href}" target="_blank" rel="noopener">Open WhatsApp again</a>`;
     f.replaceWith(done);
     done.querySelector('a').focus();
   });
@@ -157,7 +143,7 @@ function setupBooking() {
 /* ---------------------------------------------------------------- share */
 function setupShare() {
   $('[data-share]').addEventListener('click', async () => {
-    const data = { title: `${carName(c)} at V8 Motors`, text: `${carName(c)} ${c.trim}, ${rs(c.price)}`, url: location.href };
+    const data = { title: `${carName(c)} at V8 Motors`, text: `${carName(c)}, ${rs(c.price)} at V8 Motors`, url: location.href };
     if (navigator.share) { try { await navigator.share(data); } catch { /* cancelled */ } return; }
     try { await navigator.clipboard.writeText(location.href); toast('Link copied. Paste it anywhere to share this car.'); }
     catch { toast('Copy the address bar to share this car.'); }

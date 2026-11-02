@@ -1,7 +1,7 @@
 // Generates one real HTML page per car (cars/<id>.html), plus sitemap.xml, robots.txt and llms.txt.
 // Runs automatically before `npm run dev` and `npm run build`.
 import { mkdirSync, writeFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
-import { CARS, DEALER, rs, km, carName, sized } from '../src/data.js';
+import { CARS, DEALER, rs, km, carName } from '../src/data.js';
 import { SITE, headHTML, carPageHTML, carJsonLd, breadcrumbJsonLd } from '../src/lib/templates.js';
 
 export function shell({ head, page, body, script, P = '', bodyClass = '' }) {
@@ -12,7 +12,7 @@ export function shell({ head, page, body, script, P = '', bodyClass = '' }) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   ${head}
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
-  <link rel="preconnect" href="https://images.unsplash.com" />
+  <link rel="preconnect" href="https://v8.farhaan.info" />
   <script type="module" src="/src/pages/${script}.js" blocking="render"></script>
 </head>
 <body class="${bodyClass}">
@@ -34,10 +34,10 @@ mkdirSync(dir, { recursive: true });
 for (const c of CARS) {
   const name = carName(c);
   const head = headHTML({
-    title: `${name} ${c.trim} for sale, ${rs(c.price)} | V8 Motors`,
-    desc: `${name} ${c.trim} in ${c.colour.toLowerCase()}: ${km(c.km)}, ${c.engine}, ${c.gearbox.toLowerCase()}. ${rs(c.price)}, inspected with a ${c.warranty} warranty at V8 Motors, Beau Bassin.`,
+    title: `${name} for sale, ${rs(c.price)} | V8 Motors Mauritius`,
+    desc: `${name}, ${c.trim}, ${c.gearbox.toLowerCase()}${c.km != null ? `, ${km(c.km)}` : ''}. ${rs(c.price)} at V8 Motors, 59B Royal Road, Coromandel. Part-exchange and leasing available.`,
     path: `cars/${c.id}.html`,
-    image: sized(c.images[0], 1200),
+    image: c.images[0],
     jsonld: [carJsonLd(c), breadcrumbJsonLd([['Home', ''], ['Inventory', 'inventory.html'], [name, `cars/${c.id}.html`]])],
     P: '../',
   });
@@ -64,25 +64,25 @@ Sitemap: ${SITE}sitemap.xml
 `);
 writeFileSync('public/llms.txt', `# V8 Motors
 
-> Pre-owned car dealer on Royal Road, Beau Bassin, Mauritius. Every car is inspected (150 checks) and sold with a warranty. Prices are in Mauritian rupees and include VAT.
+> Used car dealer at 59B Royal Road, Coromandel, Mauritius. Buy, sell or exchange a car; leasing through Rogers Capital. Prices are in Mauritian rupees.
 
-- Phone: ${DEALER.phone}
+- Phone: ${DEALER.phones.map(([t]) => t).join(', ')}
 - WhatsApp: https://wa.me/${DEALER.whatsapp}
 - Email: ${DEALER.email}
-- Opening hours: Monday to Friday 8:30 to 17:30, Saturday 8:30 to 15:00, closed Sunday
+- Opening hours: Monday to Friday 9:00 to 17:00, Saturday 9:00 to 16:00, closed Sunday
 
 ## Pages
 
-- [Inventory](${SITE}inventory.html): every car in stock, filterable by make, body, price, year, mileage and fuel
-- [Sell your car](${SITE}sell.html): rough valuation and a written offer within one working day
-- [Finance](${SITE}finance.html): monthly payment calculator and finance questions
+- [Cars for sale](${SITE}inventory.html): every car in stock, filterable by make, body, price, year, fuel and gearbox
+- [Sell or exchange](${SITE}sell.html): rough guide price and an offer for your car, or put it towards one of ours
+- [Leasing](${SITE}finance.html): monthly payment calculator; leasing is arranged through Rogers Capital
 - [Visit us](${SITE}contact.html): address, opening hours and contact form
 - [Privacy policy](${SITE}privacy.html)
 - [Terms of sale](${SITE}terms.html)
 
 ## Cars in stock
 
-${CARS.map((c) => `- [${carName(c)} ${c.trim}](${SITE}cars/${c.id}.html): ${rs(c.price)}, ${km(c.km)}, ${c.fuel}, ${c.gearbox}, ${c.status}`).join('\n')}
+${CARS.map((c) => `- [${carName(c)}](${SITE}cars/${c.id}.html): ${rs(c.price)}, ${c.trim}, ${c.gearbox}${c.km != null ? `, ${km(c.km)}` : ''}`).join('\n')}
 `);
 
 console.log(`Prerendered ${CARS.length} car pages, sitemap (${urls.length} URLs), robots.txt, llms.txt`);

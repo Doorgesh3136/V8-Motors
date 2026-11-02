@@ -13,17 +13,17 @@
   <main id="main">
     <section class="page-head wrap">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Visit us</span></nav>
-      <h1 class="page-title" data-title>Visit the showroom</h1>
+      <h1 class="page-title" data-title>Visit us in Coromandel</h1>
       <p class="open-status open-status--lg" data-open-status>Open Monday to Saturday</p>
     </section>
 
     <section class="wrap contact-grid">
       <div class="map-card">
-        <iframe title="Map showing V8 Motors on Royal Road, Beau Bassin" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-          src="https://maps.google.com/maps?q=Royal%20Road%20Beau%20Bassin%20Mauritius&z=15&output=embed"></iframe>
+        <iframe title="Map showing V8 Motors at 59B Royal Road, Coromandel" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+          src="https://maps.google.com/maps?q=V8%20Motors%2059B%20Royal%20Road%20Coromandel%20Mauritius&z=15&output=embed"></iframe>
         <div class="map-overlay">
-          <address>Royal Road, Beau Bassin, Mauritius</address>
-          <a class="btn btn-primary btn-sm" href="https://www.google.com/maps/dir/?api=1&destination=Royal%20Road%20Beau%20Bassin%20Mauritius" rel="noopener">Get directions</a>
+          <address>59B Royal Road, Coromandel, Mauritius</address>
+          <a class="btn btn-primary btn-sm" href="https://www.google.com/maps/dir/?api=1&destination=V8%20Motors%2059B%20Royal%20Road%20Coromandel%20Mauritius" rel="noopener">Get directions</a>
         </div>
       </div>
       <div class="contact-side">
@@ -35,14 +35,14 @@
     <section class="section wrap contact-form-wrap" aria-labelledby="msg-title">
       <div>
         <h2 class="section-title" id="msg-title">Send us a message</h2>
-        <p class="section-sub">We reply the same working day. For anything urgent, call or WhatsApp us.</p>
+        <p class="section-sub">Write it here and send it to us on WhatsApp, or by email if you prefer. For anything urgent, just call.</p>
       </div>
       <form class="panel contact-form" data-contact-form novalidate>
         <fieldset class="pill-row">
           <legend class="sr-only">What is it about?</legend>
           <label class="pill"><input type="radio" name="topic" value="Buying a car" checked /><span>Buying a car</span></label>
-          <label class="pill"><input type="radio" name="topic" value="Selling my car" /><span>Selling my car</span></label>
-          <label class="pill"><input type="radio" name="topic" value="Finance" /><span>Finance</span></label>
+          <label class="pill"><input type="radio" name="topic" value="Selling or exchanging my car" /><span>Selling or exchanging</span></label>
+          <label class="pill"><input type="radio" name="topic" value="Leasing" /><span>Leasing</span></label>
           <label class="pill"><input type="radio" name="topic" value="Something else" /><span>Something else</span></label>
         </fieldset>
         <div class="form-row form-row--2">
@@ -52,7 +52,7 @@
         <label class="input"><span>Message</span><textarea name="msg" rows="5" required maxlength="600"></textarea><span class="char tabular-nums" data-char>0 / 600</span></label>
         <div class="hp" aria-hidden="true"><label>Leave this field empty<input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>
         <p class="form-error" data-error role="alert" hidden></p>
-        <button class="btn btn-primary" type="submit">Send message</button>
+        <div class="form-send"><button class="btn btn-primary" type="submit" name="via" value="wa">Send on WhatsApp</button><button class="btn btn-line" type="submit" name="via" value="email">Send by email</button></div>
       </form>
     </section>
   </main>

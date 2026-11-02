@@ -12,29 +12,29 @@
   <!--@nav:finance-->
   <main id="main">
     <section class="page-head wrap">
-      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Finance</span></nav>
-      <h1 class="page-title" data-title>Car finance calculator</h1>
-      <p class="page-lede">Work out your monthly payment, then see how the balance comes down year by year.</p>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Leasing</span></nav>
+      <h1 class="page-title" data-title>Leasing calculator</h1>
+      <p class="page-lede">Drive now, pay monthly. Leasing is arranged through Rogers Capital; work out a rough monthly figure here first.</p>
     </section>
 
     <section class="wrap finance-grid">
       <div class="finance-intro">
         <h2 class="section-title">Your numbers</h2>
-        <p class="section-sub">An estimate only. Your bank confirms the final rate after approval.</p>
+        <p class="section-sub">An estimate at an example rate. Rogers Capital confirms the real rate and terms after approval.</p>
         <label class="field">
-          <span class="field-label">Start from a car in the showroom</span>
+          <span class="field-label">Start from a car in stock</span>
           <select data-fin-car><option value="">Choose a car</option></select>
         </label>
         <a class="fin-car" data-fin-car-card hidden></a>
       </div>
       <div class="calc">
         <div class="calc-controls">
-          <label class="slider"><span class="slider-top"><span>Car price</span><output class="tabular-nums" data-out="price">Rs 2,450,000</output></span>
-            <input type="range" min="300000" max="25000000" step="50000" value="2450000" data-fin="price" /></label>
+          <label class="slider"><span class="slider-top"><span>Car price</span><output class="tabular-nums" data-out="price">Rs 725,000</output></span>
+            <input type="range" min="150000" max="2000000" step="25000" value="725000" data-fin="price" /></label>
           <label class="slider"><span class="slider-top"><span>Deposit</span><output class="tabular-nums" data-out="deposit">20%</output></span>
             <input type="range" min="10" max="60" step="5" value="20" data-fin="deposit" /></label>
-          <label class="slider"><span class="slider-top"><span>Interest rate</span><output class="tabular-nums" data-out="rate">6.9% a year</output></span>
-            <input type="range" min="4" max="12" step="0.1" value="6.9" data-fin="rate" /></label>
+          <label class="slider"><span class="slider-top"><span>Interest rate</span><output class="tabular-nums" data-out="rate">7.5% a year</output></span>
+            <input type="range" min="4" max="14" step="0.1" value="7.5" data-fin="rate" /></label>
           <fieldset class="terms"><legend>Term</legend><div class="term-row" data-terms></div></fieldset>
         </div>
         <div class="calc-result">
@@ -50,7 +50,7 @@
             <div><dt>Total interest</dt><dd class="tabular-nums" data-interest></dd></div>
             <div><dt>Total you pay</dt><dd class="tabular-nums" data-total></dd></div>
           </dl>
-          <a class="btn btn-primary btn-wide" data-fin-wa rel="noopener">Ask about finance on WhatsApp</a>
+          <a class="btn btn-primary btn-wide" data-fin-wa rel="noopener">Ask about leasing on WhatsApp</a>
         </div>
       </div>
     </section>
@@ -66,12 +66,11 @@
     <section class="section wrap faq-wrap" aria-labelledby="faq-title">
       <h2 class="section-title" id="faq-title">Questions people ask</h2>
       <div class="faq" data-faq>
-        <details><summary>Who provides the finance?</summary><div><p>We work with the main local banks and leasing companies. We send your application to the ones most likely to approve it at a good rate, and you choose which offer to take.</p></div></details>
-        <details><summary>How much deposit do I need?</summary><div><p>Most lenders ask for at least 10% of the price. A bigger deposit lowers your monthly payment and the total interest.</p></div></details>
-        <details><summary>Can I use my current car as the deposit?</summary><div><p>Yes. We value your car and that value comes off the price. If you still owe money on it, we settle that with your bank.</p></div></details>
-        <details><summary>What do I need to apply?</summary><div><p>Your national ID card, proof of address, your last three payslips and three months of bank statements. Self-employed buyers also need recent accounts.</p></div></details>
-        <details><summary>How long does approval take?</summary><div><p>Usually two to four working days once we have all your documents. We keep the car for you while you wait.</p></div></details>
-        <details><summary>Can I pay it off early?</summary><div><p>Yes. Most lenders allow early settlement. Some charge a small fee, which we tell you about before you sign.</p></div></details>
+        <details><summary>Who provides the leasing?</summary><div><p>Rogers Capital. We help you put the application together and send it to them, and they decide on approval, the rate and the terms.</p></div></details>
+        <details><summary>How much deposit do I need?</summary><div><p>It depends on the car and on you; Rogers Capital sets it. A bigger deposit lowers the monthly payment and the total you pay.</p></div></details>
+        <details><summary>Can I use my current car as the deposit?</summary><div><p>Yes. We value your car and its value comes off the price, which you can use towards the deposit.</p></div></details>
+        <details><summary>What should I bring?</summary><div><p>Your national ID card and proof of address and income. Ask us on WhatsApp before you come and we’ll tell you exactly what Rogers Capital needs for your case.</p></div></details>
+        <details><summary>Are these figures a quote?</summary><div><p>No. The calculator uses an example rate so you can compare cars. Your real monthly payment comes from Rogers Capital.</p></div></details>
       </div>
     </section>
   </main>

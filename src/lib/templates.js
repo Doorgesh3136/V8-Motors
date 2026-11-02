@@ -1,6 +1,6 @@
 // Pure HTML templates (no DOM access). Used at build time to pre-render pages,
 // and in the browser where content has to be redrawn.
-import { CARS, DEALER, BODY_TYPES, rs, km, monthly, sized, carName, seeded } from '../data.js';
+import { CARS, DEALER, BODY_TYPES, rs, km, monthly, carName, thumb } from '../data.js';
 
 export const SITE = 'https://doorgesh3136.github.io/V8-Motors/';
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -34,21 +34,8 @@ export const ICON = {
   wheel: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M4.5 14.5l5-1.5M19.5 14.5l-5-1.5"/>'),
 };
 
-/* ------------------------------------------------------------------ brand mark
-   A V of two cylinder banks with the eight bores in them: the engine is the logo. */
-export const BORES = [
-  // [x, y, cylinder number]  left bank = odd, right bank = even (GM convention)
-  [24.8, 32.4, 1], [20, 26, 3], [15.2, 19.6, 5], [10.4, 13.2, 7],
-  [39.2, 32.4, 2], [44, 26, 4], [48.8, 19.6, 6], [53.6, 13.2, 8],
-];
-export function markSVG(cls = 'mark') {
-  return `<svg class="${cls}" viewBox="0 0 64 48" aria-hidden="true">
-    <defs><linearGradient id="chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f9fd"/><stop offset=".46" stop-color="#c3cbdb"/><stop offset=".54" stop-color="#8e98b3"/><stop offset="1" stop-color="#e4e9f3"/></linearGradient></defs>
-    <path class="mark-bank" d="M32 42 8.6 10.8"/><path class="mark-bank" d="M32 42 55.4 10.8"/>
-    ${BORES.map(([x, y, n]) => `<circle class="mark-bore" data-cyl="${n}" cx="${x}" cy="${y}" r="3.1"/>`).join('')}
-    <circle class="mark-crank" cx="32" cy="42" r="4.2"/>
-  </svg>`;
-}
+/* ------------------------------------------------------------------ brand mark: the dealership's own V8 logo */
+export const markSVG = (cls = 'mark', P = '') => `<img class="${cls}" src="${P}brand/v8-mark-sm.png" width="182" height="172" alt="" decoding="async">`;
 
 /* ------------------------------------------------------------------ body shapes */
 const SHAPES = {
@@ -58,27 +45,31 @@ const SHAPES = {
   Coupe: 'M2 17v-3.5l13-3.5 11-5h12l13 6 11 2V17',
   Convertible: 'M2 17v-3.5l13-3 7-1.5 4-4 2 4h12l12 3 12 2V17',
   Pickup: 'M2 17V9.5l6-1 6-6h17v6.5h31V17',
+  MPV: 'M2 17V10l7-1.5 7-6h33l7 6.5 6 1V17',
+  Van: 'M2 17V8.5l5-1.5 4-5h47l4 3V17',
 };
 export const shapeSvg = (type) => `<svg viewBox="0 0 64 24" aria-hidden="true" class="shape">
     <path d="${SHAPES[type] || SHAPES.Sedan}"/><path d="M2 17h8.5M21.5 17h21M53.5 17H62"/>
     <circle cx="16" cy="17" r="4.5"/><circle cx="48" cy="17" r="4.5"/></svg>`;
 
 /* ------------------------------------------------------------------ images */
-export function photo(url, { alt, sizes = '(min-width: 1000px) 30vw, (min-width: 640px) 45vw, 92vw', eager = false, cls = '', w = 1600, h = 1050, attrs = '' }) {
-  const srcset = [480, 800, 1200, 1600].map((x) => `${sized(url, x)} ${x}w`).join(', ');
-  return `<img src="${sized(url, 800)}" srcset="${srcset}" sizes="${sizes}" width="${w}" height="${h}" alt="${esc(alt)}"
+export function photo(src, { alt, srcset = '', sizes = '', eager = false, cls = '', w = 960, h = 634, attrs = '' }) {
+  return `<img src="${src}"${srcset ? ` srcset="${srcset}" sizes="${sizes}"` : ''} width="${w}" height="${h}" alt="${esc(alt)}"
     ${eager ? 'fetchpriority="high"' : 'loading="lazy"'} decoding="async" ${cls ? `class="${cls}"` : ''} ${attrs}>`;
 }
 
-const statusClass = (s) => (s === 'Just arrived' ? ' car-status--new' : s === 'Reserved' ? ' car-status--reserved' : '');
+const statusClass = (s) => (s === 'Just arrived' ? ' car-status--new' : s === 'Saturday deal' ? ' car-status--deal' : s === 'Reserved' ? ' car-status--reserved' : '');
+const statusBadge = (c, extra = '') => (c.status === 'In stock' ? '' : `<span class="car-status${extra}${statusClass(c.status)}">${c.status}</span>`);
+const bodyWord = (c) => (c.body === 'SUV' || c.body === 'MPV' ? c.body : c.body.toLowerCase());
 
 /* ------------------------------------------------------------------ car card */
-export function carCard(c, P = '', { eager = false, sizes } = {}) {
+export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px) 30vw, (min-width: 640px) 45vw, 92vw' } = {}) {
+  const n = c.thumbs.length;
   return `<li class="car" data-id="${c.id}" data-flip-id="${c.id}">
-    <a href="${carUrl(c, P)}" class="car-media" tabindex="-1" aria-hidden="true">
-      ${photo(c.images[0], { alt: '', eager, sizes, attrs: 'data-car-img' })}
-      <span class="car-status${statusClass(c.status)}">${c.status}</span>
-      ${c.images.length > 1 ? `<span class="car-photos">${c.images.length} photos</span>` : ''}
+    <a href="${carUrl(c, P)}" class="car-media" tabindex="-1" aria-hidden="true" data-scrub="${c.thumbs.map((t) => P + t).join('|')}">
+      ${photo(thumb(c, 0, 960, P), { alt: '', eager, sizes, srcset: `${thumb(c, 0, 480, P)} 480w, ${thumb(c, 0, 960, P)} 960w`, attrs: 'data-car-img' })}
+      ${statusBadge(c)}
+      ${n > 1 ? `<span class="car-ticks" aria-hidden="true">${'<i></i>'.repeat(n)}</span><span class="car-photos tabular-nums">${n} photos</span>` : ''}
     </a>
     <div class="car-tools">
       <button type="button" class="save" data-save="${c.id}" aria-pressed="false" aria-label="Save the ${esc(carName(c))}">${ICON.heart}</button>
@@ -88,30 +79,30 @@ export function carCard(c, P = '', { eager = false, sizes } = {}) {
       <h3 class="car-title"><a href="${carUrl(c, P)}" data-car-link>${esc(carName(c))}</a></h3>
       <p class="car-price tabular-nums">${rs(c.price)}</p>
       <p class="car-trim">${esc(c.trim)}</p>
-      <p class="car-monthly tabular-nums">or ${rs(monthly(c.price))}/mo</p>
-      <p class="car-specs"><span class="tabular-nums">${km(c.km)}</span><span>${c.fuel}</span><span>${c.gearbox}</span></p>
+      <p class="car-monthly tabular-nums">or about ${rs(monthly(c.price))}/mo</p>
+      <p class="car-specs">${c.km != null ? `<span class="tabular-nums">${km(c.km)}</span>` : ''}<span>${c.gearbox}</span><span>${c.body}</span></p>
     </div>
   </li>`;
 }
 
 /* ------------------------------------------------------------------ chrome */
 export const NAV_PAGES = [
-  { key: 'inventory', href: 'inventory.html', label: 'Inventory' },
-  { key: 'sell', href: 'sell.html', label: 'Sell your car' },
-  { key: 'finance', href: 'finance.html', label: 'Finance' },
+  { key: 'inventory', href: 'inventory.html', label: 'Cars for sale' },
+  { key: 'sell', href: 'sell.html', label: 'Sell or exchange' },
+  { key: 'finance', href: 'finance.html', label: 'Leasing' },
   { key: 'contact', href: 'contact.html', label: 'Visit us' },
 ];
 
 /** Page-change curtain: three layers per side sweep in, meet in the middle, then open on the next page. */
-export function curtainHTML() {
+export function curtainHTML(P = '') {
   const side = (k) => `<div class="curtain-side curtain-side--${k}"><span class="cl cl-1"></span><span class="cl cl-2"></span><span class="cl cl-3"></span></div>`;
   return `<div class="curtain" data-curtain aria-hidden="true">${side('l')}${side('r')}
-    <div class="curtain-mid">${markSVG('mark curtain-mark')}<span class="curtain-label" data-curtain-label></span></div></div>`;
+    <div class="curtain-mid">${markSVG('mark curtain-mark', P)}<span class="curtain-label" data-curtain-label></span></div></div>`;
 }
 
 export function navHTML(page, P = '') {
-  return `${curtainHTML()}<header class="nav" data-nav>
-    <a href="${P}./" class="wordmark" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark')}<span>V8 Motors</span></a>
+  return `${curtainHTML(P)}<header class="nav" data-nav>
+    <a href="${P}./" class="wordmark" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark', P)}<span>V8 Motors</span></a>
     <nav aria-label="Main" class="nav-links">
       ${NAV_PAGES.map((p) => `<a href="${P}${p.href}"${p.key === page ? ' aria-current="page"' : ''}>${p.label}</a>`).join('')}
     </nav>
@@ -127,10 +118,10 @@ export function navHTML(page, P = '') {
 export function mobileBarHTML(page, P = '') {
   const tab = (key, href, icon, label) => `<a href="${href}" class="tab"${key === page ? ' aria-current="page"' : ''}>${icon}<span>${label}</span></a>`;
   return `<nav class="tabbar" aria-label="Quick links">
-    ${tab('home', `${P}./`, markSVG('mark tab-mark'), 'Home')}
+    ${tab('home', `${P}./`, markSVG('mark tab-mark', P), 'Home')}
     ${tab('inventory', `${P}inventory.html`, ICON.car, 'Cars')}
     ${tab('sell', `${P}sell.html`, ICON.tag, 'Sell')}
-    ${tab('finance', `${P}finance.html`, ICON.coin, 'Finance')}
+    ${tab('finance', `${P}finance.html`, ICON.coin, 'Leasing')}
     <a href="${DEALER.phoneHref}" class="tab tab--call">${ICON.phone}<span>Call</span></a>
   </nav>`;
 }
@@ -141,24 +132,24 @@ export function footerHTML(P = '') {
     <div class="wrap">
       <div class="footer-grid">
         <div class="footer-brand">
-          <a href="${P}./" class="wordmark wordmark--lg" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark')}<span>V8 Motors</span></a>
-          <p class="footer-lead">Inspected pre-owned cars with a warranty, on Royal Road in Beau Bassin.</p>
+          <a href="${P}./" class="wordmark wordmark--lg" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark', P)}<span>V8 Motors</span></a>
+          <p class="footer-lead">Buy, sell or exchange, with leasing through ${DEALER.leasing}. ${DEALER.street}, ${DEALER.locality}.</p>
         </div>
         <nav aria-label="Footer: pages"><p class="footer-h">Pages</p>
           <a href="${P}./">Home</a>${NAV_PAGES.map((p) => `<a href="${P}${p.href}">${p.label}</a>`).join('')}<a href="${P}compare.html">Compare</a></nav>
         <nav aria-label="Footer: makes"><p class="footer-h">Makes in stock</p>
           ${makes.slice(0, 9).map((m) => `<a href="${P}inventory.html?make=${encodeURIComponent(m)}">${m}</a>`).join('')}</nav>
         <div><p class="footer-h">Showroom</p>
-          <address>${DEALER.address}</address>
-          <p><a href="${DEALER.phoneHref}" class="tabular-nums">${DEALER.phone}</a></p>
+          <address>${DEALER.street}<br>${DEALER.locality}, Mauritius</address>
+          <p class="footer-phones">${DEALER.phones.map(([t, h]) => `<a href="${h}" class="tabular-nums">${t}</a>`).join('')}</p>
           <p><a href="https://wa.me/${DEALER.whatsapp}">WhatsApp</a></p>
           <p><a href="mailto:${DEALER.email}">${DEALER.email}</a></p></div>
       </div>
       <div class="footer-row">
-        <p>© ${new Date().getFullYear()} V8 Motors Ltd. Prices include VAT. Finance subject to bank approval.</p>
+        <p>© ${new Date().getFullYear()} ${DEALER.legalName}. Leasing subject to approval by ${DEALER.leasing}.</p>
         <p class="footer-legal"><a href="${P}privacy.html">Privacy policy</a><a href="${P}terms.html">Terms of sale</a></p>
       </div>
-      <p class="footer-credits">Car photos from Unsplash.</p>
+      <p class="footer-credits">Stock photos by V8 Motors. Home page photo from Unsplash. Engine sound: a Range Rover V8 recorded by Kevaaq on Freesound (public domain).</p>
     </div>
   </footer>`;
 }
@@ -182,7 +173,7 @@ export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   <meta name="twitter:title" content="${esc(title)}" />
   <meta name="twitter:description" content="${esc(desc)}" />
   <meta name="twitter:image" content="${img}" />
-  <meta name="theme-color" content="#0a1230" />
+  <meta name="theme-color" content="#244a64" />
   <link rel="icon" href="${P}favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="${P}favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="apple-touch-icon" href="${P}apple-touch-icon.png" />
@@ -196,12 +187,12 @@ export function dealerJsonLd() {
     '@type': 'AutoDealer',
     name: 'V8 Motors',
     url: SITE,
-    logo: `${SITE}apple-touch-icon.png`,
+    logo: `${SITE}brand/v8-mark.png`,
     image: `${SITE}og.jpg`,
-    telephone: DEALER.phone.replace(/\s/g, ''),
+    telephone: '+230' + DEALER.phone.replace(/\s/g, ''),
     email: DEALER.email,
-    priceRange: 'Rs 400,000 to Rs 25,000,000',
-    address: { '@type': 'PostalAddress', streetAddress: 'Royal Road', addressLocality: 'Beau Bassin', addressCountry: 'MU' },
+    priceRange: `${rs(Math.min(...CARS.map((c) => c.price)))} to ${rs(Math.max(...CARS.map((c) => c.price)))}`,
+    address: { '@type': 'PostalAddress', streetAddress: DEALER.street, addressLocality: DEALER.locality, addressCountry: 'MU' },
     areaServed: 'Mauritius',
     openingHoursSpecification: DEALER.hours.map((h, d) => h && {
       '@type': 'OpeningHoursSpecification',
@@ -222,35 +213,30 @@ export function carJsonLd(c) {
   return {
     '@context': 'https://schema.org',
     '@type': 'Car',
-    name: `${carName(c)} ${c.trim}`,
+    name: carName(c),
     brand: { '@type': 'Brand', name: c.make },
     model: c.model,
     vehicleModelDate: String(c.year),
-    mileageFromOdometer: { '@type': 'QuantitativeValue', value: c.km, unitCode: 'KMT' },
+    ...(c.km != null && { mileageFromOdometer: { '@type': 'QuantitativeValue', value: c.km, unitCode: 'KMT' } }),
     fuelType: c.fuel,
     vehicleTransmission: c.gearbox,
     bodyType: c.body,
-    color: c.colour,
-    vehicleEngine: { '@type': 'EngineSpecification', name: c.engine },
-    numberOfPreviousOwners: c.owners,
+    ...(c.colour && { color: c.colour }),
+    ...(c.engineCc && { vehicleEngine: { '@type': 'EngineSpecification', engineDisplacement: { '@type': 'QuantitativeValue', value: c.engineCc, unitCode: 'CMQ' } } }),
+    ...(c.seats && { seatingCapacity: c.seats }),
+    ...(c.description && { description: c.description }),
     itemCondition: 'https://schema.org/UsedCondition',
-    image: c.images.map((u) => sized(u, 1200)),
+    image: c.images,
     url: `${SITE}cars/${c.id}.html`,
     offers: {
       '@type': 'Offer', price: c.price, priceCurrency: 'MUR',
-      availability: c.status === 'Reserved' ? 'https://schema.org/LimitedAvailability' : 'https://schema.org/InStock',
+      availability: 'https://schema.org/InStock',
       seller: { '@type': 'AutoDealer', name: 'V8 Motors', url: SITE },
     },
   };
 }
 
 /* ------------------------------------------------------------------ car page */
-export function inspection(c) {
-  const CATS = ['Engine and gearbox', 'Brakes', 'Suspension and steering', 'Tyres', 'Bodywork and paint', 'Interior', 'Electrics and diagnostics', 'Road test'];
-  const report = CATS.map((name, i) => ({ name, score: Math.min(100, name === 'Tyres' ? Math.round(62 + seeded(c.id, i) * 36) : Math.round(90 + seeded(c.id, i) * 10)) }));
-  return { report, passed: 150 - report.filter((x) => x.score < 95).length };
-}
-
 export function similarCars(c, n = 8) {
   return CARS.filter((x) => x.id !== c.id)
     .map((x) => ({ x, s: (x.body === c.body ? 2 : 0) + (x.make === c.make ? 1 : 0) - Math.abs(Math.log(x.price / c.price)) * 2 }))
@@ -262,54 +248,54 @@ export function honeypot() {
 }
 
 export function carPageHTML(c, P = '../') {
-  const reserved = c.status === 'Reserved';
   const name = carName(c);
-  const waText = encodeURIComponent(`Hi V8 Motors, I'm interested in the ${name} ${c.trim} (${rs(c.price)}). Is it available to view?`);
-  const { report, passed } = inspection(c);
+  const n = c.images.length;
+  const waText = encodeURIComponent(`Hi V8 Motors, I'm interested in the ${name} (${rs(c.price)}). Is it still available to view?`);
   const specs = [
-    [ICON.gauge, 'Mileage', km(c.km)], [ICON.engine, 'Engine', c.engine], [ICON.bolt, 'Power', `${c.power} hp`],
-    [ICON.gear, 'Gearbox', c.gearbox], [ICON.fuel, 'Fuel', c.fuel], [ICON.wheel, 'Drive', c.drive],
-    [ICON.seat, 'Seats', c.seats], [ICON.user, 'Previous owners', c.owners], [ICON.palette, 'Colour', c.colour],
-    [ICON.shield, 'Warranty', c.warranty],
-  ];
+    [ICON.gauge, 'Year', c.year],
+    c.km != null && [ICON.gauge, 'Mileage', km(c.km)],
+    c.engine && [ICON.engine, 'Engine', `${c.engine} (${c.engineCc.toLocaleString('en-US')} cc)`],
+    [ICON.fuel, 'Fuel', c.fuel], [ICON.gear, 'Gearbox', c.gearbox], [ICON.car, 'Body', c.body],
+    c.colour && [ICON.palette, 'Colour', c.colour],
+    c.seats && [ICON.seat, 'Seats', c.seats],
+    c.doors && [ICON.wheel, 'Doors', c.doors],
+  ].filter(Boolean);
   return `
   <div class="wrap car-page" data-car="${c.id}">
     <nav class="crumbs" aria-label="Breadcrumb">
-      <a href="${P}./">Home</a><span aria-hidden="true">/</span><a href="${P}inventory.html">Inventory</a><span aria-hidden="true">/</span>
+      <a href="${P}./">Home</a><span aria-hidden="true">/</span><a href="${P}inventory.html">Cars</a><span aria-hidden="true">/</span>
       <a href="${P}inventory.html?make=${encodeURIComponent(c.make)}">${c.make}</a><span aria-hidden="true">/</span><span aria-current="page">${esc(c.model)}</span>
     </nav>
 
     <div class="car-top">
       <div class="gallery" data-gallery>
         <div class="gallery-main">
-          ${photo(c.images[0], { alt: `${name} in ${c.colour.toLowerCase()}, photo 1 of ${c.images.length}`, eager: true, sizes: '(min-width: 1000px) 60vw, 100vw', attrs: `data-gal-img data-vt-hero="${c.id}"` })}
-          <span class="car-status car-status--lg${statusClass(c.status)}">${c.status}</span>
-          ${c.images.length > 1 ? `
+          ${photo(c.images[0], { alt: `${name}${c.colour ? ` in ${c.colour.toLowerCase()}` : ''}, photo 1 of ${n}`, eager: true, w: 1591, h: 1200, attrs: `data-gal-img style="background-image:url(${P}${c.thumbs[0]})"` })}
+          ${statusBadge(c, ' car-status--lg')}
+          ${n > 1 ? `
           <button type="button" class="gal-arrow gal-prev" data-gal-prev aria-label="Previous photo">${ICON.arrowL}</button>
           <button type="button" class="gal-arrow gal-next" data-gal-next aria-label="Next photo">${ICON.arrowR}</button>` : ''}
-          <button type="button" class="gal-expand" data-gal-open aria-label="Open photos full screen">${ICON.expand}<span class="tabular-nums" data-gal-count>1 / ${c.images.length}</span></button>
+          <button type="button" class="gal-expand" data-gal-open aria-label="Open photos full screen">${ICON.expand}<span class="tabular-nums" data-gal-count>1 / ${n}</span></button>
         </div>
-        ${c.images.length > 1 ? `<div class="gallery-thumbs">${c.images.map((src, i) =>
-          `<button type="button" data-gal-thumb="${i}" aria-current="${i === 0}" aria-label="Show photo ${i + 1}"><img src="${sized(src, 320)}" width="320" height="200" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+        ${n > 1 ? `<div class="gallery-thumbs">${c.thumbs.map((src, i) =>
+          `<button type="button" data-gal-thumb="${i}" aria-current="${i === 0}" aria-label="Show photo ${i + 1}"><img src="${P}${src}" width="480" height="317" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
       </div>
 
       <aside class="summary" data-summary>
-        <p class="summary-kicker tabular-nums">${c.year}, ${km(c.km)}, ${c.fuel}</p>
+        <p class="summary-kicker tabular-nums">${[c.year, c.engine && `${c.engine} ${c.fuel.toLowerCase()}`, c.gearbox.toLowerCase()].filter(Boolean).join(', ')}</p>
         <h1 class="summary-title">${esc(c.make)} ${esc(c.model)}</h1>
-        <p class="summary-trim">${esc(c.trim)}</p>
+        <p class="summary-trim">${esc([c.colour, bodyWord(c)].filter(Boolean).join(' '))}${c.km != null ? `, ${km(c.km)}` : ''}</p>
         <div class="summary-price">
           <p class="summary-amount tabular-nums" data-price>${rs(c.price)}</p>
-          <p class="summary-monthly tabular-nums">or <strong>${rs(monthly(c.price))}</strong> a month with 20% down over 5 years</p>
+          <p class="summary-monthly tabular-nums">or about <strong>${rs(monthly(c.price))}</strong> a month on lease, 20% down over 5 years</p>
         </div>
         <ul class="summary-points">
-          <li>150-point inspection, ${passed} passed first time</li>
-          <li>${c.warranty} warranty included</li>
-          <li>NLTA transfer handled for you</li>
+          <li>Checked by us: clean and road-ready</li>
+          <li>Part-exchange welcome: bring your current car</li>
+          <li>Leasing through ${DEALER.leasing}</li>
         </ul>
         <div class="summary-actions">
-          ${reserved
-            ? `<a class="btn btn-primary btn-wide" href="https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(`Hi, please add me to the waiting list for the ${name}.`)}" rel="noopener">Join the waiting list</a>`
-            : `<a class="btn btn-primary btn-wide" href="#book">Book a test drive</a>`}
+          <a class="btn btn-primary btn-wide" href="#book">Book a viewing</a>
           <div class="summary-contact">
             <a class="btn btn-line" href="${DEALER.phoneHref}">${ICON.phone}Call</a>
             <a class="btn btn-line" href="https://wa.me/${DEALER.whatsapp}?text=${waText}" rel="noopener">${ICON.chat}WhatsApp</a>
@@ -323,36 +309,20 @@ export function carPageHTML(c, P = '../') {
       </aside>
     </div>
 
-    <section class="car-section" aria-labelledby="specs-h">
-      <h2 class="car-h" id="specs-h">The details</h2>
+    <section class="car-section${c.description ? ' car-2col' : ''}" aria-labelledby="specs-h">
+      <div>
+        <h2 class="car-h" id="specs-h">The details</h2>
+        ${c.description ? `<p class="car-about">${esc(c.description)}</p>` : ''}
+        ${c.options ? `<p class="car-sub">${esc(c.options)}</p>` : ''}
+      </div>
       <dl class="specs">${specs.map(([icon, k, v]) => `<div class="spec">${icon}<dt>${k}</dt><dd class="tabular-nums">${esc(v)}</dd></div>`).join('')}</dl>
-    </section>
-
-    <section class="car-section car-2col" aria-labelledby="feat-h">
-      <div>
-        <h2 class="car-h" id="feat-h">What it comes with</h2>
-        <p class="car-sub">${c.features.length} features, each checked working at inspection.</p>
-      </div>
-      <ul class="features">${c.features.map((f) => `<li>${f}</li>`).join('')}</ul>
-    </section>
-
-    <section class="car-section car-2col report" aria-labelledby="rep-h">
-      <div>
-        <h2 class="car-h" id="rep-h">Inspection report</h2>
-        <p class="car-sub">Our workshop checked 150 points before listing this car. This is the summary by area; the full report comes with the car.</p>
-        <p class="report-big tabular-nums"><span data-count-to="${passed}">${passed}</span><span class="report-of">/150</span></p>
-      </div>
-      <ul class="report-bars">
-        ${report.map((r) => `<li><span class="report-name">${r.name}</span><span class="report-score tabular-nums">${r.name === 'Tyres' ? `${r.score}% tread` : r.score >= 95 ? 'Passed' : 'Advisory'}</span>
-          <span class="report-track"><span class="report-fill${r.score < 95 && r.name !== 'Tyres' ? ' is-advisory' : ''}" style="--v:${r.score / 100}"></span></span></li>`).join('')}
-      </ul>
     </section>
 
     <section class="car-section car-2col fin-mini" aria-labelledby="fin-h">
       <div>
         <h2 class="car-h" id="fin-h">Your monthly payment</h2>
-        <p class="car-sub">At ${DEALER.financeRate}% a year. An estimate only; the bank confirms the final rate.</p>
-        <a href="${P}finance.html?id=${c.id}" class="link">Open the full finance calculator</a>
+        <p class="car-sub">Leasing is arranged through ${DEALER.leasing}. Worked out at an example rate of ${DEALER.financeRate}% a year; they confirm the real figure.</p>
+        <a href="${P}finance.html?id=${c.id}" class="link">Open the full leasing calculator</a>
       </div>
       <div class="fin-mini-box">
         <label class="slider"><span class="slider-top"><span>Deposit</span><output class="tabular-nums" data-mini-dep-out>20%, ${rs(c.price * 0.2)}</output></span>
@@ -363,9 +333,9 @@ export function carPageHTML(c, P = '../') {
       </div>
     </section>
 
-    ${reserved ? '' : `
     <section class="car-section book" id="book" aria-labelledby="book-h">
-      <h2 class="car-h" id="book-h">Book a test drive</h2>
+      <h2 class="car-h" id="book-h">Book a viewing</h2>
+      <p class="car-sub">Pick a time and send it to us on WhatsApp; we confirm the same day. Open Monday to Friday 9:00 to 17:00, Saturday 9:00 to 16:00.</p>
       <form class="book-form" data-book novalidate>
         <fieldset><legend>Choose a day</legend><div class="days" data-days></div></fieldset>
         <fieldset><legend>Choose a time</legend><div class="slots" data-slots><p class="slots-hint">Pick a day first.</p></div></fieldset>
@@ -375,9 +345,9 @@ export function carPageHTML(c, P = '../') {
         </div>
         ${honeypot()}
         <p class="form-error" data-error role="alert" hidden></p>
-        <button class="btn btn-primary" type="submit">Request test drive</button>
+        <button class="btn btn-primary" type="submit">${ICON.chat}Send on WhatsApp</button>
       </form>
-    </section>`}
+    </section>
 
     <section class="car-section" aria-labelledby="sim-h">
       <h2 class="car-h" id="sim-h">Similar cars</h2>
@@ -388,14 +358,14 @@ export function carPageHTML(c, P = '../') {
   <div class="buybar" data-buybar>
     <div class="buybar-text"><p class="buybar-name">${esc(c.make)} ${esc(c.model)}</p><p class="buybar-price tabular-nums">${rs(c.price)}</p></div>
     <a href="${DEALER.phoneHref}" class="btn btn-line buybar-icon" aria-label="Call V8 Motors">${ICON.phone}</a>
-    ${reserved ? '<span class="car-status car-status--reserved">Reserved</span>' : '<a href="#book" class="btn btn-primary">Test drive</a>'}
+    <a href="#book" class="btn btn-primary">Book a viewing</a>
   </div>
 
   <dialog class="lightbox" data-lightbox aria-label="Photos of the ${esc(name)}">
     <img alt="" data-lb-img>
     <p class="lb-count tabular-nums" data-lb-count></p>
     <button type="button" class="lb-close" data-lb-close aria-label="Close photos">${ICON.close}</button>
-    ${c.images.length > 1 ? `<button type="button" class="lb-arrow lb-prev" data-lb-prev aria-label="Previous photo">${ICON.arrowL}</button>
+    ${n > 1 ? `<button type="button" class="lb-arrow lb-prev" data-lb-prev aria-label="Previous photo">${ICON.arrowL}</button>
     <button type="button" class="lb-arrow lb-next" data-lb-next aria-label="Next photo">${ICON.arrowR}</button>` : ''}
   </dialog>`;
 }
@@ -410,7 +380,7 @@ export function bodyTilesHTML(P = '') {
     const list = CARS.filter((c) => c.body === t);
     if (!list.length) return '';
     return `<li><a href="${P}inventory.html?body=${t}" class="body-tile">${shapeSvg(t)}
-      <span class="body-tile-name">${t === 'SUV' ? 'SUVs' : t + 's'}</span>
+      <span class="body-tile-name">${t}s</span>
       <span class="body-tile-meta tabular-nums">${list.length} in stock, from ${rs(Math.min(...list.map((c) => c.price)))}</span></a></li>`;
   }).join('');
 }
@@ -428,7 +398,7 @@ export function inventoryGridHTML(P = '') {
 export function filterOptionsHTML(kind) {
   if (kind === 'body') return BODY_TYPES.filter((t) => CARS.some((c) => c.body === t)).map((t) => `<label class="body-opt"><input type="checkbox" name="body" value="${t}">
     <span>${shapeSvg(t)}<span class="body-opt-name">${t}</span><span class="body-opt-n tabular-nums" data-n-body="${t}">${CARS.filter((c) => c.body === t).length}</span></span></label>`).join('');
-  if (kind === 'fuel') return ['Petrol', 'Diesel', 'Hybrid', 'Electric'].map((f) => `<label class="pill"><input type="checkbox" name="fuel" value="${f}"><span>${f} <span class="pill-n tabular-nums" data-n-fuel="${f}">${CARS.filter((c) => c.fuel === f).length}</span></span></label>`).join('');
+  if (kind === 'fuel') return ['Petrol', 'Diesel', 'Hybrid', 'Electric'].filter((f) => CARS.some((c) => c.fuel === f)).map((f) => `<label class="pill"><input type="checkbox" name="fuel" value="${f}"><span>${f} <span class="pill-n tabular-nums" data-n-fuel="${f}">${CARS.filter((c) => c.fuel === f).length}</span></span></label>`).join('');
   if (kind === 'make') return [...new Set(CARS.map((c) => c.make))].sort().map((m) => `<label class="check"><input type="checkbox" name="make" value="${m}"><span>${m}</span><span class="check-n tabular-nums" data-n-make="${m}">${CARS.filter((c) => c.make === m).length}</span></label>`).join('');
   return '';
 }

@@ -2,7 +2,7 @@ import gsap from 'gsap';
 import { initLayout, reduced, $, $$, titleIn } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { store, COMPARE_MAX } from '../lib/store.js';
-import { CARS, byId, rs, km, monthly, sized, carName } from '../data.js';
+import { CARS, byId, rs, km, monthly, thumb, carName } from '../data.js';
 
 initLayout();
 wireCardActions();
@@ -13,20 +13,18 @@ const urlIds = (new URLSearchParams(location.search).get('ids') || '').split(','
 if (urlIds.length) store.setCompare(urlIds);
 
 const ROWS = [
-  { k: 'Price', v: (c) => rs(c.price), n: (c) => c.price, best: 'min' },
+  { k: 'Price', v: (c) => rs(c.price), n: (c) => c.price, best: 'min', bar: true },
   { k: 'Monthly, 20% down over 5 years', v: (c) => rs(monthly(c.price)), n: (c) => c.price, best: 'min' },
   { k: 'Year', v: (c) => c.year, n: (c) => c.year, best: 'max' },
-  { k: 'Mileage', v: (c) => km(c.km), n: (c) => c.km, best: 'min' },
-  { k: 'Power', v: (c) => `${c.power} hp`, n: (c) => c.power, best: 'max', bar: true },
-  { k: 'Engine', v: (c) => c.engine },
+  { k: 'Mileage', v: (c) => km(c.km), n: (c) => c.km ?? undefined, best: 'min' },
+  { k: 'Engine', v: (c) => (c.engineCc ? `${c.engine} (${c.engineCc.toLocaleString('en-US')} cc)` : 'Ask us') },
   { k: 'Fuel', v: (c) => c.fuel },
   { k: 'Gearbox', v: (c) => c.gearbox },
-  { k: 'Drive', v: (c) => c.drive },
   { k: 'Body', v: (c) => c.body },
-  { k: 'Seats', v: (c) => c.seats, n: (c) => c.seats, best: 'max' },
-  { k: 'Previous owners', v: (c) => c.owners, n: (c) => c.owners, best: 'min' },
-  { k: 'Warranty', v: (c) => c.warranty },
-  { k: 'Features', v: (c) => `${c.features.length} listed`, n: (c) => c.features.length, best: 'max' },
+  { k: 'Colour', v: (c) => c.colour || 'Ask us' },
+  { k: 'Seats', v: (c) => c.seats || 'Ask us', n: (c) => c.seats ?? undefined, best: 'max' },
+  { k: 'Doors', v: (c) => c.doors || 'Ask us' },
+  { k: 'Photos', v: (c) => `${c.images.length}` },
 ];
 
 const root = $('[data-compare-root]');
@@ -37,13 +35,13 @@ function render(animate) {
   history.replaceState(null, '', cars.length ? `?ids=${cars.map((c) => c.id).join(',')}` : location.pathname);
   if (!cars.length) {
     root.innerHTML = `<div class="empty"><p class="empty-title">Nothing to compare yet.</p>
-      <p>Tap the scales icon on any car in the inventory to add it here. You can compare up to three.</p>
-      <a href="inventory.html" class="btn btn-primary">Browse the inventory</a></div>`;
+      <p>Tap the scales icon on any car on the cars page to add it here. You can compare up to three.</p>
+      <a href="inventory.html" class="btn btn-primary">Browse the cars</a></div>`;
     return;
   }
   const slots = [...cars, ...Array(COMPARE_MAX - cars.length).fill(null)];
   const options = CARS.filter((c) => !cars.includes(c)).map((c) => `<option value="${c.id}">${carName(c)}, ${rs(c.price)}</option>`).join('');
-  const maxPower = Math.max(...cars.map((c) => c.power));
+  const maxPrice = Math.max(...cars.map((c) => c.price));
 
   root.style.setProperty('--cols', COMPARE_MAX);
   root.innerHTML = `
@@ -52,7 +50,7 @@ function render(animate) {
         <div class="cmp-key" role="rowheader"></div>
         ${slots.map((c) => c ? `
           <div class="cmp-car" role="columnheader">
-            <a href="cars/${c.id}.html" class="cmp-img" tabindex="-1" aria-hidden="true"><img src="${sized(c.images[0], 700)}" width="700" height="460" alt="" /></a>
+            <a href="cars/${c.id}.html" class="cmp-img" tabindex="-1" aria-hidden="true"><img src="${thumb(c, 0, 960)}" width="700" height="460" alt="" /></a>
             <a href="cars/${c.id}.html" class="cmp-name">${carName(c)}</a>
             <p class="cmp-trim">${c.trim}</p>
             <button type="button" class="link cmp-remove" data-remove="${c.id}">Remove</button>
@@ -66,15 +64,15 @@ function render(animate) {
         const vals = cars.map((c) => r.v(c));
         const same = vals.every((v) => String(v) === String(vals[0]));
         let bestN = null;
-        if (r.best && cars.length > 1) {
-          const ns = cars.map(r.n);
+        if (r.best && cars.filter((c) => r.n(c) != null).length > 1) {
+          const ns = cars.map(r.n).filter((n) => n != null);
           bestN = r.best === 'min' ? Math.min(...ns) : Math.max(...ns);
           if (ns.every((n) => n === bestN)) bestN = null;
         }
         return `<div class="cmp-row ${same && cars.length > 1 ? 'is-same' : ''}" role="row">
           <div class="cmp-key" role="rowheader">${r.k}</div>
           ${slots.map((c) => c ? `<div class="cmp-val tabular-nums ${bestN !== null && r.n(c) === bestN ? 'is-best' : ''}" role="cell">
-            ${r.v(c)}${r.bar ? `<span class="cmp-bar"><span style="--v:${c.power / maxPower}"></span></span>` : ''}</div>` : '<div class="cmp-val" role="cell"></div>').join('')}
+            ${r.v(c)}${r.bar ? `<span class="cmp-bar"><span style="--v:${c.price / maxPrice}"></span></span>` : ''}</div>` : '<div class="cmp-val" role="cell"></div>').join('')}
         </div>`;
       }).join('')}
       <div class="cmp-row cmp-row--cta" role="row">

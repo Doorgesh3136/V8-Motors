@@ -2,10 +2,11 @@
   "name": "v8-motors",
   "version": "1.0.0",
   "scripts": {
-    "predev": "node scripts/prerender.mjs",
+    "predev": "node scripts/sync-inventory.mjs && node scripts/prerender.mjs",
     "dev": "vite",
-    "prebuild": "node scripts/prerender.mjs",
+    "prebuild": "node scripts/sync-inventory.mjs && node scripts/prerender.mjs",
     "build": "vite build",
+    "sync": "node scripts/sync-inventory.mjs",
     "preview": "vite preview",
     "deploy": "npm run build && node scripts/deploy.mjs"
   },
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.3",
     "vite": "^6.4.5"
   },

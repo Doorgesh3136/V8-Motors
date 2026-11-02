@@ -14,9 +14,9 @@
 
   <main id="main">
     <section class="page-head wrap">
-      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Inventory</span></nav>
+      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Cars</span></nav>
       <h1 class="page-title" data-title>Used cars for sale</h1>
-      <p class="page-lede"><!--@total--> inspected cars in the Beau Bassin showroom, each with a warranty and a full report.</p>
+      <p class="page-lede"><!--@total--> cars on the forecourt at 59B Royal Road, Coromandel, with our own photos of each one. New stock every week.</p>
     </section>
 
     <div class="wrap inv-layout">
@@ -59,14 +59,6 @@
           </fieldset>
 
           <fieldset class="fgroup">
-            <legend>Mileage</legend>
-            <label class="slider">
-              <span class="slider-top"><span>Up to</span><output class="tabular-nums" data-km-out>Any</output></span>
-              <input type="range" name="km" min="10000" max="220000" step="5000" value="220000" />
-            </label>
-          </fieldset>
-
-          <fieldset class="fgroup">
             <legend>Fuel</legend>
             <div class="pill-row"><!--@opts:fuel--></div>
           </fieldset>
@@ -87,7 +79,6 @@
           <fieldset class="fgroup fgroup--toggles">
             <legend class="sr-only">More options</legend>
             <label class="toggle"><input type="checkbox" name="saved" /><span>Saved cars only</span></label>
-            <label class="toggle"><input type="checkbox" name="available" /><span>Hide reserved cars</span></label>
           </fieldset>
         </form>
         <div class="inv-filters-apply"><button type="button" class="btn btn-primary" data-close-filters>Show <span class="tabular-nums" data-count-btn><!--@total--></span> cars</button></div>
@@ -103,9 +94,8 @@
               <option value="new">Newest arrivals</option>
               <option value="price-asc">Price, low to high</option>
               <option value="price-desc">Price, high to low</option>
-              <option value="km">Lowest mileage</option>
               <option value="year">Newest year</option>
-              <option value="power">Most powerful</option>
+              <option value="year-asc">Oldest year</option>
             </select>
           </label>
           <div class="view-toggle" role="group" aria-label="Layout">

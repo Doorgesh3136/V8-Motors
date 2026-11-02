@@ -7,38 +7,38 @@ const n = CARS.length;
 export const META = {
   'index.html': {
     path: '',
-    title: 'V8 Motors | Inspected pre-owned cars in Beau Bassin, Mauritius',
-    desc: `${n} inspected pre-owned cars with a warranty, on Royal Road in Beau Bassin. Browse the stock, sell your car or work out finance in rupees.`,
+    title: 'V8 Motors | Used cars in Coromandel, Mauritius. Buy, sell or exchange',
+    desc: `${n} used cars for sale at 59B Royal Road, Coromandel. Buy, sell or exchange your car, with leasing through Rogers Capital. New stock every week.`,
     jsonld: () => [dealerJsonLd()],
   },
   'inventory.html': {
     path: 'inventory.html',
     title: `Used cars for sale in Mauritius, ${n} in stock | V8 Motors`,
-    desc: 'Filter every car at V8 Motors by make, body type, price, year, mileage and fuel. Each one is inspected and comes with a warranty.',
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Inventory', 'inventory.html']])],
+    desc: `All ${n} cars at V8 Motors in Coromandel, with real photos and prices in rupees. Filter by make, body type, price, year, fuel and gearbox.`,
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Cars', 'inventory.html']])],
   },
   'compare.html': {
     path: 'compare.html',
     title: 'Compare cars side by side | V8 Motors',
-    desc: 'Put up to three V8 Motors cars side by side: price, monthly payment, mileage, power and equipment.',
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Inventory', 'inventory.html'], ['Compare', 'compare.html']])],
+    desc: 'Put up to three V8 Motors cars side by side: price, monthly payment, year, engine, gearbox and more.',
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Cars', 'inventory.html'], ['Compare', 'compare.html']])],
   },
   'sell.html': {
     path: 'sell.html',
-    title: 'Sell your car in Mauritius, offer within a day | V8 Motors',
-    desc: 'Three short steps for a rough guide price now and a written offer within one working day. Paid the same day, NLTA transfer handled.',
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Sell your car', 'sell.html']])],
+    title: 'Sell or exchange your car in Mauritius | V8 Motors',
+    desc: 'Tell us about your car in three short steps for a rough guide price, then an offer from V8 Motors. Sell it outright or put it towards one of our cars.',
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Sell or exchange', 'sell.html']])],
   },
   'finance.html': {
     path: 'finance.html',
-    title: 'Car finance calculator in rupees | V8 Motors',
-    desc: 'Work out your monthly car payment, see the balance year by year, and ask V8 Motors about finance through local banks.',
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Finance', 'finance.html']])],
+    title: 'Car leasing calculator in rupees | V8 Motors',
+    desc: 'Work out a monthly payment for any car in stock and ask V8 Motors about leasing through Rogers Capital.',
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Leasing', 'finance.html']])],
   },
   'contact.html': {
     path: 'contact.html',
-    title: 'Visit the showroom in Beau Bassin | V8 Motors',
-    desc: 'Opening hours, directions and contact details for the V8 Motors showroom on Royal Road, Beau Bassin.',
+    title: 'Visit V8 Motors in Coromandel | Opening hours and directions',
+    desc: 'V8 Motors, 59B Royal Road, Coromandel. Open Monday to Friday 9:00 to 17:00 and Saturday 9:00 to 16:00. Phone, WhatsApp, email and directions.',
     jsonld: () => [dealerJsonLd(), breadcrumbJsonLd([['Home', ''], ['Visit us', 'contact.html']])],
   },
   'privacy.html': {
@@ -50,7 +50,7 @@ export const META = {
   'terms.html': {
     path: 'terms.html',
     title: 'Terms of sale and website terms | V8 Motors',
-    desc: 'The terms that apply when you use the V8 Motors website, reserve a car, book a test drive or buy from us.',
+    desc: 'The terms that apply when you use the V8 Motors website, book a viewing or buy from us.',
     jsonld: () => [],
   },
   '404.html': {

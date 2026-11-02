@@ -1,6 +1,6 @@
 # V8 Motors
 
-Showroom and stock website for V8 Motors, a pre-owned car dealer in Beau Bassin, Mauritius.
+Showroom and stock website for V8 Motors, a used car dealer at 59B Royal Road, Coromandel, Mauritius.
 Vite, Tailwind CSS v4, GSAP and Lenis. No framework, no 3D library: about 55 KB of JavaScript (gzipped) on most pages.
 
 Live site: https://doorgesh3136.github.io/V8-Motors/
@@ -8,51 +8,100 @@ Live site: https://doorgesh3136.github.io/V8-Motors/
 ```
 npm install
 npm run dev       # http://localhost:5173
+npm run sync      # pull the latest stock from the V8 Motors stock API (also runs before dev and build)
 npm run build     # static site in dist/
 npm run deploy    # build + publish dist/ to the gh-pages branch (GitHub Pages)
 ```
 
+## Real stock
+
+The cars come from the dealership's own stock API, the same one behind v8motors.mu/catalogue.html
+(`https://v8.farhaan.info/api/cars`). `scripts/sync-inventory.mjs` runs before every dev start and build:
+
+- fetches every car marked for sale, tidies the names (`NISSAN NP 300` becomes `Nissan NP300`, `Range Rover` becomes `Land Rover Range Rover`) and fixes vans and MPVs filed as "Other";
+- saves a snapshot to `src/inventory.json` (committed, so a build still works if the API is down);
+- makes small WebP thumbnails of every photo in `public/stock/` (not committed; re-created on the next sync). Full-size photos load from the dealer's photo server on each car page.
+
+So to publish new stock: add it in the dealership's admin as usual, then run `npm run deploy`.
+
+Only what the dealer publishes is shown. There are no invented inspection scores, warranties, horsepower or owner counts. Mileage shows where the dealer has entered it, and "Ask us" where they haven't.
+
 ## Design
 
-Midnight blue and chrome: midnight-blue backgrounds (`#0a1230`), cool white text (`#eef2fa`), chrome-grey secondary text (`#9aa6c4`), silver hairlines on cards and panels, a brushed-chrome logo, and a single ice-blue accent (`#5ab8ff`) for the main action and prices. No horizontal scrolling anywhere and no scrolling text. One typeface, Archivo, self-hosted, using its width axis for headlines.
+Petrol blue, taken from the dealership's own logo (grey V, red 8, cyan lettering):
 
-The home page intro opens on the car's start button in the dark (browsers only allow sound after a tap; you can also enter without sound or skip). Pressing it plays about seven seconds, one continuous shot on the real hero photo: the starter cranks while the headlights dim and brighten, the engine catches with a jolt and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo itself, `public/intro/`), the camera creeps in through the idle, a throttle blip flashes the high beams, then a full rev and a second flash as the camera pulls back and the forest lights up. The engine sound is a real recording (`public/intro/engine.mp3`, 10 s, 143 KB) and the picture is keyed to its moments: the engine catches at 0.9 s, revs at 4.7 s, 5.9 s and 7.2 s. The animation runs off the audio clock, so picture and sound cannot drift. It plays on every fresh visit and every refresh of the home page; arriving from another page on the site uses the curtain instead.
+- **Colours:** mid petrol-blue surfaces (`#2f5a78`, panels `#386886`), never black or white; white type; soft blue-white secondary text (`#d6e6f1`).
+- **Accents:** the logo's red (`#e0262f`) only for the main action and the Saturday deals band, and the logo's cyan (`#9fe3f5`) for small highlights.
+- **Contrast:** body text 5.4:1, highlights 5.2:1, white on the red buttons 6.1:1.
+- **Type:** one typeface, Archivo, self-hosted, using its width axis for headlines.
+- **Layout:** no horizontal scrolling anywhere and no scrolling text.
 
-Page changes use curtains: amber, slate and ink layers sweep in from both sides, meet on the logo and the name of the page you're going to (or the car's name), and open outwards on the next page. The next page is prefetched when a link is hovered or touched, so the curtain rarely waits. Works the same in every browser.
+### Home page intro
+
+The intro opens on the car's start button in the dark. Browsers only allow sound after a tap; visitors can also enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner.
+
+The sound is a real Range Rover V8 (`public/intro/engine.mp3`, 10.6 s, 145 KB):
+
+- a starter crank, then a Range Rover V8 idling and revving (CC0 recordings, credits below);
+- EQ'd to bring out the V8 burble over the worn engine's rattle;
+- mastered about 10 dB quieter than the previous track.
+
+The picture runs on the audio clock, and the headlight bloom and camera shake follow the recording's loudness frame by frame:
+
+| Time | What happens |
+| --- | --- |
+| 0.3 s | The starter cranks and the lamps flicker. |
+| 0.9 s | The engine catches with a jolt, and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo, `public/intro/`). |
+| Idle | The camera creeps in. |
+| 4.7 s | First rev: the high beams flash and the camera punches in. |
+| 5.8 s | Big rev: the letterbox opens, the camera pulls back and the forest lights up. |
+| 6.5 s | The real V8 Motors badge comes up in the light. |
+| 8.1 s | Last blip: it flashes, then flies up into the menu bar as the page appears. |
+
+The intro plays on every fresh visit and every refresh of the home page. Arriving from another page on the site uses the curtain instead.
+
+### Page changes
+
+Page changes use curtains: red, petrol and blue layers sweep in from both sides, meet on the logo and the name of the page (or the car), and open on the next page. The next page is prefetched when a link is hovered or touched.
 
 ## Pages
 
 | Page | What it does |
 | --- | --- |
-| `index.html` | Intro, hero with quick search, "Just arrived" row (scroll moves it sideways on desktop, swipe on phones), tap-to-explore 150-point inspection, makes, body types, monthly cost slider |
-| `inventory.html` | Every car, with filters (body, price and year ranges, mileage, fuel, gearbox, make), removable filter chips, sort, grid/list, filters kept in the URL, compare tray |
-| `cars/<id>.html` | One real page per car (generated at build): gallery with full screen and zoom, specs, features, inspection report, finance estimate, test-drive booking with calendar file, similar cars |
+| `index.html` | Intro, hero with quick search, newest cars, body types, part-exchange calculator (choose a car, slide to your car's value, see what's left and a monthly figure), makes, Saturday deals band |
+| `inventory.html` | Every car, with filters (body, price and year ranges, fuel, gearbox, make), chips, sort, grid/list, filters kept in the URL, compare tray. Move the mouse across a card's photo to flick through all its pictures |
+| `cars/<id>.html` | One real page per car (generated at build): the dealer's photos with full screen and zoom, description and specs, leasing estimate, viewing request, similar cars |
 | `compare.html` | Up to three cars side by side, best value per row marked |
-| `sell.html` | Three-step valuation request with a live rough guide price |
-| `finance.html` | Calculator, cost split, year-by-year balance chart, FAQ |
-| `contact.html` | Map, opening hours with a live open or closed status, contact form |
-| `privacy.html`, `terms.html` | Privacy policy and terms of sale |
-| `404.html` | Not-found page (GitHub Pages serves it for any missing URL) |
+| `sell.html` | Sell or exchange: three steps with a live rough guide price |
+| `finance.html` | Leasing calculator (leasing is through Rogers Capital), cost split, balance chart, FAQ |
+| `contact.html` | Map, opening hours with a live open or closed status, all four phone numbers, message form |
+| `privacy.html`, `terms.html` | Privacy policy and terms |
+| `404.html` | Not-found page |
+
+### Forms
+
+The viewing, sell/exchange and contact forms validate on the page, then open WhatsApp (or email, on the contact page) to V8 Motors with the message already written. The visitor presses send in their own app. Nothing is stored on a server, and enquiries land straight in the dealer's WhatsApp.
 
 ## How it is built
 
-- `src/data.js`: the cars, dealer details, opening hours, finance rate. **Change stock and contact details here.**
+- `src/data.js`: dealer details (address, phones, hours, leasing partner, example rate) plus the stock from `src/inventory.json`.
 - `src/lib/templates.js`: HTML templates shared by the build and the browser (nav, footer, cards, car pages, meta tags, structured data).
-- `vite.config.js`: a small plugin fills `<!--@...-->` placeholders, so every page ships complete HTML (no empty shells, no content popping in).
-- `scripts/prerender.mjs` (runs before `dev` and `build`): writes `cars/*.html`, `public/sitemap.xml`, `public/robots.txt` and `public/llms.txt`. These are generated, so they are not committed.
+- `vite.config.js`: a small plugin fills `<!--@...-->` placeholders, so every page ships complete HTML.
+- `scripts/prerender.mjs`: writes `cars/*.html`, `public/sitemap.xml`, `public/robots.txt` and `public/llms.txt` (generated, not committed).
 - `src/site.css`: the whole design system. `src/pages/*.js`: behaviour for each page.
 
-## Launch checklist status
+## Still needs the dealer
 
-Done: unique titles and meta descriptions, canonical URLs, Open Graph and Twitter cards with a share image (`public/og.jpg`), favicon set and web manifest, AutoDealer, Car and BreadcrumbList structured data, sitemap.xml, robots.txt, llms.txt, custom 404, privacy and terms pages, alt text, breadcrumbs, internal links, no source maps in production, responsive images (`srcset`), self-hosted font with a metric-matched fallback (no layout shift), 44 px minimum tap targets, tap-to-call numbers, bottom tab bar on phones, no horizontal scrolling at 360 to 1440 px wide, portrait and landscape checked, form validation with messages under each field, honeypot and minimum-time spam checks, no cookies or trackers (a small privacy notice explains this), HTTPS enforced on GitHub Pages.
-
-Still needs you:
-- **Real details:** the phone number, WhatsApp number, email and street address in `src/data.js` are placeholders.
-- **Forms:** booking, selling and contact forms validate and confirm on screen but do not send anywhere yet. Connect them to a form service (for example Formspree or Web3Forms) or your CRM. Server-side spam protection then comes from that service.
-- **Legal text:** `privacy.html` and `terms.html` are sensible starting points (including the Mauritius Data Protection Act 2017), but the deposit amount, warranty cover and retention periods are assumptions. Have them checked.
-- **Analytics:** none is installed. If you add one (Plausible or Google Analytics), update the privacy notice and policy, and add a consent banner if it sets cookies.
+- **WhatsApp number:** the forms send to 5259 0327, the first number on the dealer's site. Change `whatsapp` in `src/data.js` (and `DEALER_WA` in `src/lib/layout.js`) if WhatsApp is on another number.
+- **Leasing rate:** the 7.5% in the calculators is an example only and is labelled as one. Set `financeRate` in `src/data.js` to a typical Rogers Capital rate.
+- **Legal text:** `privacy.html` and `terms.html` are plain, honest starting points. Have them checked.
+- **Analytics:** none installed.
 - **Custom domain:** add it in the repository's Pages settings and update `SITE` in `src/lib/templates.js`.
-- **Photos:** car photos are hotlinked from Unsplash. Replace them with photos of your own stock.
 
 ## Credits
-- Engine sound: built from two CC0 (public domain) recordings on Freesound: [Aston Martin Rapide start](https://freesound.org/people/Paul368/sounds/320096/) by Paul368 and [S63 AMG V8 engine revs](https://freesound.org/people/marcelweiss/sounds/505321/) by marcelweiss.
+
+- **Stock photos and logo:** V8 Motors.
+- **Home page photo:** Unsplash.
+- **Engine sound,** built from CC0 (public domain) recordings on Freesound:
+  - [Range Rover V8 idle](https://freesound.org/people/Kevaaq/sounds/203962/) and [Range Rover V8 revving](https://freesound.org/people/Kevaaq/sounds/203963/) by Kevaaq;
+  - the starter crank from [Aston Martin Rapide start](https://freesound.org/people/Paul368/sounds/320096/) by Paul368. The Range Rover recordings have no start-up.
