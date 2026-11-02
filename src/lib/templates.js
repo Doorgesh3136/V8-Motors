@@ -109,8 +109,8 @@ export function navHTML(page, P = '') {
     </nav>
     <div class="nav-actions">
       <a class="nav-phone tabular-nums" href="${DEALER.phoneHref}">${DEALER.phone}</a>
-      <a href="${P}compare.html" class="icon-btn" data-compare-link aria-label="Compare cars">${ICON.scales}<span data-compare-count class="tabular-nums">0</span></a>
-      <a href="${P}inventory.html?saved=1" class="icon-btn" data-saved-link aria-label="Saved cars">${ICON.heart}<span data-saved-count class="tabular-nums">0</span></a>
+      <a href="${P}compare.html" class="icon-btn" data-compare-link aria-label="0 cars to compare">${ICON.scales}<span data-compare-count class="tabular-nums">0</span></a>
+      <a href="${P}inventory.html?saved=1" class="icon-btn" data-saved-link aria-label="0 saved cars">${ICON.heart}<span data-saved-count class="tabular-nums">0</span></a>
     </div>
   </header>`;
 }

@@ -19,8 +19,8 @@ export function syncStoreUI() {
   const saved = store.saved(), cmp = store.compare();
   $$('[data-saved-count]').forEach((n) => (n.textContent = saved.length));
   $$('[data-compare-count]').forEach((n) => (n.textContent = cmp.length));
-  $$('[data-saved-link]').forEach((n) => { n.classList.toggle('is-on', saved.length > 0); n.setAttribute('aria-label', `Saved cars (${saved.length})`); });
-  $$('[data-compare-link]').forEach((n) => { n.classList.toggle('is-on', cmp.length > 0); n.setAttribute('aria-label', `Compare cars (${cmp.length})`); });
+  $$('[data-saved-link]').forEach((n) => { n.classList.toggle('is-on', saved.length > 0); n.setAttribute('aria-label', `${saved.length} saved car${saved.length === 1 ? '' : 's'}`); });
+  $$('[data-compare-link]').forEach((n) => { n.classList.toggle('is-on', cmp.length > 0); n.setAttribute('aria-label', `${cmp.length} car${cmp.length === 1 ? '' : 's'} to compare`); });
   $$('[data-save]').forEach((b) => b.setAttribute('aria-pressed', String(saved.includes(b.dataset.save))));
   $$('[data-compare]').forEach((b) => b.setAttribute('aria-pressed', String(cmp.includes(b.dataset.compare))));
 }
