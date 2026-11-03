@@ -35,7 +35,7 @@ Petrol blue, taken from the dealership's own logo (grey V, red 8, cyan lettering
 - **Contrast:** body text 5.4:1, highlights 5.2:1, white on the red buttons 6.1:1.
 - **Type:** one typeface, Archivo, self-hosted, using its width axis for headlines.
 - **Layout:** no horizontal scrolling anywhere and no scrolling text.
-- **Background:** a living petrol-blue gradient (`src/lib/bg.js`): a small WebGL shader paints slow, liquid folds of deep and light blue with thin cyan seams of light and a warm red glow low on the page, under a fine carbon-fibre and grain texture (`public/bg/texture.png`, made by `scripts/make-texture.mjs`). It speeds up while you scroll, a soft light follows your finger or mouse, every tap sends a ripple through it, and on phones it leans with the device's tilt. Without WebGL a still CSS gradient is shown; for reduced motion it draws one still frame.
+- **Background:** a living petrol-blue gradient (`src/lib/bg.js`): a small WebGL shader paints flowing, liquid folds of deep and light blue with thin cyan seams of light and a warm red glow low on the page. Streams of headlight (cyan) and tail-light (red) trails run across it like a long exposure of a road at night, and soft out-of-focus lights drift upwards, all under a fine carbon-fibre and grain texture (`public/bg/texture.png`, made by `scripts/make-texture.mjs`). It moves on its own all the time and speeds up while you scroll (the traffic rushes), a soft light follows your finger or mouse, every tap sends a ripple through it, and on phones it leans with the device's tilt. Without WebGL a still CSS gradient is shown; for reduced motion it draws one still frame.
 
 ### Interactive touches
 
@@ -48,6 +48,7 @@ All of these work on phones as well as computers (`src/lib/fx.js`):
 - With a mouse, a soft spotlight follows the pointer over cards, which lift slightly.
 - On the home page, the hero photo sinks slowly as you scroll and leans with the phone's tilt.
 - Buttons no longer stay stuck in their hover colour after a tap on touch screens.
+- Nothing can push the page wider than the screen: the inventory column is pinned to the screen width (Safari sizes dropdowns to their longest option), and no background layer moves past the screen edge.
 
 ### Mobile performance
 
@@ -61,21 +62,20 @@ All of these work on phones as well as computers (`src/lib/fx.js`):
 
 The intro opens on the car's start button in the dark. Browsers only allow sound after a tap; visitors can also enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner. On Android phones it also vibrates with the engine.
 
-The sound (`public/intro/engine.mp3`, 11 s, 155 KB) is a supercharged V8 modelled on the Range Rover's 5.0, synthesised by `scripts/audio/engine.py` (Python with NumPy and SciPy): a cross-plane firing order through two exhaust banks for the V8 burble, a supercharger whine that rises with the revs, intake roar, overrun crackles, a backfire, and a cinematic boom for the logo. To change it, edit the script and run `python3 scripts/audio/engine.py engine.wav`, then `ffmpeg -i engine.wav -ac 1 -b:a 112k public/intro/engine.mp3`.
+The sound is a real V8 recording (`public/intro/engine.mp3`, 10.5 s, 145 KB): a starter crank, then the engine catching, idling and revving three times (CC0 recordings, credits below), mixed to mono with the sub-bass rumble and harsh top end trimmed. (A synthesised Range Rover sound was tried and dropped; the earlier Range Rover recording rattled and knocked at idle.)
 
-The picture runs on the audio clock, and the headlight bloom and camera shake follow the sound's loudness frame by frame:
+The picture runs on the audio clock, and the headlight bloom and camera shake follow the recording's loudness frame by frame:
 
 | Time | What happens |
 | --- | --- |
 | 0.3 s | The starter cranks and the lamps flicker. |
-| 1.15 s | The engine catches with a jolt, and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo, `public/intro/`). |
-| Idle | The camera creeps in. |
-| 3.9 s, 4.95 s | Two blips: the high beams flash and the camera punches in, the second with pops. |
-| 5.25 s | Tension: the dark closes in and the letterbox tightens. |
-| 5.85 s | Launch: full throttle, the camera rushes at the lamps and light streaks stream past. The lights strobe on the rev limiter. |
-| 6.95 s | Gear change: a jolt, then it pulls again. |
-| 7.92 s | Backfire: a white flash, the V8 Motors badge slams in, the letterbox opens, the camera pulls back and the forest lights up. |
-| 8.65 s | The badge flies up into the menu bar as the page appears; the engine burbles back down to idle. |
+| 0.9 s | The engine catches with a jolt, and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo, `public/intro/`). |
+| Idle | The camera creeps in while the dark and the letterbox slowly close in. |
+| 4.7 s | First rev: the high beams flash and the camera punches in. |
+| 5.9 s | The big held rev: the camera rushes at the lamps and light streaks stream past. |
+| 6.85 s | The revs drop and the V8 Motors badge comes rushing in out of the dark. |
+| 7.2 s | Last rev: a white flash, the badge slams home, the letterbox opens, the camera pulls back and the forest lights up. |
+| 8.05 s | The badge flies up into the menu bar as the page appears. |
 
 The intro plays on every fresh visit and every refresh of the home page. Arriving from another page on the site uses the curtain instead.
 
@@ -121,4 +121,6 @@ The viewing, sell/exchange and contact forms validate on the page, then open Wha
 
 - **Stock photos and logo:** V8 Motors.
 - **Home page photo:** Unsplash.
-- **Engine sound:** synthesised for this site (`scripts/audio/engine.py`), no recordings used.
+- **Engine sound,** built from CC0 (public domain) recordings on Freesound:
+  - [S63 AMG V8 engine revs](https://freesound.org/people/marcelweiss/sounds/505321/) by marcelweiss;
+  - the starter crank and start-up from [Aston Martin Rapide start](https://freesound.org/people/Paul368/sounds/320096/) by Paul368.

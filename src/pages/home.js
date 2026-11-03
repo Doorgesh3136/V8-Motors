@@ -71,18 +71,17 @@ function heroDepth() {
 
 /* ================================================================== intro
    Browsers only allow sound after a tap, so the intro opens on the car's start button in the dark.
-   Pressing it plays a supercharged V8 modelled on the Range Rover's 5.0 (public/intro/engine.mp3, made by
-   scripts/audio/engine.py). The picture runs on the audio clock, the headlight bloom and camera shake follow
-   the recording's loudness frame by frame, and phones vibrate with the engine:
-     0.30s  the starter cranks: the lamps flicker
-     1.15s  it catches: jolt, the light signature sweeps on from the grille outwards
-     idle   the camera creeps in, the light breathes with the burble
-     3.90s  first blip: high beams flash, the camera punches in
-     4.95s  harder blip with pops
-     5.85s  launch: the camera rushes at the lamps, warp streaks, the limiter strobes the lights
-     6.95s  gear change: a jolt, then it pulls again
-     7.92s  backfire: white flash, the V8 Motors badge slams in, the letterbox opens, the camera pulls back
-     8.65s  the badge flies up into the menu bar as the page appears */
+   Pressing it plays a real V8 recording (public/intro/engine.mp3: a starter crank, then a V8 catching,
+   idling and revving, CC0 recordings from Freesound). The picture runs on the audio clock, the headlight bloom
+   and camera shake follow the recording's loudness frame by frame, and phones vibrate with the engine:
+     0.3s  the starter cranks: the lamps flicker
+     0.9s  it catches: jolt, the light signature sweeps on from the grille outwards
+     idle  the camera creeps in, the dark and the letterbox slowly close in
+     4.7s  first rev: high beams flash, the camera punches in
+     5.9s  the big held rev: the camera rushes at the lamps, light streaks stream past
+     6.85s the badge comes rushing in out of the dark
+     7.2s  last rev: white flash, the badge slams home, the camera pulls back and the forest lights up
+     8.05s the badge flies up into the menu bar as the page appears */
 
 /** Where the headlights sit on screen (the photo is object-fit: cover). */
 function layoutScene() {
@@ -127,7 +126,7 @@ function envelope(buffer) {
     let s = 0; const a = i * hop, b = Math.min(d.length, a + hop * 2);
     for (let j = a; j < b; j++) s += d[j] * d[j];
     const db = 10 * Math.log10(s / Math.max(1, b - a) + 1e-12);
-    out[i] = Math.min(1, Math.max(0, (db + 33) / 21)); // -33 dBFS (idle) .. -12 dBFS (launch, backfire)
+    out[i] = Math.min(1, Math.max(0, (db + 30) / 19)); // -30 dBFS (idle) .. -11 dBFS (peak)
   }
   return out;
 }
@@ -215,64 +214,56 @@ async function runIntro() {
     .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.25, duration: 0.08 }, { opacity: 0.6, scaleX: 1, duration: 0.55 }] }, at);
 
   const buzz = (pattern) => () => { if (withSound) navigator.vibrate?.(pattern); };
-  // crank (0.3 to 1.15s): the lamps dim and brighten with the starter
-  tl.add(buzz([45, 30, 45, 30, 45, 30, 45, 30, 45, 30, 45, 30, 45, 30, 45]), 0.3)
-    .to(glow, { keyframes: [0.05, 0.01, 0.08, 0.02, 0.07, 0.015, 0.09].map((o) => ({ opacity: o, duration: 0.12 })) }, 0.3)
-    .to(media, { keyframes: { x: [0, -1, 1, -1, 1, -1, 0], y: [0, 0.8, -0.8, 0.8, -0.8, 0.8, 0] }, duration: 0.8, ease: 'none' }, 0.32)
-    // 1.15s: it catches
-    .add(buzz([140]), 1.15)
-    .to(media, { keyframes: { x: [0, -9, 10, -6, 3, -1, 0], y: [0, 7, -4, 2, -1, 1, 0] }, duration: 0.5, ease: 'none' }, 1.13)
-    .set(lights, { opacity: 1 }, 1.15)
-    .add(clip, 1.15)
-    .to(sweep, { p: 1, duration: 0.8, ease: 'power3.out', onUpdate: clip }, 1.15)
-    .to(glow, { opacity: 0.95, duration: 1, ease: 'power2.out' }, 1.18)
-    .to(dark, { opacity: 0.86, duration: 1.5, ease: 'power2.out' }, 1.2)
-    .to(spill, { opacity: 1, scaleY: 1, duration: 1.2, ease: 'expo.out' }, 1.3)
-    .to(haze, { opacity: 1, duration: 1.2, ease: 'power2.out' }, 1.3)
-    .to(flare, { opacity: 0.6, scaleX: 1, duration: 1.4, ease: 'expo.out' }, 1.2)
-    // idle: the camera creeps in
-    .to(media, { scale: zoom * 1.06, rotation: -0.6, duration: 2.2, ease: 'sine.inOut' }, 1.7);
-  // 3.9s and 4.95s: two blips, the camera punches in on each
-  flash(3.88, 0.42);
-  tl.add(buzz([70]), 3.9)
-    .to(media, { keyframes: [{ scale: zoom * 1.13, duration: 0.14, ease: 'power3.out' }, { scale: zoom * 1.08, duration: 0.6, ease: 'power2.out' }] }, 3.9);
-  flash(4.93, 0.3);
-  tl.add(buzz([110]), 4.95)
-    .to(media, { keyframes: [{ scale: zoom * 1.17, duration: 0.14, ease: 'power3.out' }, { scale: zoom * 1.1, duration: 0.6, ease: 'power2.out' }] }, 4.95)
-    // 5.25s: tension before the launch. The dark closes in, the letterbox tightens
-    .to(dark, { opacity: 0.93, duration: 0.6, ease: 'power2.in' }, 5.25)
-    .to(bars, { scaleY: 1.5, duration: 0.6, ease: 'power2.in' }, 5.25)
-    // 5.85s: launch. The camera rushes at the lamps, warp streaks stream past
-    .add(buzz([420, 40, 300]), 5.85)
-    .to(dark, { opacity: 0.7, duration: 0.3, ease: 'power2.out' }, 5.85)
-    .to(media, { scale: zoom * 1.55, rotation: 0.4, duration: 1.1, ease: 'power2.in' }, 5.85)
-    .fromTo(streaks, { opacity: 0, scale: 0.6 }, { opacity: 0.9, scale: 1.25, duration: 1.0, ease: 'power2.in' }, 5.85)
-    .to(glow, { opacity: 1, duration: 0.2 }, 5.85)
-    .to(flare, { opacity: 1, scaleX: 1.4, duration: 0.9, ease: 'power2.in' }, 5.85)
-    // 6.75s: on the limiter, the lights strobe
-    .to(glow, { keyframes: [1, 0.55, 1, 0.5, 1, 0.55, 1].map((o) => ({ opacity: o, duration: 0.03 })) }, 6.75)
-    // 6.95s: gear change, a jolt and a breath, then it pulls again
-    .add(buzz([80, 60, 500]), 6.95)
-    .to(media, { keyframes: [{ scale: zoom * 1.45, duration: 0.1, ease: 'power2.out' }, { scale: zoom * 1.75, duration: 0.75, ease: 'power2.in' }] }, 6.95)
-    .to(streaks, { keyframes: [{ opacity: 0.5, duration: 0.1 }, { opacity: 1, scale: 1.6, duration: 0.7, ease: 'power2.in' }] }, 6.95)
-    // 7.75s: lift off, the streaks fall away as it crackles
-    .to(streaks, { opacity: 0, scale: 2, duration: 0.25, ease: 'power2.out' }, 7.75)
-    // 7.92s: backfire. Flash, the badge slams in, the letterbox opens, the camera pulls back and the forest lights up
-    .add(buzz([260]), 7.92)
-    .fromTo(whiteout, { opacity: 0 }, { keyframes: [{ opacity: 0.85, duration: 0.04 }, { opacity: 0, duration: 0.7, ease: 'power2.out' }] }, 7.9)
-    .to(media, { scale: 1, rotation: 0, x: 0, y: 0, duration: 1.6, ease: 'expo.out' }, 7.92)
-    .to(bars, { scaleY: 0, duration: 1.1, ease: 'expo.inOut' }, 7.95)
-    .to(dark, { opacity: 0, duration: 1.4, ease: 'power2.inOut' }, 8.0)
-    .to([spill, haze], { opacity: 0, duration: 1.2, ease: 'power2.inOut' }, 8.0)
-    .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.8, duration: 0.06 }, { opacity: 0, scaleX: 2.2, duration: 1.0, ease: 'power2.out' }] }, 7.92)
-    .fromTo(badge, { opacity: 0, scale: 2.4 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'power4.in' }, 7.5)
-    .to(badge, { keyframes: [{ scale: 0.92, duration: 0.06 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' }] }, 7.95)
+  // crank (0.3 to 0.85s): the lamps dim and brighten with the starter
+  tl.add(buzz([45, 30, 45, 30, 45, 30, 45, 30, 45]), 0.3)
+    .to(glow, { keyframes: [0.05, 0.01, 0.08, 0.02, 0.07].map((o) => ({ opacity: o, duration: 0.11 })) }, 0.3)
+    .to(media, { keyframes: { x: [0, -1, 1, -1, 0], y: [0, 0.8, -0.8, 0.8, 0] }, duration: 0.55, ease: 'none' }, 0.3)
+    // 0.9s: it catches
+    .add(buzz([150]), 0.9)
+    .to(media, { keyframes: { x: [0, -9, 10, -6, 3, -1, 0], y: [0, 7, -4, 2, -1, 1, 0] }, duration: 0.5, ease: 'none' }, 0.88)
+    .set(lights, { opacity: 1 }, 0.9)
+    .add(clip, 0.9)
+    .to(sweep, { p: 1, duration: 0.8, ease: 'power3.out', onUpdate: clip }, 0.9)
+    .to(glow, { opacity: 0.95, duration: 1, ease: 'power2.out' }, 0.93)
+    .to(dark, { opacity: 0.86, duration: 1.5, ease: 'power2.out' }, 0.98)
+    .to(spill, { opacity: 1, scaleY: 1, duration: 1.2, ease: 'expo.out' }, 1.05)
+    .to(haze, { opacity: 1, duration: 1.2, ease: 'power2.out' }, 1.05)
+    .to(flare, { opacity: 0.6, scaleX: 1, duration: 1.4, ease: 'expo.out' }, 0.98)
+    // idle: the camera creeps in while the dark slowly closes around the lamps
+    .to(media, { scale: zoom * 1.07, rotation: -0.6, duration: 3.1, ease: 'sine.inOut' }, 1.4)
+    .to(dark, { opacity: 0.92, duration: 2.6, ease: 'sine.in' }, 2.0)
+    .to(bars, { scaleY: 1.4, duration: 2.6, ease: 'sine.in' }, 2.0);
+  // 4.7s: first rev, the camera punches in
+  flash(4.66, 0.4, 0.9);
+  tl.add(buzz([90, 40, 160]), 4.7)
+    .to(media, { keyframes: [{ scale: zoom * 1.16, duration: 0.14, ease: 'power3.out' }, { scale: zoom * 1.1, duration: 0.7, ease: 'power2.out' }] }, 4.66)
+    // 5.9s: the big, held rev. The camera rushes at the lamps and light streaks stream past
+    .add(buzz([600, 50, 300]), 5.88)
+    .to(dark, { opacity: 0.7, duration: 0.3, ease: 'power2.out' }, 5.86)
+    .to(glow, { opacity: 1, duration: 0.15 }, 5.86)
+    .to(flare, { opacity: 1, scaleX: 1.4, duration: 0.9, ease: 'power2.in' }, 5.86)
+    .to(media, { scale: zoom * 1.6, rotation: 0.4, duration: 1.0, ease: 'power2.in' }, 5.88)
+    .fromTo(streaks, { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1.5, duration: 0.95, ease: 'power2.in' }, 5.9)
+    // 6.85s: the revs drop, the streaks fall away, the badge comes rushing in out of the dark
+    .to(streaks, { opacity: 0, scale: 2, duration: 0.3, ease: 'power2.out' }, 6.85)
+    .to(media, { scale: zoom * 1.5, duration: 0.35, ease: 'power2.out' }, 6.88)
+    .fromTo(badge, { opacity: 0, scale: 2.4 }, { opacity: 1, scale: 1, duration: 0.38, ease: 'power4.in' }, 6.84)
+    // 7.22s: last rev. White flash, the badge slams home, the letterbox opens, the camera pulls back and the forest lights up
+    .add(buzz([280]), 7.22)
+    .fromTo(whiteout, { opacity: 0 }, { keyframes: [{ opacity: 0.8, duration: 0.04 }, { opacity: 0, duration: 0.7, ease: 'power2.out' }] }, 7.2)
+    .to(badge, { keyframes: [{ scale: 0.92, duration: 0.06 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.5)' }] }, 7.22)
+    .to(media, { scale: 1, rotation: 0, x: 0, y: 0, duration: 1.6, ease: 'expo.out' }, 7.22)
+    .to(bars, { scaleY: 0, duration: 1.1, ease: 'expo.inOut' }, 7.25)
+    .to(dark, { opacity: 0, duration: 1.4, ease: 'power2.inOut' }, 7.3)
+    .to([spill, haze], { opacity: 0, duration: 1.2, ease: 'power2.inOut' }, 7.3)
+    .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.8, duration: 0.06 }, { opacity: 0, scaleX: 2.2, duration: 1.0, ease: 'power2.out' }] }, 7.22)
+    .to(glow, { keyframes: [{ opacity: 1, duration: 0.06 }, { opacity: 0.7, duration: 0.6 }] }, 7.22)
     // the cut-out lights fade into the photo's own headlights, so nothing pops at the end
-    .to([lights, glow], { opacity: 0, duration: 1.2, ease: 'power1.inOut' }, 8.1)
-    .add(heroIn, 8.45)
-    .add(() => flyBadge(), 8.65)
-    .to(NAVS, { opacity: 1, duration: 0.8, ease: 'power2.out' }, 8.8)
-    .to({}, { duration: 0.01 }, 9.6);
+    .to([lights, glow], { opacity: 0, duration: 1.2, ease: 'power1.inOut' }, 7.6)
+    .add(heroIn, 7.85)
+    .add(() => flyBadge(), 8.05)
+    .to(NAVS, { opacity: 1, duration: 0.8, ease: 'power2.out' }, 8.2)
+    .to({}, { duration: 0.01 }, 9.0);
 
   // the badge flies to the logo in the menu bar and hands over to it
   function flyBadge() {
@@ -288,9 +279,9 @@ async function runIntro() {
   // light and shake that follow the recording's loudness
   const amp = phone ? 4 : 7;
   const react = (t) => {
-    if (!env || t < 1.1 || t > 9.4) { bloom.style.opacity = 0; media.style.translate = ''; return; }
+    if (!env || t < 0.85 || t > 8.8) { bloom.style.opacity = 0; media.style.translate = ''; return; }
     const e = env[Math.min(env.length - 1, Math.floor(t * 60))];
-    const fadeOut = t > 8.3 ? Math.max(0, 1 - (t - 8.3) / 1.0) : 1;
+    const fadeOut = t > 7.8 ? Math.max(0, 1 - (t - 7.8) / 1.0) : 1;
     bloom.style.opacity = String((0.15 + e * 0.85) * fadeOut);
     const k = e * e * amp * fadeOut;
     media.style.translate = k > 0.2 ? `${(Math.random() - 0.5) * k}px ${(Math.random() - 0.5) * k}px` : '';

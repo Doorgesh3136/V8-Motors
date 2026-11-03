@@ -54,7 +54,7 @@
   /* ---- background: petrol-blue gradient, carbon-fibre texture and slow drifting headlight glows.
      All three are fixed layers behind the page: the browser composites them once and slides the page
      over them, so scrolling never repaints them. Only transform and opacity are animated. */
-  body::before, body::after, html::after {
+  body::before, body::after {
     content: ""; position: fixed; z-index: -1; pointer-events: none;
   }
   /* the base gradient: shown as is without WebGL, and under the live canvas while it starts.
@@ -67,11 +67,11 @@
       linear-gradient(165deg, #33607f 0%, #2f5a78 38%, #29516d 72%, #22465f 100%);
   }
   /* the living gradient (src/lib/bg.js), drawn small and smoothly scaled up */
-  .bg-canvas { position: fixed; left: 0; top: 0; z-index: -1; width: 100vw; height: 100vh; height: 100lvh; pointer-events: none; animation: bg-in 1.2s ease-out both; }
+  .bg-canvas { position: fixed; left: 0; right: 0; top: 0; z-index: -1; width: 100%; height: 100vh; height: 100lvh; pointer-events: none; animation: bg-in 1.2s ease-out both; }
   @keyframes bg-in { from { opacity: 0; } }
   /* carbon-fibre and grain texture over everything behind the page, plus (without WebGL) drifting glows */
   body::after {
-    inset: -25%; opacity: .9;
+    inset: 0; opacity: .9;
     background:
       radial-gradient(28% 22% at 22% 24%, rgb(159 227 245 / .16), transparent 70%),
       radial-gradient(24% 20% at 80% 70%, rgb(224 38 47 / .11), transparent 70%),
@@ -80,28 +80,17 @@
   }
   html.bg-live body::after { inset: 0; opacity: 1; animation: none; background: url("/bg/texture.png") 0 0 / 192px 192px repeat; }
   html:not(.bg-live) body::before { background-image: url("/bg/texture.png"), radial-gradient(120% 70% at 50% -10%, #3a6a8b 0%, transparent 60%), radial-gradient(90% 60% at 110% 110%, #1d4460 0%, transparent 70%), linear-gradient(165deg, #33607f 0%, #2f5a78 38%, #29516d 72%, #22465f 100%); background-size: 192px 192px, auto, auto, auto; }
-  /* a faint beam of light that sweeps across now and then */
-  html::after {
-    inset: 0 auto 0 0; width: 60vw;
-    background: linear-gradient(100deg, transparent 20%, rgb(220 240 255 / .045) 45%, rgb(220 240 255 / .07) 50%, rgb(220 240 255 / .045) 55%, transparent 80%);
-    transform: translate3d(-100%, 0, 0); animation: bg-sweep 16s cubic-bezier(.45, 0, .2, 1) infinite 3s;
-  }
+  /* stays inside the screen: shrinks and breathes from the centre, never slides past an edge */
   @keyframes bg-drift {
-    0% { transform: translate3d(-3%, -2%, 0) scale(1); }
-    50% { transform: translate3d(4%, 3%, 0) scale(1.06); }
-    100% { transform: translate3d(-2%, 5%, 0) scale(.97); }
+    0% { transform: scale(.9); opacity: .75; }
+    50% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(.94); opacity: .85; }
   }
-  @keyframes bg-sweep {
-    0%, 55% { transform: translate3d(-100%, 0, 0); }
-    100% { transform: translate3d(200vw, 0, 0); }
-  }
-  @media (prefers-reduced-motion: reduce) { body::after, html::after { animation: none; } html::after { display: none; } }
-  /* while the intro runs, the darkness owns the screen */
-  html.play-intro::after { display: none; }
+  @media (prefers-reduced-motion: reduce) { body::after { animation: none; } }
   html.lenis, html.lenis body { height: auto; }
   body {
     background: transparent; color: var(--bone); font-family: var(--font-sans); font-size: 1rem; line-height: 1.55;
-    -webkit-font-smoothing: antialiased; overflow-x: clip; padding-bottom: var(--tab-h);
+    -webkit-font-smoothing: antialiased; overflow-x: hidden; overflow-x: clip; padding-bottom: var(--tab-h);
   }
   ::selection { background: var(--accent); color: var(--ink); }
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
@@ -500,7 +489,10 @@
   .curtain-label { font-weight: 850; font-size: clamp(1.75rem, 5vw, 3.25rem); line-height: 1; letter-spacing: -.025em; font-variation-settings: "wdth" 120; max-width: 18ch; }
 
   /* ---------------------------------------------------------------- inventory */
-  .inv-layout { display: grid; gap: var(--s6); padding-bottom: var(--s9); }
+  .inv-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s6); padding-bottom: var(--s9); }
+  .inv-layout > *, .inv-toolbar > *, .field { min-width: 0; }
+  .field select, .field input { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+  .chip { max-width: 100%; }
   @media (min-width: 1000px) { .inv-layout { grid-template-columns: 18.5rem minmax(0, 1fr); align-items: start; } }
   .inv-filters { position: sticky; top: calc(var(--nav-h) + var(--s4)); max-height: calc(100vh - var(--nav-h) - 2rem); overflow-y: auto; overscroll-behavior: contain; padding: var(--s5); border-radius: var(--r-lg); background: var(--panel); scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
   .inv-filters-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s4); }
@@ -540,7 +532,7 @@
   .inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s3); }
   .inv-count { margin-right: auto; font-size: 1.0625rem; color: var(--fog); }
   .inv-count strong { color: var(--bone); font-size: 1.75rem; font-weight: 850; font-variation-settings: "wdth" 120; }
-  .field-compact { min-height: 3.1rem; min-width: 12rem; }
+  .field-compact { min-height: 3.1rem; min-width: min(12rem, 100%); }
   .inv-open-filters { display: none; }
   .badge { display: inline-grid; place-items: center; min-width: 1.4rem; height: 1.4rem; padding-inline: .3rem; border-radius: 99px; background: var(--accent); color: var(--ink); font-size: .75rem; }
   .view-toggle { display: flex; padding: 3px; border-radius: 99px; border: 1px solid var(--line); }
@@ -576,7 +568,7 @@
     .inv-filters-close::after { rotate: -45deg; }
     .inv-filters-apply { display: flex; position: sticky; bottom: 0; margin-inline: calc(var(--s5) * -1); padding: var(--s3) var(--s5) calc(var(--s3) + env(safe-area-inset-bottom)); background: var(--panel); border-top: 1px solid var(--line); }
     .inv-filters-apply .btn { width: 100%; }
-    .field-compact { min-width: 8.5rem; flex: 1; }
+    .field-compact { min-width: min(8.5rem, 100%); flex: 1; }
     .inv-count { flex-basis: 100%; }
   }
 

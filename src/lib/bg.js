@@ -62,6 +62,37 @@ void main() {
   col += cyan * pow(smoothstep(0.42, 0.85, w.x * f * 1.6), 3.0) * 0.3;
   // a warm tail-lamp glow drifting low on the page
   col = mix(col, red, smoothstep(0.58, 0.9, g) * (1.0 - smoothstep(0.0, 0.8, uv.y)) * 0.26);
+  // light trails: headlamps streaming one way, tail-lamps the other, like a long exposure of a road at night.
+  // They speed up with the flow, so scrolling makes the traffic rush
+  vec3 white = vec3(0.86, 0.95, 1.0);
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    float dir = mod(fi, 2.0) < 0.5 ? 1.0 : -1.0;
+    float y = 0.12 + fi * 0.19 + 0.05 * sin(q.x * 1.3 + fi * 1.7 + t * 0.12) + (q.x - asp * 0.5) * 0.08 * (fi - 2.0);
+    float d = q.y - y;
+    float s = q.x * 0.85 - dir * t * (0.16 + 0.1 * h(vec2(fi, 3.0))) + h(vec2(fi, 9.0)) * 10.0;
+    float seg = floor(s), p = fract(s);
+    float car = step(0.4, h(vec2(seg, fi)));           // some stretches of road are empty
+    float pp = dir > 0.0 ? p : 1.0 - p;               // head at the leading end
+    float trail = pow(pp, 1.7) * (1.0 - smoothstep(0.95, 1.0, pp)) * car;
+    float core = exp(-d * d * 1800.0), halo = exp(-d * d * 160.0);
+    vec3 lamp = dir > 0.0 ? mix(cyan, white, 0.5) : red * 1.1;
+    col += lamp * trail * (core * 0.34 + halo * 0.07);
+    col += lamp * halo * 0.025;                         // the lane's faint glow, even between cars
+  }
+  // soft out-of-focus lights drifting upwards, two layers for depth
+  for (int k = 0; k < 2; k++) {
+    float fk = float(k);
+    float sz = 2.6 + fk * 2.2;
+    vec2 bq = q * sz + vec2(t * (0.03 + fk * 0.02), -t * (0.06 + fk * 0.05)) + fk * 17.0;
+    vec2 cell = floor(bq), fr = fract(bq) - 0.5;
+    float rn = h(cell + fk * 31.0);
+    vec2 off = (vec2(h(cell + 1.3), h(cell + 7.1)) - 0.5) * 0.5;
+    float rad = 0.13 + 0.14 * h(cell + 4.2);
+    float b = (1.0 - smoothstep(rad * 0.55, rad, length(fr - off))) * step(0.62, rn);
+    float tw = 0.55 + 0.45 * sin(t * 0.9 + rn * 40.0);
+    col += mix(cyan, white, rn) * b * tw * (0.09 - fk * 0.03);
+  }
   // the light under your finger, and the ripples' crests
   vec2 dm = vec2((uv.x - m.x) * asp, uv.y - m.y);
   col += vec3(0.42, 0.72, 0.88) * me * 0.3 * exp(-dot(dm, dm) * 6.0);
@@ -149,7 +180,7 @@ export function initBackground() {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const dy = scrollY - lastY; lastY = scrollY;
     speed += (Math.min(4, Math.abs(dy) / Math.max(1, innerHeight) * 60) - speed) * Math.min(1, dt * 4);
-    flow += dt * (1 + speed * 2.5);
+    flow += dt * (1.5 + speed * 3);
     ptr.x += (ptr.tx - ptr.x) * Math.min(1, dt * 6);
     ptr.y += (ptr.ty - ptr.y) * Math.min(1, dt * 6);
     ptr.e += (ptr.te - ptr.e) * Math.min(1, dt * (ptr.te > ptr.e ? 8 : 1.5));
