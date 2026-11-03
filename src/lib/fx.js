@@ -1,24 +1,17 @@
 /**
- * Small interactive touches that work the same on phones and computers. Every animation here moves
+ * Small touches that work the same on phones and computers. Every animation here moves
  * only by transform and opacity, so none of it repaints the page.
  *
  * - reveal: sections and cards rise into place as they scroll into view
- * - ripples: a ring of light from where you tap a button (and a tiny haptic tick on Android)
  * - rev bar: a thin line under the menu bar fills like a rev counter as you scroll, red near the end
- * - spotlight: a soft light follows the mouse across car cards
  * - swipe: on phones, swipe sideways across a car's photo to flick through all its pictures
  * - count-up: numbers marked data-countup count up when they come into view
  */
-import { bgPulse } from './bg.js';
-
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-const fine = matchMedia('(hover: hover) and (pointer: fine)').matches;
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 export function initFx({ revealSelector } = {}) {
-  ripples();
   revBar();
-  if (fine) spotlight();
   swipePhotos();
   if (reduced) return;
   reveal(revealSelector);
@@ -46,25 +39,6 @@ function reveal(extra) {
   todo.forEach((el) => io.observe(el));
 }
 
-/* ------------------------------------------------------------------ tap ripples */
-function ripples() {
-  addEventListener('pointerdown', (e) => {
-    const b = e.target.closest?.('.btn, .icon-btn, .tab, .save, .chip, .ignition');
-    if (!b || reduced) return;
-    const r = b.getBoundingClientRect();
-    const d = Math.max(r.width, r.height) * 2.2;
-    const s = document.createElement('span');
-    s.className = 'tap-ripple';
-    s.style.cssText = `width:${d}px;height:${d}px;left:${e.clientX - r.left - d / 2}px;top:${e.clientY - r.top - d / 2}px`;
-    if (getComputedStyle(b).position === 'static') b.style.position = 'relative';
-    b.classList.add('has-ripple');
-    b.appendChild(s);
-    s.addEventListener('animationend', () => s.remove(), { once: true });
-    if (e.pointerType === 'touch') navigator.vibrate?.(8);
-    if (b.matches('.btn-primary')) bgPulse(e.clientX, e.clientY, 1.6);
-  }, { passive: true });
-}
-
 /* ------------------------------------------------------------------ rev bar */
 function revBar() {
   const nav = document.querySelector('[data-nav]');
@@ -84,17 +58,6 @@ function revBar() {
   addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(update); } }, { passive: true });
   addEventListener('resize', update, { passive: true });
   update();
-}
-
-/* ------------------------------------------------------------------ card spotlight (mouse) */
-function spotlight() {
-  addEventListener('pointermove', (e) => {
-    const card = e.target.closest?.('.car, .body-tile, .make-link, .swap-box, .panel');
-    if (!card) return;
-    const r = card.getBoundingClientRect();
-    card.style.setProperty('--mx', `${e.clientX - r.left}px`);
-    card.style.setProperty('--my', `${e.clientY - r.top}px`);
-  }, { passive: true });
 }
 
 /* ------------------------------------------------------------------ swipe through a card's photos (touch) */

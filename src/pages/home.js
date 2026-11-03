@@ -34,6 +34,7 @@ runIntro().then(async () => {
   addEventListener('resize', layoutScene);
   lenis?.start();
   if (!heroStarted) { await curtainOpen; heroIn(); }
+  flashLights();
   setupSearch();
   setupSwap();
   ScrollTrigger.refresh();
@@ -300,6 +301,29 @@ function finishIntro() {
   $('[data-bars]')?.remove();
   $('[data-intro-controls]')?.remove();
   dispatchEvent(new Event('v8:intro-done'));
+}
+
+/* ================================================================== the Range Rover flashes its lights at you
+   Once the home page is showing (after the intro, or on arriving from another page), the car gives two quick
+   flashes of its high beams, using the real light shapes cut from the photo. Opacity and transform only. */
+async function flashLights() {
+  if (reduced || !lights || !glow) return;
+  if (!(img.complete && img.naturalWidth)) {
+    await Promise.race([new Promise((r) => img.addEventListener('load', r, { once: true })), new Promise((r) => setTimeout(r, 4000))]);
+  }
+  if (!img.naturalWidth || scrollY > innerHeight * 0.6) return; // photo missing, or already scrolled away
+  layoutScene();
+  gsap.set([lights, glow], { clearProps: 'clipPath' });
+  const blink = [
+    { opacity: 1, duration: 0.07, ease: 'power2.out' }, { opacity: 0.08, duration: 0.14, ease: 'power1.in' },
+    { opacity: 1, duration: 0.07, ease: 'power2.out' }, { opacity: 0, duration: 1.1, ease: 'power2.out' },
+  ];
+  gsap.timeline({ delay: 0.7 })
+    .to([lights, glow], { keyframes: blink }, 0)
+    .to(flare, { keyframes: [
+      { opacity: 0.85, scaleX: 1.25, duration: 0.07 }, { opacity: 0.05, scaleX: 1, duration: 0.14 },
+      { opacity: 1, scaleX: 1.45, duration: 0.07 }, { opacity: 0, scaleX: 1.8, duration: 1.1, ease: 'power2.out' },
+    ] }, 0);
 }
 
 /* ================================================================== hero: headline rises (transform only, no reflow) */

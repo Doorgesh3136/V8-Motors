@@ -35,17 +35,19 @@ Petrol blue, taken from the dealership's own logo (grey V, red 8, cyan lettering
 - **Contrast:** body text 5.4:1, highlights 5.2:1, white on the red buttons 6.1:1.
 - **Type:** one typeface, Archivo, self-hosted, using its width axis for headlines.
 - **Layout:** no horizontal scrolling anywhere and no scrolling text.
-- **Background:** a living petrol-blue gradient (`src/lib/bg.js`): a small WebGL shader paints flowing, liquid folds of deep and light blue with thin cyan seams of light and a warm red glow low on the page. Streams of headlight (cyan) and tail-light (red) trails run across it like a long exposure of a road at night, and soft out-of-focus lights drift upwards, all under a fine carbon-fibre and grain texture (`public/bg/texture.png`, made by `scripts/make-texture.mjs`). It moves on its own all the time and speeds up while you scroll (the traffic rushes), a soft light follows your finger or mouse, every tap sends a ripple through it, and on Android phones it leans with the device's tilt. Without WebGL a still CSS gradient is shown; for reduced motion it draws one still frame.
+- **Background:** a living petrol-blue gradient (`src/lib/bg.js`) that animates entirely on its own; nothing in it reacts to touch, the mouse, tilt or scrolling. A small WebGL shader paints flowing folds of deep and light blue with thin cyan seams of light and a warm red glow low on the page. Headlight (cyan) and tail-light (red) trails stream across like a long exposure of a road at night, soft out-of-focus lights drift upwards, and every seven seconds a broad sweep of light glides diagonally across the screen, like light running over a car's paint. A fine carbon-fibre and grain texture (`public/bg/texture.png`, made by `scripts/make-texture.mjs`) sits on top. It renders at a fifth of the screen's resolution and 30 fps on phones, pauses when the tab is hidden or the intro covers it, falls back to a still CSS gradient without WebGL, and draws one still frame for reduced motion.
 
-### Interactive touches
+### Car cards
 
-All of these work on phones as well as computers (`src/lib/fx.js`):
+Every car card (inventory, home page, similar cars) is one contained card with the same order: photo; year, body and colour; make and model; spec pills for engine and fuel, gearbox, and mileage where the dealer has entered it; then the price, the monthly figure and a go button. The whole card is one link; save and compare sit on the photo. The car page uses the same spec pills under the title, and shows the full specs as a grid beside the dealer's own description.
+
+### Small touches
+
+These work on phones as well as computers (`src/lib/fx.js`):
 
 - Sections and cards rise into place as they scroll into view; the inventory's car count counts up.
-- Tapping a button sends a ring of light out from your finger (with a tiny haptic tick on Android).
 - A thin rev bar under the menu fills as you scroll, turning red near the end of the page.
 - On phones, swipe sideways across a car's photo to flick through all its pictures (with a mouse, move across it as before).
-- With a mouse, a soft spotlight follows the pointer over cards, which lift slightly.
 - Buttons no longer stay stuck in their hover colour after a tap on touch screens.
 - Nothing can push the page wider than the screen: the inventory, car-page and sell-page columns are pinned to the screen width, a car's photo thumbnails wrap onto a second row on small phones, and no background layer moves past the screen edge.
 
@@ -78,6 +80,8 @@ The picture runs on the audio clock, and the headlight bloom and camera shake fo
 | 5.9 s | Big rev: the letterbox opens, the camera pulls back and the forest lights up. |
 | 6.3 s | The real V8 Motors badge comes up in the light. |
 | 7.2 s | Last rev: it pulses, then flies up into the menu bar as the page appears. |
+
+Once the home page is showing (after the intro, or on arriving from another page), the Range Rover flashes its high beams at you twice, using the same cut-out light shapes.
 
 The intro plays on every fresh visit and every refresh of the home page. Arriving from another page on the site uses the curtain instead.
 

@@ -60,7 +60,6 @@ export function photo(src, { alt, srcset = '', sizes = '', eager = false, cls = 
 
 const statusClass = (s) => (s === 'Just arrived' ? ' car-status--new' : s === 'Saturday deal' ? ' car-status--deal' : s === 'Reserved' ? ' car-status--reserved' : '');
 const statusBadge = (c, extra = '') => (c.status === 'In stock' ? '' : `<span class="car-status${extra}${statusClass(c.status)}">${c.status}</span>`);
-const bodyWord = (c) => (c.body === 'SUV' || c.body === 'MPV' ? c.body : c.body.toLowerCase());
 
 /* ------------------------------------------------------------------ car card */
 export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px) 30vw, (min-width: 640px) 45vw, 92vw' } = {}) {
@@ -76,11 +75,20 @@ export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px)
       <button type="button" class="save" data-compare="${c.id}" aria-pressed="false" aria-label="Compare the ${esc(carName(c))}">${ICON.scales}</button>
     </div>
     <div class="car-info">
-      <h3 class="car-title"><a href="${carUrl(c, P)}" data-car-link>${esc(carName(c))}</a></h3>
-      <p class="car-price tabular-nums">${rs(c.price)}</p>
-      <p class="car-trim">${esc(c.trim)}</p>
-      <p class="car-monthly tabular-nums">or about ${rs(monthly(c.price))}/mo</p>
-      <p class="car-specs">${c.km != null ? `<span class="tabular-nums">${km(c.km)}</span>` : ''}<span>${c.gearbox}</span><span>${c.body}</span></p>
+      <p class="car-kicker tabular-nums">${[c.year, c.body, c.colour].filter(Boolean).join(' · ')}</p>
+      <h3 class="car-title"><a href="${carUrl(c, P)}" data-car-link>${esc(c.make)} ${esc(c.model)}</a></h3>
+      <ul class="car-specs" aria-label="Key specs">
+        <li>${ICON.fuel}<span>${c.engine ? `${c.engine} ` : ''}${esc(c.fuel)}</span></li>
+        <li>${ICON.gear}<span>${esc(c.gearbox)}</span></li>
+        ${c.km != null ? `<li>${ICON.gauge}<span class="tabular-nums">${km(c.km)}</span></li>` : ''}
+      </ul>
+      <div class="car-foot">
+        <div>
+          <p class="car-price tabular-nums">${rs(c.price)}</p>
+          <p class="car-monthly tabular-nums">or about ${rs(monthly(c.price))} a month</p>
+        </div>
+        <span class="car-go" aria-hidden="true">${ICON.arrowR}</span>
+      </div>
     </div>
   </li>`;
 }
@@ -282,9 +290,14 @@ export function carPageHTML(c, P = '../') {
       </div>
 
       <aside class="summary" data-summary>
-        <p class="summary-kicker tabular-nums">${[c.year, c.engine && `${c.engine} ${c.fuel.toLowerCase()}`, c.gearbox.toLowerCase()].filter(Boolean).join(', ')}</p>
+        <p class="summary-kicker tabular-nums">${[c.year, c.body, c.colour].filter(Boolean).join(' · ')}</p>
         <h1 class="summary-title">${esc(c.make)} ${esc(c.model)}</h1>
-        <p class="summary-trim">${esc([c.colour, bodyWord(c)].filter(Boolean).join(' '))}${c.km != null ? `, ${km(c.km)}` : ''}</p>
+        <ul class="car-specs summary-specs" aria-label="Key specs">
+          <li>${ICON.fuel}<span>${c.engine ? `${c.engine} ` : ''}${esc(c.fuel)}</span></li>
+          <li>${ICON.gear}<span>${esc(c.gearbox)}</span></li>
+          ${c.km != null ? `<li>${ICON.gauge}<span class="tabular-nums">${km(c.km)}</span></li>` : ''}
+          ${c.seats ? `<li>${ICON.seat}<span>${c.seats} seats</span></li>` : ''}
+        </ul>
         <div class="summary-price">
           <p class="summary-amount tabular-nums" data-price>${rs(c.price)}</p>
           <p class="summary-monthly tabular-nums">or about <strong>${rs(monthly(c.price))}</strong> a month on lease, 20% down over 5 years</p>
@@ -309,13 +322,16 @@ export function carPageHTML(c, P = '../') {
       </aside>
     </div>
 
-    <section class="car-section${c.description ? ' car-2col' : ''}" aria-labelledby="specs-h">
-      <div>
-        <h2 class="car-h" id="specs-h">The details</h2>
-        ${c.description ? `<p class="car-about">${esc(c.description)}</p>` : ''}
-        ${c.options ? `<p class="car-sub">${esc(c.options)}</p>` : ''}
+    <section class="car-section" aria-labelledby="specs-h">
+      <h2 class="car-h" id="specs-h">The details</h2>
+      <div class="details${c.description || c.options ? ' details--about' : ''}">
+        <dl class="specs">${specs.map(([icon, k, v]) => `<div class="spec">${icon}<dt>${k}</dt><dd class="tabular-nums">${esc(v)}</dd></div>`).join('')}</dl>
+        ${c.description || c.options ? `<div class="about-box">
+          <h3 class="about-h">From the dealer</h3>
+          ${c.description ? `<p class="car-about">${esc(c.description)}</p>` : ''}
+          ${c.options ? `<ul class="about-options">${c.options.split(/\n|,\s*/).map((o) => o.trim()).filter(Boolean).map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
+        </div>` : ''}
       </div>
-      <dl class="specs">${specs.map(([icon, k, v]) => `<div class="spec">${icon}<dt>${k}</dt><dd class="tabular-nums">${esc(v)}</dd></div>`).join('')}</dl>
     </section>
 
     <section class="car-section car-2col fin-mini" aria-labelledby="fin-h">
