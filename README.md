@@ -35,20 +35,19 @@ Petrol blue, taken from the dealership's own logo (grey V, red 8, cyan lettering
 - **Contrast:** body text 5.4:1, highlights 5.2:1, white on the red buttons 6.1:1.
 - **Type:** one typeface, Archivo, self-hosted, using its width axis for headlines.
 - **Layout:** no horizontal scrolling anywhere and no scrolling text.
-- **Background:** a living petrol-blue gradient (`src/lib/bg.js`): a small WebGL shader paints flowing, liquid folds of deep and light blue with thin cyan seams of light and a warm red glow low on the page. Streams of headlight (cyan) and tail-light (red) trails run across it like a long exposure of a road at night, and soft out-of-focus lights drift upwards, all under a fine carbon-fibre and grain texture (`public/bg/texture.png`, made by `scripts/make-texture.mjs`). It moves on its own all the time and speeds up while you scroll (the traffic rushes), a soft light follows your finger or mouse, every tap sends a ripple through it, and on phones it leans with the device's tilt. Without WebGL a still CSS gradient is shown; for reduced motion it draws one still frame.
+- **Background:** a living petrol-blue gradient (`src/lib/bg.js`): a small WebGL shader paints flowing, liquid folds of deep and light blue with thin cyan seams of light and a warm red glow low on the page. Streams of headlight (cyan) and tail-light (red) trails run across it like a long exposure of a road at night, and soft out-of-focus lights drift upwards, all under a fine carbon-fibre and grain texture (`public/bg/texture.png`, made by `scripts/make-texture.mjs`). It moves on its own all the time and speeds up while you scroll (the traffic rushes), a soft light follows your finger or mouse, every tap sends a ripple through it, and on Android phones it leans with the device's tilt. Without WebGL a still CSS gradient is shown; for reduced motion it draws one still frame.
 
 ### Interactive touches
 
 All of these work on phones as well as computers (`src/lib/fx.js`):
 
-- Sections and cards rise into place as they scroll into view; car counts count up.
+- Sections and cards rise into place as they scroll into view; the inventory's car count counts up.
 - Tapping a button sends a ring of light out from your finger (with a tiny haptic tick on Android).
 - A thin rev bar under the menu fills as you scroll, turning red near the end of the page.
 - On phones, swipe sideways across a car's photo to flick through all its pictures (with a mouse, move across it as before).
 - With a mouse, a soft spotlight follows the pointer over cards, which lift slightly.
-- On the home page, the hero photo sinks slowly as you scroll and leans with the phone's tilt.
 - Buttons no longer stay stuck in their hover colour after a tap on touch screens.
-- Nothing can push the page wider than the screen: the inventory column is pinned to the screen width (Safari sizes dropdowns to their longest option), and no background layer moves past the screen edge.
+- Nothing can push the page wider than the screen: the inventory, car-page and sell-page columns are pinned to the screen width, a car's photo thumbnails wrap onto a second row on small phones, and no background layer moves past the screen edge.
 
 ### Mobile performance
 
@@ -60,9 +59,13 @@ All of these work on phones as well as computers (`src/lib/fx.js`):
 
 ### Home page intro
 
-The intro opens on the car's start button in the dark. Browsers only allow sound after a tap; visitors can also enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner. On Android phones it also vibrates with the engine.
+The intro opens on the car's start button in the dark. Browsers only allow sound after a tap; visitors can also enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner.
 
-The sound is a real V8 recording (`public/intro/engine.mp3`, 10.5 s, 145 KB): a starter crank, then the engine catching, idling and revving three times (CC0 recordings, credits below), mixed to mono with the sub-bass rumble and harsh top end trimmed. (A synthesised Range Rover sound was tried and dropped; the earlier Range Rover recording rattled and knocked at idle.)
+The sound is a real, healthy V8 (`public/intro/engine.mp3`, 10.5 s, 145 KB):
+
+- a starter crank, then a V8 catching, idling smoothly and revving three times (CC0 recordings, credits below);
+- replaces an earlier Range Rover recording whose worn engine rattled and knocked at idle;
+- mixed to mono, with sub-bass rumble and harsh top end trimmed, and mastered at about the same level as before.
 
 The picture runs on the audio clock, and the headlight bloom and camera shake follow the recording's loudness frame by frame:
 
@@ -70,12 +73,11 @@ The picture runs on the audio clock, and the headlight bloom and camera shake fo
 | --- | --- |
 | 0.3 s | The starter cranks and the lamps flicker. |
 | 0.9 s | The engine catches with a jolt, and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo, `public/intro/`). |
-| Idle | The camera creeps in while the dark and the letterbox slowly close in. |
+| Idle | The camera creeps in. |
 | 4.7 s | First rev: the high beams flash and the camera punches in. |
-| 5.9 s | The big held rev: the camera rushes at the lamps and light streaks stream past. |
-| 6.85 s | The revs drop and the V8 Motors badge comes rushing in out of the dark. |
-| 7.2 s | Last rev: a white flash, the badge slams home, the letterbox opens, the camera pulls back and the forest lights up. |
-| 8.05 s | The badge flies up into the menu bar as the page appears. |
+| 5.9 s | Big rev: the letterbox opens, the camera pulls back and the forest lights up. |
+| 6.3 s | The real V8 Motors badge comes up in the light. |
+| 7.2 s | Last rev: it pulses, then flies up into the menu bar as the page appears. |
 
 The intro plays on every fresh visit and every refresh of the home page. Arriving from another page on the site uses the curtain instead.
 
