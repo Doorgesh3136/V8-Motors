@@ -38,7 +38,7 @@ function prerender() {
           .replace('<!--@grid-->', () => inventoryGridHTML(P))
           .replace('<!--@count-->', () => String(CARS.length))
           .replace(/<!--@opts:(\w+)-->/g, (_, k) => filterOptionsHTML(k))
-          .replace('<!--@total-->', () => String(CARS.length))
+          .replaceAll('<!--@total-->', () => String(CARS.length))
           .replace('<!--@caroptions-->', () => SWAP_LIST.map((c) => `<option value="${c.id}"${c === SWAP_PICK ? ' selected' : ''}>${c.year} ${c.make} ${c.model}, Rs ${c.price.toLocaleString('en-US')}</option>`).join(''))
           .replace('<!--@swapcard-->', () => `<img src="${thumb(SWAP_PICK)}" width="480" height="317" alt="" /><span><strong>${SWAP_PICK.year} ${SWAP_PICK.make} ${SWAP_PICK.model}</strong><span>${SWAP_PICK.trim}</span></span>`)
           .replace('data-swap-card href="inventory.html"', () => `data-swap-card href="cars/${SWAP_PICK.id}.html"`)

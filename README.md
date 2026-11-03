@@ -35,36 +35,47 @@ Petrol blue, taken from the dealership's own logo (grey V, red 8, cyan lettering
 - **Contrast:** body text 5.4:1, highlights 5.2:1, white on the red buttons 6.1:1.
 - **Type:** one typeface, Archivo, self-hosted, using its width axis for headlines.
 - **Layout:** no horizontal scrolling anywhere and no scrolling text.
-- **Background:** a petrol-blue gradient with a fine carbon-fibre and grain texture (`public/bg/texture.png`, a 192 px seamless tile made by `scripts/make-texture.mjs`), soft cyan and red glows that drift slowly, and a faint beam of light that sweeps across now and then. They sit on fixed layers behind the page and only move by transform, so scrolling never repaints them. Turned off for people who ask for reduced motion.
+- **Background:** a living petrol-blue gradient (`src/lib/bg.js`): a small WebGL shader paints slow, liquid folds of deep and light blue with thin cyan seams of light and a warm red glow low on the page, under a fine carbon-fibre and grain texture (`public/bg/texture.png`, made by `scripts/make-texture.mjs`). It speeds up while you scroll, a soft light follows your finger or mouse, every tap sends a ripple through it, and on phones it leans with the device's tilt. Without WebGL a still CSS gradient is shown; for reduced motion it draws one still frame.
+
+### Interactive touches
+
+All of these work on phones as well as computers (`src/lib/fx.js`):
+
+- Sections and cards rise into place as they scroll into view; car counts count up.
+- Tapping a button sends a ring of light out from your finger (with a tiny haptic tick on Android).
+- A thin rev bar under the menu fills as you scroll, turning red near the end of the page.
+- On phones, swipe sideways across a car's photo to flick through all its pictures (with a mouse, move across it as before).
+- With a mouse, a soft spotlight follows the pointer over cards, which lift slightly.
+- On the home page, the hero photo sinks slowly as you scroll and leans with the phone's tilt.
+- Buttons no longer stay stuck in their hover colour after a tap on touch screens.
 
 ### Mobile performance
 
-- Smooth (Lenis) scrolling only runs with a mouse or trackpad. Phones and tablets use the browser's own touch scrolling, with nothing running on every frame.
-- Every looping animation (the open-now dot, the start button's ring, the background glows) moves only by transform and opacity, so none of them repaints the page.
+- Smooth (Lenis) scrolling only runs with a mouse or trackpad. Phones and tablets use the browser's own touch scrolling.
+- The background shader renders at a fifth of the screen's resolution and 30 fps on touch devices, pauses when the tab is hidden or the intro covers it, and doesn't resize when the address bar slides.
+- Every looping animation moves only by transform and opacity, so none of them repaints the page.
 - The page-change curtain's layers are only promoted to the GPU while it runs.
 - The intro avoids blend modes and animated blur filters, which stutter on phone GPUs.
 
 ### Home page intro
 
-The intro opens on the car's start button in the dark. Browsers only allow sound after a tap; visitors can also enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner.
+The intro opens on the car's start button in the dark. Browsers only allow sound after a tap; visitors can also enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner. On Android phones it also vibrates with the engine.
 
-The sound is a real, healthy V8 (`public/intro/engine.mp3`, 10.5 s, 145 KB):
+The sound (`public/intro/engine.mp3`, 11 s, 155 KB) is a supercharged V8 modelled on the Range Rover's 5.0, synthesised by `scripts/audio/engine.py` (Python with NumPy and SciPy): a cross-plane firing order through two exhaust banks for the V8 burble, a supercharger whine that rises with the revs, intake roar, overrun crackles, a backfire, and a cinematic boom for the logo. To change it, edit the script and run `python3 scripts/audio/engine.py engine.wav`, then `ffmpeg -i engine.wav -ac 1 -b:a 112k public/intro/engine.mp3`.
 
-- a starter crank, then a V8 catching, idling smoothly and revving three times (CC0 recordings, credits below);
-- replaces an earlier Range Rover recording whose worn engine rattled and knocked at idle;
-- mixed to mono, with sub-bass rumble and harsh top end trimmed, and mastered at about the same level as before.
-
-The picture runs on the audio clock, and the headlight bloom and camera shake follow the recording's loudness frame by frame:
+The picture runs on the audio clock, and the headlight bloom and camera shake follow the sound's loudness frame by frame:
 
 | Time | What happens |
 | --- | --- |
 | 0.3 s | The starter cranks and the lamps flicker. |
-| 0.9 s | The engine catches with a jolt, and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo, `public/intro/`). |
+| 1.15 s | The engine catches with a jolt, and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo, `public/intro/`). |
 | Idle | The camera creeps in. |
-| 4.7 s | First rev: the high beams flash and the camera punches in. |
-| 5.9 s | Big rev: the letterbox opens, the camera pulls back and the forest lights up. |
-| 6.3 s | The real V8 Motors badge comes up in the light. |
-| 7.2 s | Last rev: it pulses, then flies up into the menu bar as the page appears. |
+| 3.9 s, 4.95 s | Two blips: the high beams flash and the camera punches in, the second with pops. |
+| 5.25 s | Tension: the dark closes in and the letterbox tightens. |
+| 5.85 s | Launch: full throttle, the camera rushes at the lamps and light streaks stream past. The lights strobe on the rev limiter. |
+| 6.95 s | Gear change: a jolt, then it pulls again. |
+| 7.92 s | Backfire: a white flash, the V8 Motors badge slams in, the letterbox opens, the camera pulls back and the forest lights up. |
+| 8.65 s | The badge flies up into the menu bar as the page appears; the engine burbles back down to idle. |
 
 The intro plays on every fresh visit and every refresh of the home page. Arriving from another page on the site uses the curtain instead.
 
@@ -110,6 +121,4 @@ The viewing, sell/exchange and contact forms validate on the page, then open Wha
 
 - **Stock photos and logo:** V8 Motors.
 - **Home page photo:** Unsplash.
-- **Engine sound,** built from CC0 (public domain) recordings on Freesound:
-  - [S63 AMG V8 engine revs](https://freesound.org/people/marcelweiss/sounds/505321/) by marcelweiss;
-  - the starter crank and start-up from [Aston Martin Rapide start](https://freesound.org/people/Paul368/sounds/320096/) by Paul368.
+- **Engine sound:** synthesised for this site (`scripts/audio/engine.py`), no recordings used.

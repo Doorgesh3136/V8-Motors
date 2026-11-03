@@ -57,16 +57,19 @@
   body::before, body::after, html::after {
     content: ""; position: fixed; z-index: -1; pointer-events: none;
   }
-  /* gradient + texture. 100lvh: the layer doesn't resize (and repaint) when a phone's address bar slides */
+  /* the base gradient: shown as is without WebGL, and under the live canvas while it starts.
+     100lvh: the layer doesn't resize (and repaint) when a phone's address bar slides */
   body::before {
     inset: 0 0 auto; height: 100vh; height: 100lvh;
     background:
-      url("/bg/texture.png") 0 0 / 192px 192px repeat,
       radial-gradient(120% 70% at 50% -10%, #3a6a8b 0%, transparent 60%),
       radial-gradient(90% 60% at 110% 110%, #1d4460 0%, transparent 70%),
       linear-gradient(165deg, #33607f 0%, #2f5a78 38%, #29516d 72%, #22465f 100%);
   }
-  /* soft glows in the logo's cyan and red, like light leaking from headlamps and tail-lamps */
+  /* the living gradient (src/lib/bg.js), drawn small and smoothly scaled up */
+  .bg-canvas { position: fixed; left: 0; top: 0; z-index: -1; width: 100vw; height: 100vh; height: 100lvh; pointer-events: none; animation: bg-in 1.2s ease-out both; }
+  @keyframes bg-in { from { opacity: 0; } }
+  /* carbon-fibre and grain texture over everything behind the page, plus (without WebGL) drifting glows */
   body::after {
     inset: -25%; opacity: .9;
     background:
@@ -75,6 +78,8 @@
       radial-gradient(30% 24% at 60% 40%, rgb(120 190 235 / .08), transparent 70%);
     animation: bg-drift 28s ease-in-out infinite alternate;
   }
+  html.bg-live body::after { inset: 0; opacity: 1; animation: none; background: url("/bg/texture.png") 0 0 / 192px 192px repeat; }
+  html:not(.bg-live) body::before { background-image: url("/bg/texture.png"), radial-gradient(120% 70% at 50% -10%, #3a6a8b 0%, transparent 60%), radial-gradient(90% 60% at 110% 110%, #1d4460 0%, transparent 70%), linear-gradient(165deg, #33607f 0%, #2f5a78 38%, #29516d 72%, #22465f 100%); background-size: 192px 192px, auto, auto, auto; }
   /* a faint beam of light that sweeps across now and then */
   html::after {
     inset: 0 auto 0 0; width: 60vw;
@@ -151,13 +156,13 @@
   .btn svg { width: 1.15rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .btn:active { transform: scale(.97); }
   .btn::before { content: ""; position: absolute; inset: 0; z-index: -1; transform: translateY(101%); transition: transform .45s var(--ease); }
-  .btn:hover::before { transform: translateY(0); }
+  @media (hover: hover) { .btn:hover::before { transform: translateY(0); } .btn-primary:hover { color: var(--red-deep); } .btn-line:hover { color: var(--deep); border-color: var(--bone); } }
+  /* touch screens: a quick press state instead of a hover that sticks after the tap */
+  @media (hover: none) { .btn:active::before { transform: translateY(0); transition-duration: .15s; } .btn-primary:active { color: var(--red-deep); } .btn-line:active { color: var(--deep); } }
   .btn-primary { background: var(--red); color: #fff; box-shadow: 0 10px 24px -12px rgb(181 18 27 / .8); }
   .btn-primary::before { background: #fff; }
-  .btn-primary:hover { color: var(--red-deep); }
   .btn-line { border: 1.5px solid var(--chrome); color: var(--bone); }
   .btn-line::before { background: var(--bone); }
-  .btn-line:hover { color: var(--deep); border-color: var(--bone); }
   .btn-sm { min-height: var(--tap); padding-inline: var(--s4); font-size: .9375rem; }
   .btn-lg { min-height: 3.75rem; padding-inline: var(--s6); font-size: 1.0625rem; }
   .btn-wide { width: 100%; white-space: normal; text-align: center; line-height: 1.25; padding-block: .6rem; }
@@ -999,9 +1004,64 @@
   html.play-intro .intro-badge { display: block; position: fixed; z-index: 65; width: 8rem; opacity: 0; pointer-events: none; transform-origin: 50% 50%; will-change: transform, opacity;
     }
   .intro-badge img { filter: drop-shadow(0 0 1.5px rgb(255 255 255 / .9)) drop-shadow(0 0 16px rgb(8 23 34 / .85)); }
-  .intro-badge img { width: 100%; height: auto; }
+.intro-badge img { width: 100%; height: auto; }
+  /* launch: light streaks rushing past, centred on the lamps. Two ray patterns with different spacing so it
+     doesn't look regular; only scale and opacity are animated */
+  .streaks, .whiteout { display: none; }
+  html.play-intro .streaks {
+    display: block; position: absolute; z-index: 1; left: 50%; top: 55%; width: 260vmax; height: 260vmax; translate: -50% -50%;
+    border-radius: 50%; pointer-events: none; opacity: 0; will-change: transform, opacity;
+    background:
+      repeating-conic-gradient(from 3deg, transparent 0deg 3.1deg, rgb(205 232 255 / .7) 3.3deg, transparent 3.6deg 5.2deg),
+      repeating-conic-gradient(from 0deg, transparent 0deg 6.4deg, rgb(255 255 255 / .5) 6.55deg, transparent 6.8deg 8.9deg);
+    -webkit-mask: radial-gradient(closest-side, transparent 9%, rgb(0 0 0 / .5) 20%, #000 46%);
+    mask: radial-gradient(closest-side, transparent 9%, rgb(0 0 0 / .5) 20%, #000 46%);
+  }
+  html.play-intro .whiteout { display: block; position: fixed; inset: 0; z-index: 64; background: #eef7ff; opacity: 0; pointer-events: none; }
   .intro-controls { position: fixed; z-index: 66; right: var(--gutter); bottom: calc(var(--s4) + env(safe-area-inset-bottom)); display: flex; gap: var(--s2); }
   .intro-controls button { min-height: var(--tap); padding-inline: var(--s4); border-radius: 99px; font-size: .875rem; font-weight: 650; color: var(--fog);
     background: rgb(8 23 34 / .55); border: 1px solid rgb(255 255 255 / .18); }
   .intro-controls button:hover { color: #fff; border-color: rgb(255 255 255 / .4); }
+}
+
+/* ---------------------------------------------------------------- interactive touches (src/lib/fx.js) */
+@layer components {
+  /* reveal on scroll: only elements below the fold get .rv, so nothing is hidden without JS */
+  .rv { opacity: 0; transform: translate3d(0, 28px, 0); }
+  .rv.rv-in { opacity: 1; transform: none; transition: opacity .8s ease-out var(--rv-d, 0ms), transform 1s var(--ease) var(--rv-d, 0ms); }
+
+  /* ring of light from where a button is tapped */
+  .has-ripple { overflow: hidden; isolation: isolate; }
+  .tap-ripple { position: absolute; z-index: 0; border-radius: 50%; pointer-events: none; background: radial-gradient(closest-side, rgb(255 255 255 / .38), rgb(255 255 255 / .12) 60%, transparent 72%);
+    transform: scale(0); animation: tap-ripple .6s cubic-bezier(.2, .7, .3, 1) forwards; }
+  @keyframes tap-ripple { 60% { opacity: 1; } to { transform: scale(1); opacity: 0; } }
+
+  /* rev bar: fills like a rev counter as you scroll, red past 85% */
+  .revbar { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; transform: scaleX(0); transform-origin: 0 50%; pointer-events: none;
+    background: linear-gradient(90deg, var(--accent), #6fc8ea 60%, #ff6a5c 88%, var(--red)); }
+  .revbar::after { content: ""; position: absolute; right: -3px; top: 50%; width: 6px; height: 6px; margin-top: -3px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px 2px rgb(159 227 245 / .7); transition: background-color .3s; }
+  .revbar.is-red::after { background: #ff6a5c; box-shadow: 0 0 10px 2px rgb(255 90 80 / .75); }
+  html.play-intro .revbar { display: none; }
+
+  /* spotlight that follows the mouse over cards and panels */
+  @media (hover: hover) and (pointer: fine) {
+    .car-media::before, .body-tile::after, .make-link::after, .swap-box::after {
+      content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .35s;
+      background: radial-gradient(260px circle at var(--mx, 50%) var(--my, 50%), rgb(190 230 255 / .16), transparent 70%);
+    }
+    .car:hover .car-media::before, .body-tile:hover::after, .make-link:hover::after, .swap-box:hover::after { opacity: 1; }
+    .make-link, .swap-box { position: relative; }
+    .car { transition: transform .5s var(--ease); }
+    .car:hover { transform: translateY(-4px); }
+  }
+
+  /* phones: the photo strip on cards hints that you can swipe */
+  @media (pointer: coarse) {
+    .car { touch-action: pan-y; }
+    .car-media .car-ticks { opacity: .85; }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rv { opacity: 1; transform: none; }
+  .tap-ripple { display: none; }
 }

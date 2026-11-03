@@ -3,6 +3,8 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { store } from './store.js';
+import { initBackground } from './bg.js';
+import { initFx } from './fx.js';
 
 gsap.registerPlugin(ScrollTrigger);
 document.documentElement.classList.add('js');
@@ -252,6 +254,10 @@ export function initLayout({ home = false } = {}) {
   else setTimeout(privacyNotice, home ? 2500 : 900);
   $$('form').forEach(armForm);
   wirePhotoScrub();
+  initBackground();
+  // on the home page, the effects (reveals, count-ups) start once the intro has handed over
+  if (home && html.classList.contains('play-intro')) addEventListener('v8:intro-done', () => initFx(), { once: true });
+  else initFx();
   return { lenis };
 }
 
