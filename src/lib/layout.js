@@ -161,8 +161,11 @@ function isInternal(a, e) {
 export function nameForTransition() {}
 
 /* ------------------------------------------------------------------ scrolling */
+// Smooth wheel scrolling is for mouse and trackpad only. On phones and tablets the browser's own touch
+// scrolling is smoother than anything script can do, and skipping Lenis keeps the main thread quiet.
+const finePointer = matchMedia('(hover: hover) and (pointer: fine)').matches;
 function initScroll() {
-  if (!reduced) {
+  if (!reduced && finePointer) {
     lenis = new Lenis({ lerp: 0.12, wheelMultiplier: 0.9 });
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((t) => lenis.raf(t * 1000));

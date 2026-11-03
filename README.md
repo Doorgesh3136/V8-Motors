@@ -35,16 +35,24 @@ Petrol blue, taken from the dealership's own logo (grey V, red 8, cyan lettering
 - **Contrast:** body text 5.4:1, highlights 5.2:1, white on the red buttons 6.1:1.
 - **Type:** one typeface, Archivo, self-hosted, using its width axis for headlines.
 - **Layout:** no horizontal scrolling anywhere and no scrolling text.
+- **Background:** a petrol-blue gradient with a fine carbon-fibre and grain texture (`public/bg/texture.png`, a 192 px seamless tile made by `scripts/make-texture.mjs`), soft cyan and red glows that drift slowly, and a faint beam of light that sweeps across now and then. They sit on fixed layers behind the page and only move by transform, so scrolling never repaints them. Turned off for people who ask for reduced motion.
+
+### Mobile performance
+
+- Smooth (Lenis) scrolling only runs with a mouse or trackpad. Phones and tablets use the browser's own touch scrolling, with nothing running on every frame.
+- Every looping animation (the open-now dot, the start button's ring, the background glows) moves only by transform and opacity, so none of them repaints the page.
+- The page-change curtain's layers are only promoted to the GPU while it runs.
+- The intro avoids blend modes and animated blur filters, which stutter on phone GPUs.
 
 ### Home page intro
 
 The intro opens on the car's start button in the dark. Browsers only allow sound after a tap; visitors can also enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner.
 
-The sound is a real Range Rover V8 (`public/intro/engine.mp3`, 10.6 s, 145 KB):
+The sound is a real, healthy V8 (`public/intro/engine.mp3`, 10.5 s, 145 KB):
 
-- a starter crank, then a Range Rover V8 idling and revving (CC0 recordings, credits below);
-- EQ'd to bring out the V8 burble over the worn engine's rattle;
-- mastered about 10 dB quieter than the previous track.
+- a starter crank, then a V8 catching, idling smoothly and revving three times (CC0 recordings, credits below);
+- replaces an earlier Range Rover recording whose worn engine rattled and knocked at idle;
+- mixed to mono, with sub-bass rumble and harsh top end trimmed, and mastered at about the same level as before.
 
 The picture runs on the audio clock, and the headlight bloom and camera shake follow the recording's loudness frame by frame:
 
@@ -54,9 +62,9 @@ The picture runs on the audio clock, and the headlight bloom and camera shake fo
 | 0.9 s | The engine catches with a jolt, and the Range Rover's own light signature sweeps on from the grille outwards (the light shapes are cut from the photo, `public/intro/`). |
 | Idle | The camera creeps in. |
 | 4.7 s | First rev: the high beams flash and the camera punches in. |
-| 5.8 s | Big rev: the letterbox opens, the camera pulls back and the forest lights up. |
-| 6.5 s | The real V8 Motors badge comes up in the light. |
-| 8.1 s | Last blip: it flashes, then flies up into the menu bar as the page appears. |
+| 5.9 s | Big rev: the letterbox opens, the camera pulls back and the forest lights up. |
+| 6.3 s | The real V8 Motors badge comes up in the light. |
+| 7.2 s | Last rev: it pulses, then flies up into the menu bar as the page appears. |
 
 The intro plays on every fresh visit and every refresh of the home page. Arriving from another page on the site uses the curtain instead.
 
@@ -103,5 +111,5 @@ The viewing, sell/exchange and contact forms validate on the page, then open Wha
 - **Stock photos and logo:** V8 Motors.
 - **Home page photo:** Unsplash.
 - **Engine sound,** built from CC0 (public domain) recordings on Freesound:
-  - [Range Rover V8 idle](https://freesound.org/people/Kevaaq/sounds/203962/) and [Range Rover V8 revving](https://freesound.org/people/Kevaaq/sounds/203963/) by Kevaaq;
-  - the starter crank from [Aston Martin Rapide start](https://freesound.org/people/Paul368/sounds/320096/) by Paul368. The Range Rover recordings have no start-up.
+  - [S63 AMG V8 engine revs](https://freesound.org/people/marcelweiss/sounds/505321/) by marcelweiss;
+  - the starter crank and start-up from [Aston Martin Rapide start](https://freesound.org/people/Paul368/sounds/320096/) by Paul368.
