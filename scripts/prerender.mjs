@@ -12,6 +12,7 @@ export function shell({ head, page, body, script, P = '', bodyClass = '' }) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   ${head}
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/src/fonts/bodoni-moda-latin-500-italic.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preconnect" href="https://v8.farhaan.info" />
   <script type="module" src="/src/pages/${script}.js" blocking="render"></script>
 </head>

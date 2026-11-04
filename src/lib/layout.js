@@ -4,10 +4,12 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { store } from './store.js';
 import { initBackground } from './bg.js';
-import { initFx } from './fx.js';
+import { initFx, photosArrive } from './fx.js';
+import { renderStatus } from './hours.js';
 
 gsap.registerPlugin(ScrollTrigger);
 document.documentElement.classList.add('js');
+window.__v8 = true; // tells the safety net in <head> that the page script is running
 
 export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const $ = (s, r = document) => r.querySelector(s);
@@ -66,101 +68,168 @@ function privacyNotice() {
   });
 }
 
-/* ------------------------------------------------------------------ page transitions: curtains
-   Leaving: three layers per side (amber edge, panel, ink) sweep in and meet in the middle,
-   showing the logo and where you're going. The next page paints with the curtain already
-   closed (a class set in <head> before first paint), then the layers open outwards. */
+/* ------------------------------------------------------------------ page changes
+   Native cross-page transitions (Chrome, Edge, Samsung Internet, Safari 18.2+): the old page fades up and
+   away, the new one rises in, the menu bar stays put, its underline and the dock's pill glide to the new
+   page, and a car's photo flies from its card into the car page. Links are prerendered when a finger
+   lands on them (speculation rules in <head>), so most pages arrive instantly. Browsers without the
+   transitions get a short fade in instead. */
 const html = document.documentElement;
-export const viaCurtain = html.classList.contains('curtain-in');
-const ROUTES = {
-  'index.html': 'Home', 'inventory.html': 'Cars for sale', 'sell.html': 'Sell or exchange', 'finance.html': 'Leasing',
-  'contact.html': 'Visit us', 'compare.html': 'Compare', 'privacy.html': 'Privacy policy', 'terms.html': 'Terms of sale',
-};
-const fileOf = (url) => new URL(url, location.href).pathname.split('/').pop() || 'index.html';
+/** Kept for the home page, which used to wait for the page-change curtain: there is nothing to wait for now. */
+export const curtainOpen = Promise.resolve();
+export const viaCurtain = false;
 
-let resolveOpen;
-/** Resolves once the arrival curtain has opened (immediately if there wasn't one). */
-export const curtainOpen = new Promise((r) => (resolveOpen = r));
+function clearHeroNames() {
+  $$('[style*="car-hero"]').forEach((n) => { n.style.viewTransitionName = ''; });
+}
+function initTransitions() {
+  // the clicked card's photo becomes the car page's gallery photo
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest?.('a[href*="cars/"]');
+    if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    const img = a.closest('.car, .swap-box, .deck-card, .mini')?.querySelector('img');
+    clearHeroNames();
+    if (img) img.style.viewTransitionName = 'car-hero';
+  }, true);
+  // coming back with the back button restores this page from cache: clear the name for next time
+  addEventListener('pageshow', clearHeroNames);
 
-function initCurtain() {
-  const c = $('[data-curtain]');
-  const label = $('[data-curtain-label]');
-  if (!c) { resolveOpen(); return; }
-  const L = $$('.curtain-side--l .cl', c), R = $$('.curtain-side--r .cl', c);
-  const mid = $('.curtain-mid', c);
-
-  // arriving: open
-  if (viaCurtain) {
-    label.textContent = sessionStorage.getItem('v8:curtain') || '';
-    sessionStorage.removeItem('v8:curtain');
-    gsap.timeline({ onComplete: () => { html.classList.remove('curtain-in'); gsap.set([...L, ...R, mid], { clearProps: 'all' }); resolveOpen(); } })
-      .to(mid, { opacity: 0, y: -14, duration: 0.25, ease: 'power2.in' }, 0.05)
-      .to([...L].reverse(), { xPercent: -101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15)
-      .to([...R].reverse(), { xPercent: 101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15);
-    setTimeout(resolveOpen, 550); // let the page start its own entrance while the curtain is still opening
-  } else {
-    sessionStorage.removeItem('v8:curtain');
-    resolveOpen();
-  }
-  if (reduced) return;
-
-  // warm up the next page as soon as a link is hovered or touched
+  // browsers without native transitions or speculation rules: warm the next page when a link is touched
+  if ('PageRevealEvent' in window || reduced || HTMLScriptElement.supports?.('speculationrules')) return;
   const warmed = new Set();
   const warm = (e) => {
     const a = e.target.closest?.('a[href]');
-    if (!a || !isInternal(a, e)) return;
-    const href = new URL(a.href, location.href).href.split('#')[0];
+    if (!a || a.target === '_blank' || !/(\.html|\/)(\?.*)?$/.test(a.href) || new URL(a.href).origin !== location.origin) return;
+    const href = a.href.split('#')[0];
     if (warmed.has(href)) return;
     warmed.add(href);
-    const l = document.createElement('link');
-    l.rel = 'prefetch'; l.href = href;
-    document.head.appendChild(l);
+    document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'prefetch', href }));
   };
   addEventListener('pointerover', warm, { passive: true });
   addEventListener('touchstart', warm, { passive: true });
-
-  // leaving: close, then go
-  let leaving = false;
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest('a[href]');
-    if (!a || leaving || !isInternal(a, e)) return;
-    e.preventDefault();
-    leaving = true;
-    const url = new URL(a.href, location.href);
-    const file = fileOf(url);
-    const name = url.pathname.includes('/cars/')
-      ? (a.closest('.car')?.querySelector('.car-title')?.textContent || a.textContent || '').trim()
-      : ROUTES[file] || 'V8 Motors';
-    label.textContent = name;
-    c.classList.add('is-active');
-    gsap.timeline({ onComplete: () => { sessionStorage.setItem('v8:curtain', name); location.assign(url.href); } })
-      .fromTo(L, { xPercent: -101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
-      .fromTo(R, { xPercent: 101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
-      .fromTo(mid, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 0.5)
-      .to({}, { duration: 0.08 });
-  });
-  // coming back via the back button restores the old page from cache: make sure it's open
-  addEventListener('pageshow', (e) => {
-    if (!e.persisted) return;
-    leaving = false;
-    c.classList.remove('is-active');
-    html.classList.remove('curtain-in');
-    gsap.set([...L, ...R, mid], { clearProps: 'all' });
-  });
 }
 
-function isInternal(a, e) {
-  if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
-  if (a.target === '_blank' || a.hasAttribute('download')) return false;
-  const url = new URL(a.href, location.href);
-  if (url.origin !== location.origin) return false;
-  if (!/(\.html|\/)$/.test(url.pathname)) return false;
-  if (url.pathname === location.pathname && url.search === location.search) return false; // same page or #hash
-  return true;
-}
-
-/** Kept for card links; the curtain handles the transition now. */
+/** Kept for card links; transitions handle this now. */
 export function nameForTransition() {}
+
+/* ------------------------------------------------------------------ menu bar underline, dock pill
+   One underline under the desktop links glides to whichever link you point at and back to the current
+   page; on phones a pill sits behind the current tab. Both carry a view-transition name, so on a page
+   change they glide from the old position to the new one. */
+function placeUnder(el, target) {
+  if (!target) { el.style.opacity = '0'; return; }
+  const box = el.parentElement.getBoundingClientRect(), r = target.getBoundingClientRect();
+  el.style.opacity = '1';
+  el.style.transform = `translateX(${r.left - box.left}px)`;
+  el.style.width = `${r.width}px`;
+}
+function initNavInk() {
+  const links = $('[data-nav-links]'), ink = $('[data-nav-ink]');
+  if (!links || !ink) return;
+  const home = () => placeUnder(ink, $('a[aria-current]', links));
+  home();
+  requestAnimationFrame(() => ink.classList.add('is-ready'));
+  $$('a', links).forEach((a) => {
+    a.addEventListener('pointerenter', () => placeUnder(ink, a));
+    a.addEventListener('focus', () => placeUnder(ink, a));
+  });
+  links.addEventListener('pointerleave', home);
+  links.addEventListener('focusout', () => setTimeout(() => { if (!links.contains(document.activeElement)) home(); }));
+  addEventListener('resize', home, { passive: true });
+  document.fonts?.ready.then(home);
+}
+function initDock() {
+  const bar = $('[data-tabbar]'), pill = $('[data-tab-pill]');
+  if (!bar || !pill) return;
+  const place = () => {
+    const cur = $('.tab[aria-current]', bar);
+    if (!cur) { pill.style.opacity = '0'; return; }
+    pill.style.opacity = '1';
+    pill.style.transform = `translateX(${cur.offsetLeft + (cur.offsetWidth - pill.offsetWidth) / 2}px)`;
+  };
+  place();
+  requestAnimationFrame(() => bar.classList.add('is-ready'));
+  addEventListener('resize', place, { passive: true });
+  document.fonts?.ready.then(place);
+  // a tiny haptic tick under the thumb (Android)
+  bar.addEventListener('pointerdown', (e) => { if (e.target.closest('.tab') && e.pointerType === 'touch') navigator.vibrate?.(6); }, { passive: true });
+}
+
+/* ------------------------------------------------------------------ menu: a bottom sheet
+   Opens from the dock's Menu button. It slides up over a dimmed page (never full screen), follows your
+   finger if you drag it down, and closes on a flick down, a tap outside, the close button or Escape. */
+function initMenu() {
+  const sheet = $('[data-menu]'), scrim = $('[data-menu-scrim]'), openBtn = $('[data-menu-open]');
+  if (!sheet || !scrim || !openBtn) return;
+  let open = false, lastFocus = null, hideTimer = 0;
+  const show = (v) => { sheet.hidden = !v; scrim.hidden = !v; };
+  const set = (on) => {
+    if (on === open) return;
+    open = on;
+    openBtn.setAttribute('aria-expanded', String(on));
+    clearTimeout(hideTimer);
+    if (on) {
+      lastFocus = document.activeElement;
+      show(true);
+      sheet.style.transform = '';
+      requestAnimationFrame(() => requestAnimationFrame(() => { sheet.classList.add('is-open'); scrim.classList.add('is-open'); }));
+      lenis?.stop();
+      html.classList.add('sheet-open');
+      setTimeout(() => $('.sheet-close', sheet)?.focus({ preventScroll: true }), 60);
+      navigator.vibrate?.(8);
+    } else {
+      sheet.classList.remove('is-open');
+      scrim.classList.remove('is-open');
+      sheet.style.transform = '';
+      html.classList.remove('sheet-open');
+      lenis?.start();
+      hideTimer = setTimeout(() => show(false), reduced ? 0 : 420);
+      lastFocus?.focus?.({ preventScroll: true });
+    }
+  };
+  openBtn.addEventListener('click', () => set(!open));
+  scrim.addEventListener('click', () => set(false));
+  $('[data-menu-close]', sheet).addEventListener('click', () => set(false));
+  addEventListener('keydown', (e) => { if (open && e.key === 'Escape') set(false); });
+  // keep focus inside while open
+  sheet.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab') return;
+    const f = $$('a[href], button:not([disabled])', sheet), first = f[0], last = f[f.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  // drag down to close: the sheet follows the finger whenever it's scrolled to the top and the finger
+  // moves down (touch events, so the browser's own scrolling doesn't swallow the gesture)
+  let y0 = null, dy = 0, t0 = 0, dragging = false;
+  sheet.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    y0 = e.touches[0].clientY; dy = 0; t0 = performance.now(); dragging = false;
+  }, { passive: true });
+  sheet.addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    const d = e.touches[0].clientY - y0;
+    if (!dragging && (d < 6 || sheet.scrollTop > 0)) { if (d < 0 || sheet.scrollTop > 0) y0 = null; return; }
+    dragging = true;
+    e.preventDefault();
+    dy = Math.max(0, d);
+    sheet.classList.add('is-dragging');
+    sheet.style.transform = `translateY(${dy}px)`;
+  }, { passive: false });
+  const end = () => {
+    if (y0 == null && !dragging) return;
+    const v = dy / Math.max(1, performance.now() - t0);
+    sheet.classList.remove('is-dragging');
+    y0 = null;
+    if (dragging && (dy > sheet.offsetHeight * 0.28 || (dy > 30 && v > 0.6))) set(false);
+    else sheet.style.transform = '';
+    dragging = false;
+  };
+  sheet.addEventListener('touchend', end);
+  sheet.addEventListener('touchcancel', end);
+  // a link to the page you're already on just closes the sheet
+  sheet.addEventListener('click', (e) => { const a = e.target.closest('a[aria-current]'); if (a) { e.preventDefault(); set(false); } });
+  addEventListener('pageshow', () => set(false));
+}
 
 /* ------------------------------------------------------------------ scrolling */
 // Smooth wheel scrolling is for mouse and trackpad only. On phones and tablets the browser's own touch
@@ -245,7 +314,12 @@ export const phoneOk = (v) => v.replace(/\D/g, '').length >= 7;
 /* ------------------------------------------------------------------ boot */
 export function initLayout({ home = false } = {}) {
   if ('scrollRestoration' in history) history.scrollRestoration = home ? 'manual' : 'auto';
-  initCurtain();
+  initTransitions();
+  photosArrive();
+  initNavInk();
+  initDock();
+  initMenu();
+  $$('[data-open-status]').forEach(renderStatus);
   initScroll();
   syncStoreUI();
   window.addEventListener('store:change', syncStoreUI);

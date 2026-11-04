@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <!--@head-->
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/src/fonts/bodoni-moda-latin-500-italic.woff2" as="font" type="font/woff2" crossorigin />
   <script type="module" src="/src/pages/contact.js" blocking="render"></script>
 </head>
 <body class="page-contact">
@@ -13,7 +14,7 @@
   <main id="main">
     <section class="page-head wrap">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Visit us</span></nav>
-      <h1 class="page-title" data-title>Visit us in Coromandel</h1>
+      <h1 class="page-title" data-title>Visit us in <em>Coromandel</em></h1>
       <p class="open-status open-status--lg" data-open-status>Open Monday to Saturday</p>
     </section>
 
@@ -34,7 +35,7 @@
 
     <section class="section wrap contact-form-wrap" aria-labelledby="msg-title">
       <div>
-        <h2 class="section-title" id="msg-title">Send us a message</h2>
+        <h2 class="section-title" id="msg-title">Send us a <em>message</em></h2>
         <p class="section-sub">Write it here and send it to us on WhatsApp, or by email if you prefer. For anything urgent, just call.</p>
       </div>
       <form class="panel contact-form" data-contact-form novalidate>
@@ -47,7 +48,7 @@
         </fieldset>
         <div class="form-row form-row--2">
           <label class="input"><span>Your name</span><input name="name" required autocomplete="name" enterkeyhint="next" /></label>
-          <label class="input"><span>Mobile number or email</span><input name="reach" required autocomplete="tel" enterkeyhint="next" /></label>
+          <label class="input"><span>Mobile number</span><input name="reach" type="tel" required autocomplete="tel" inputmode="tel" enterkeyhint="next" placeholder="5 123 4567" /></label>
         </div>
         <label class="input"><span>Message</span><textarea name="msg" rows="5" required maxlength="600"></textarea><span class="char tabular-nums" data-char>0 / 600</span></label>
         <div class="hp" aria-hidden="true"><label>Leave this field empty<input type="text" name="website" tabindex="-1" autocomplete="off" /></label></div>

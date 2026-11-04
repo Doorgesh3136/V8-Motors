@@ -32,6 +32,11 @@ export const ICON = {
   shield: svg('<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6l-8-3Z"/><path d="m8.5 12 2.5 2.5 4.5-5"/>'),
   palette: svg('<path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2 0-1.5-1-2 0-3s3 0 4-1 3-2 3-4a8 8 0 0 0-9-8Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="16" cy="8.5" r="1"/>'),
   wheel: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M4.5 14.5l5-1.5M19.5 14.5l-5-1.5"/>'),
+  menu: svg('<path d="M4 7h16M4 12h16M4 17h10"/>'),
+  mail: svg('<path d="M3.5 6h17v12h-17zM4 6.5l8 6.5 8-6.5"/>'),
+  route: svg('<path d="M6 19a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM18 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM8.5 16.5h7a3 3 0 0 0 0-6h-7a3 3 0 0 1 0-6H15"/>'),
+  whatsapp: svg('<path d="M4.5 19.5l1.1-3.6A8 8 0 1 1 8.3 18.6l-3.8.9Z"/><path d="M9.2 8.6c.3-.6.6-.6.9-.6h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2.1.4 0 .6l-.5.6c-.1.2-.2.4 0 .6.6 1 1.4 1.8 2.4 2.3.2.1.4.1.6-.1l.6-.7c.2-.2.4-.2.6-.1l1.6.8c.2.1.4.2.4.4 0 .3 0 1-.5 1.5-.5.5-1.6.9-2.6.6a9 9 0 0 1-5.1-4.5c-.6-1.3-.4-2.3.2-3.1Z"/>'),
+  clock: svg('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>'),
 };
 
 /* ------------------------------------------------------------------ brand mark: the dealership's own V8 logo */
@@ -49,8 +54,9 @@ const SHAPES = {
   Van: 'M2 17V8.5l5-1.5 4-5h47l4 3V17',
 };
 export const shapeSvg = (type) => `<svg viewBox="0 0 64 24" aria-hidden="true" class="shape">
-    <path d="${SHAPES[type] || SHAPES.Sedan}"/><path d="M2 17h8.5M21.5 17h21M53.5 17H62"/>
-    <circle cx="16" cy="17" r="4.5"/><circle cx="48" cy="17" r="4.5"/></svg>`;
+    <g class="body"><path d="${SHAPES[type] || SHAPES.Sedan}"/><path d="M2 17h8.5M21.5 17h21M53.5 17H62"/></g>
+    <g class="wheel"><circle cx="16" cy="17" r="4.5"/><path d="M16 13.6v6.8M12.6 17h6.8"/></g>
+    <g class="wheel"><circle cx="48" cy="17" r="4.5"/><path d="M48 13.6v6.8M44.6 17h6.8"/></g></svg>`;
 
 /* ------------------------------------------------------------------ images */
 export function photo(src, { alt, srcset = '', sizes = '', eager = false, cls = '', w = 960, h = 634, attrs = '' }) {
@@ -101,43 +107,86 @@ export const NAV_PAGES = [
   { key: 'contact', href: 'contact.html', label: 'Visit us' },
 ];
 
-/** Page-change curtain: three layers per side sweep in, meet in the middle, then open on the next page. */
-export function curtainHTML(P = '') {
-  const side = (k) => `<div class="curtain-side curtain-side--${k}"><span class="cl cl-1"></span><span class="cl cl-2"></span><span class="cl cl-3"></span></div>`;
-  return `<div class="curtain" data-curtain aria-hidden="true">${side('l')}${side('r')}
-    <div class="curtain-mid">${markSVG('mark curtain-mark', P)}<span class="curtain-label" data-curtain-label></span></div></div>`;
-}
-
 export function navHTML(page, P = '') {
-  return `${curtainHTML(P)}<header class="nav" data-nav>
+  return `<header class="nav" data-nav>
     <a href="${P}./" class="wordmark" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark', P)}<span>V8 Motors</span></a>
-    <nav aria-label="Main" class="nav-links">
+    <nav aria-label="Main" class="nav-links" data-nav-links>
       ${NAV_PAGES.map((p) => `<a href="${P}${p.href}"${p.key === page ? ' aria-current="page"' : ''}>${p.label}</a>`).join('')}
+      <span class="nav-ink" data-nav-ink aria-hidden="true"></span>
     </nav>
+    <p class="nav-chapter" data-chapter-label aria-hidden="true"></p>
     <div class="nav-actions">
-      <a class="nav-phone tabular-nums" href="${DEALER.phoneHref}">${DEALER.phone}</a>
+      <a class="nav-phone tabular-nums" href="${DEALER.phoneHref}">${ICON.phone}${DEALER.phone}</a>
       <a href="${P}compare.html" class="icon-btn" data-compare-link aria-label="0 cars to compare">${ICON.scales}<span data-compare-count class="tabular-nums">0</span></a>
       <a href="${P}inventory.html?saved=1" class="icon-btn" data-saved-link aria-label="0 saved cars">${ICON.heart}<span data-saved-count class="tabular-nums">0</span></a>
     </div>
   </header>`;
 }
 
-/** Bottom tab bar on phones: the main actions sit where the thumb is. */
+const MAPS_DIR = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(DEALER.mapsQuery)}`;
+const WA = (text = 'Hello V8 Motors, ') => `https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(text)}`;
+
+/** Bottom dock on phones: the main actions sit where the thumb is. A pill glides to the current tab
+    (and between pages, with the page transition); Menu opens a bottom sheet with everything else. */
 export function mobileBarHTML(page, P = '') {
   const tab = (key, href, icon, label) => `<a href="${href}" class="tab"${key === page ? ' aria-current="page"' : ''}>${icon}<span>${label}</span></a>`;
-  return `<nav class="tabbar" aria-label="Quick links">
+  return `<nav class="tabbar" aria-label="Quick links" data-tabbar>
+    <span class="tab-pill" data-tab-pill aria-hidden="true"></span>
     ${tab('home', `${P}./`, markSVG('mark tab-mark', P), 'Home')}
     ${tab('inventory', `${P}inventory.html`, ICON.car, 'Cars')}
     ${tab('sell', `${P}sell.html`, ICON.tag, 'Sell')}
-    ${tab('finance', `${P}finance.html`, ICON.coin, 'Leasing')}
     <a href="${DEALER.phoneHref}" class="tab tab--call">${ICON.phone}<span>Call</span></a>
-  </nav>`;
+    <button type="button" class="tab" data-menu-open aria-haspopup="dialog" aria-expanded="false" aria-controls="menu-sheet"${['finance', 'contact', 'compare'].includes(page) ? ' aria-current="page"' : ''}>${ICON.menu}<span>Menu</span></button>
+  </nav>
+  ${menuSheetHTML(page, P)}`;
+}
+
+/** The menu as a bottom sheet (never a full-screen takeover): every page, the quickest ways to reach
+    the showroom, and whether it's open right now. Drag it down, tap outside or press Escape to close. */
+export function menuSheetHTML(page, P = '') {
+  const link = (key, href, icon, label, meta) => `<a href="${href}" class="sheet-link"${key === page ? ' aria-current="page"' : ''}>${icon}<span><strong>${label}</strong>${meta ? `<small>${meta}</small>` : ''}</span></a>`;
+  return `<div class="sheet-scrim" data-menu-scrim hidden></div>
+  <div class="sheet" id="menu-sheet" role="dialog" aria-modal="true" aria-labelledby="menu-title" data-menu hidden>
+    <div class="sheet-grab" data-menu-grab aria-hidden="true"><span></span></div>
+    <div class="sheet-head">
+      <p class="sheet-title" id="menu-title">V8 <em>Motors</em></p>
+      <button type="button" class="sheet-close" data-menu-close aria-label="Close the menu">${ICON.close}</button>
+    </div>
+    <p class="sheet-status open-status" data-open-status></p>
+    <nav class="sheet-links" aria-label="All pages">
+      ${link('home', `${P}./`, markSVG('mark', P), 'Home', '')}
+      ${link('inventory', `${P}inventory.html`, ICON.car, 'Cars for sale', `${CARS.length} in stock`)}
+      ${link('sell', `${P}sell.html`, ICON.tag, 'Sell or exchange', 'A guide price in 3 steps')}
+      ${link('finance', `${P}finance.html`, ICON.coin, 'Leasing', `With ${DEALER.leasing}`)}
+      ${link('contact', `${P}contact.html`, ICON.pin, 'Visit us', `${DEALER.street}, ${DEALER.locality}`)}
+      ${link('compare', `${P}compare.html`, ICON.scales, 'Compare', 'Up to three cars')}
+      ${link('saved', `${P}inventory.html?saved=1`, ICON.heart, 'Saved cars', '<span data-saved-count>0</span> saved')}
+    </nav>
+    <div class="sheet-ways">
+      <a href="${DEALER.phoneHref}" class="way-btn">${ICON.phone}<span>Call</span></a>
+      <a href="${WA()}" class="way-btn" rel="noopener">${ICON.whatsapp}<span>WhatsApp</span></a>
+      <a href="mailto:${DEALER.email}" class="way-btn">${ICON.mail}<span>Email</span></a>
+      <a href="${MAPS_DIR}" class="way-btn" rel="noopener">${ICON.route}<span>Directions</span></a>
+    </div>
+  </div>`;
 }
 
 export function footerHTML(P = '') {
   const makes = [...new Set(CARS.map((c) => c.make))].sort();
   return `<footer class="footer">
     <div class="wrap">
+      <section class="footer-cta" aria-labelledby="footer-cta-title">
+        <div>
+          <p class="eyebrow">59B Royal Road, Coromandel</p>
+          <h2 class="section-title" id="footer-cta-title">Come and <em>drive</em> one.</h2>
+          <p class="open-status" data-open-status>Open Monday to Saturday</p>
+        </div>
+        <div class="footer-ways">
+          <a class="btn btn-primary btn-lg" href="${DEALER.phoneHref}">${ICON.phone}Call ${DEALER.phone}</a>
+          <a class="btn btn-line btn-lg" href="${WA()}" rel="noopener">${ICON.whatsapp}WhatsApp</a>
+          <a class="btn btn-line btn-lg" href="${MAPS_DIR}" rel="noopener">${ICON.route}Directions</a>
+        </div>
+      </section>
       <div class="footer-grid">
         <div class="footer-brand">
           <a href="${P}./" class="wordmark wordmark--lg" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark', P)}<span>V8 Motors</span></a>
@@ -150,14 +199,14 @@ export function footerHTML(P = '') {
         <div><p class="footer-h">Showroom</p>
           <address>${DEALER.street}<br>${DEALER.locality}, Mauritius</address>
           <p class="footer-phones">${DEALER.phones.map(([t, h]) => `<a href="${h}" class="tabular-nums">${t}</a>`).join('')}</p>
-          <p><a href="https://wa.me/${DEALER.whatsapp}">WhatsApp</a></p>
+          <p><a href="${WA()}" rel="noopener">WhatsApp</a></p>
           <p><a href="mailto:${DEALER.email}">${DEALER.email}</a></p></div>
       </div>
       <div class="footer-row">
         <p>© ${new Date().getFullYear()} ${DEALER.legalName}. Leasing subject to approval by ${DEALER.leasing}.</p>
         <p class="footer-legal"><a href="${P}privacy.html">Privacy policy</a><a href="${P}terms.html">Terms of sale</a></p>
       </div>
-      <p class="footer-credits">Stock photos by V8 Motors. Home page photo from Unsplash. Engine sound: a Range Rover V8 recorded by Kevaaq on Freesound (public domain).</p>
+      <p class="footer-credits">Stock photos by V8 Motors. Home page photo by Cartist Sarvam on Unsplash. Engine sound built from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>
     </div>
   </footer>`;
 }
@@ -166,7 +215,10 @@ export function footerHTML(P = '') {
 export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   const url = SITE + path;
   const img = image || `${SITE}og.jpg`;
-  return `<script>try{if(sessionStorage.getItem('v8:curtain')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.documentElement.classList.add('curtain-in')}catch(e){}</script>
+  return `<script>(function(d){try{if(!('PageRevealEvent' in window))d.classList.add('no-vt');
+    /* if the page script never runs (offline, blocked), don't leave the intro or hidden content in the way */
+    setTimeout(function(){if(!window.__v8){d.classList.remove('play-intro','js');}},9000);}catch(e){}})(document.documentElement)</script>
+  <script type="speculationrules">{"prerender":[{"where":{"and":[{"selector_matches":"a[href]"},{"not":{"selector_matches":"[rel~=noopener],[href^='tel:'],[href^='mailto:'],[href*='://']"}}]},"eagerness":"conservative"}],"prefetch":[{"where":{"and":[{"selector_matches":"a[href]"},{"not":{"selector_matches":"[rel~=noopener],[href^='tel:'],[href^='mailto:'],[href*='://']"}}]},"eagerness":"moderate"}]}</script>
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(desc)}" />
   <link rel="canonical" href="${url}" />
@@ -278,7 +330,7 @@ export function carPageHTML(c, P = '../') {
     <div class="car-top">
       <div class="gallery" data-gallery>
         <div class="gallery-main">
-          ${photo(c.images[0], { alt: `${name}${c.colour ? ` in ${c.colour.toLowerCase()}` : ''}, photo 1 of ${n}`, eager: true, w: 1591, h: 1200, attrs: `data-gal-img style="background-image:url(${P}${c.thumbs[0]})"` })}
+          ${photo(c.images[0], { alt: `${name}${c.colour ? ` in ${c.colour.toLowerCase()}` : ''}, photo 1 of ${n}`, eager: true, w: 1591, h: 1200, attrs: `data-gal-img style="background-image:url(${P}${c.thumbs[0]});view-transition-name:car-hero"` })}
           ${statusBadge(c, ' car-status--lg')}
           ${n > 1 ? `
           <button type="button" class="gal-arrow gal-prev" data-gal-prev aria-label="Previous photo">${ICON.arrowL}</button>
@@ -323,7 +375,7 @@ export function carPageHTML(c, P = '../') {
     </div>
 
     <section class="car-section" aria-labelledby="specs-h">
-      <h2 class="car-h" id="specs-h">The details</h2>
+      <h2 class="car-h" id="specs-h">The <em>details</em></h2>
       <div class="details${c.description || c.options ? ' details--about' : ''}">
         <dl class="specs">${specs.map(([icon, k, v]) => `<div class="spec">${icon}<dt>${k}</dt><dd class="tabular-nums">${esc(v)}</dd></div>`).join('')}</dl>
         ${c.description || c.options ? `<div class="about-box">
@@ -336,7 +388,7 @@ export function carPageHTML(c, P = '../') {
 
     <section class="car-section car-2col fin-mini" aria-labelledby="fin-h">
       <div>
-        <h2 class="car-h" id="fin-h">Your monthly payment</h2>
+        <h2 class="car-h" id="fin-h">Your monthly <em>payment</em></h2>
         <p class="car-sub">Leasing is arranged through ${DEALER.leasing}. Worked out at an example rate of ${DEALER.financeRate}% a year; they confirm the real figure.</p>
         <a href="${P}finance.html?id=${c.id}" class="link">Open the full leasing calculator</a>
       </div>
@@ -350,7 +402,7 @@ export function carPageHTML(c, P = '../') {
     </section>
 
     <section class="car-section book" id="book" aria-labelledby="book-h">
-      <h2 class="car-h" id="book-h">Book a viewing</h2>
+      <h2 class="car-h" id="book-h">Book a <em>viewing</em></h2>
       <p class="car-sub">Pick a time and send it to us on WhatsApp; we confirm the same day. Open Monday to Friday 9:00 to 17:00, Saturday 9:00 to 16:00.</p>
       <form class="book-form" data-book novalidate>
         <fieldset><legend>Choose a day</legend><div class="days" data-days></div></fieldset>
@@ -366,7 +418,7 @@ export function carPageHTML(c, P = '../') {
     </section>
 
     <section class="car-section" aria-labelledby="sim-h">
-      <h2 class="car-h" id="sim-h">Similar cars</h2>
+      <h2 class="car-h" id="sim-h">Similar <em>cars</em></h2>
       <ul class="grid-cars similar">${similarCars(c, 4).map((x) => carCard(x, P)).join('')}</ul>
     </section>
   </div>

@@ -1,4 +1,4 @@
-import { DEALER } from '../data.js';
+import { DEALER } from '../dealer.js';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const toMin = (t) => { const [h, m] = t.split(':'); return +h * 60 + +m; };
@@ -53,4 +53,20 @@ export function nextOpenDays(n = 10) {
     if (h) out.push({ date: x, hours: h });
   }
   return out;
+}
+
+/**
+ * Saturday deals: while the showroom is open on a Saturday, the time left until closing; otherwise the
+ * time until the next Saturday opening. Mauritius keeps UTC+4 all year, so the maths uses that offset.
+ */
+export function saturdayDeals(now = Date.now()) {
+  const h = DEALER.hours[6];
+  const OFFSET = 4 * 3600e3;
+  const mu = new Date(now + OFFSET); // read with getUTC*: Mauritius wall-clock time
+  const dayStart = Date.UTC(mu.getUTCFullYear(), mu.getUTCMonth(), mu.getUTCDate()) - OFFSET;
+  const at = (dayOffset, t) => dayStart + dayOffset * 864e5 + toMin(t) * 6e4;
+  const daysToSat = (6 - mu.getUTCDay() + 7) % 7;
+  if (daysToSat === 0 && now >= at(0, h[0]) && now < at(0, h[1])) return { on: true, ms: at(0, h[1]) - now };
+  const open = daysToSat === 0 && now < at(0, h[0]) ? at(0, h[0]) : at(daysToSat || 7, h[0]);
+  return { on: false, ms: open - now };
 }

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <!--@head-->
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/src/fonts/bodoni-moda-latin-500-italic.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preconnect" href="https://images.unsplash.com" />
   <script type="module" src="/src/pages/inventory.js" blocking="render"></script>
 </head>
@@ -15,7 +16,7 @@
   <main id="main">
     <section class="page-head wrap">
       <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Cars</span></nav>
-      <h1 class="page-title" data-title>Used cars for sale</h1>
+      <h1 class="page-title" data-title>Used cars <em>for sale</em></h1>
       <p class="page-lede"><span class="tabular-nums" data-countup><!--@total--></span> cars on the forecourt at 59B Royal Road, Coromandel, with our own photos of each one. New stock every week.</p>
     </section>
 
@@ -125,7 +126,7 @@
     </div>
 
     <section class="section wrap" data-recent-wrap hidden>
-      <h2 class="section-title">You looked at</h2>
+      <h2 class="section-title">You looked <em>at</em></h2>
       <ul class="mini-grid" data-recent></ul>
     </section>
   </main>

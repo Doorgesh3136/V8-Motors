@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <!--@head-->
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/src/fonts/bodoni-moda-latin-500-italic.woff2" as="font" type="font/woff2" crossorigin />
   <script>
     // The intro plays on every fresh load and every refresh of the home page, but not when you arrive
-    // from another page on the site (the curtain covers that) or come back with the back button.
+    // from another page on the site (the page transition covers that) or come back with the back button.
     try {
       var nav = performance.getEntriesByType('navigation')[0], type = nav ? nav.type : 'navigate';
       var fromSite = document.referrer && new URL(document.referrer).origin === location.origin;
-      var viaCurtain = sessionStorage.getItem('v8:curtain');
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !viaCurtain && (type === 'reload' || (type === 'navigate' && !fromSite))) {
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && (type === 'reload' || (type === 'navigate' && !fromSite))) {
         document.documentElement.classList.add('play-intro');
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         scrollTo(0, 0);
@@ -21,7 +21,7 @@
   </script>
   <link rel="preconnect" href="https://images.unsplash.com" />
   <link rel="preload" as="image" fetchpriority="high"
-    imagesrcset="https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=2200&q=70 2200w"
+    imagesrcset="https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=2200&q=70 2200w"
     imagesizes="100vw" />
   <script type="module" src="/src/pages/home.js" blocking="render"></script>
 </head>
@@ -31,22 +31,22 @@
   <!--@nav:home-->
 
   <main id="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <!-- Intro: one continuous shot. Darkness, the headlights wake up, the camera pulls back and the forest appears.
+    <section class="hero" aria-labelledby="hero-title" data-chapter="Welcome">
+      <!-- Intro: one continuous shot. Darkness, the headlights wake up, the camera pulls back and the white Range Rover appears on its driveway.
            Photo, darkness and lamps share one wrapper so the pull-back scales them together. -->
       <div class="hero-media" data-hero-media>
       <img class="hero-img" data-hero-img
-        src="https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=1400&q=70"
-        srcset="https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1549632891-a0bea6d0355b?auto=format&fit=crop&w=2200&q=70 2200w"
-        sizes="100vw" width="2200" height="1467" fetchpriority="high" decoding="async"
-        alt="A dark green Range Rover with its headlights on, parked on a track through a pine forest" />
+        src="https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=1400&q=70"
+        srcset="https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=2200&q=70 2200w"
+        sizes="100vw" width="2200" height="1511" fetchpriority="high" decoding="async"
+        alt="A white Range Rover with its headlights on, on a driveway lined with tropical plants" />
         <div class="hero-dark" data-hero-dark aria-hidden="true"></div>
         <span class="haze" data-haze aria-hidden="true"></span>
         <span class="spill" data-spill aria-hidden="true"></span>
         <span class="bloom" data-bloom aria-hidden="true"></span>
-        <!-- the headlights' real shapes, cut from the photo: sharp light and its soft glow, aligned to the photo exactly -->
-        <img class="hero-img hero-glow" data-glow src="intro/glow.webp" width="1100" height="740" alt="" aria-hidden="true" decoding="async" />
-        <img class="hero-img hero-lights" data-lights src="intro/lights.webp" width="2200" height="1480" alt="" aria-hidden="true" decoding="async" />
+        <!-- the Range Rover's light signature (drawn by scripts/make-intro-lights.mjs) and its soft glow, aligned to the photo exactly -->
+        <img class="hero-img hero-glow" data-glow src="intro/glow.webp" width="1100" height="756" alt="" aria-hidden="true" decoding="async" />
+        <img class="hero-img hero-lights" data-lights src="intro/lights.webp" width="2200" height="1511" alt="" aria-hidden="true" decoding="async" />
         <span class="flare" data-flare aria-hidden="true"></span>
       </div>
       <div class="hero-shade" aria-hidden="true"></div>
@@ -57,15 +57,19 @@
 
       <!-- Intro gate: browsers only allow sound after a tap, so the intro starts with the car's start button -->
       <div class="gate" data-gate>
+        <!-- small line icons drifting in the dark while the scene loads -->
+        <div class="gate-float" data-float aria-hidden="true"></div>
         <button type="button" class="ignition" data-ignite aria-label="Start the engine and enter the site with sound">
+          <!-- real loading progress: the photo, the light shapes and the engine recording -->
+          <svg class="ignition-load" viewBox="0 0 120 120" aria-hidden="true"><circle class="il-track" cx="60" cy="60" r="56"/><circle class="il-bar" cx="60" cy="60" r="56" pathLength="100" data-load-bar/></svg>
           <span class="ignition-ring" aria-hidden="true"></span>
           <span class="ignition-face" aria-hidden="true"><span>Engine</span><strong>Start</strong><span>Stop</span></span>
         </button>
-        <p class="gate-hint">Sound on. Press to start.</p>
+        <p class="gate-hint" data-gate-hint aria-live="polite"><span data-load-text>Warming up the engine</span> <span class="gate-pct tabular-nums" data-load-pct>0%</span></p>
         <p class="gate-alt"><button type="button" data-ignite-quiet>Enter without sound</button><button type="button" data-skip>Skip intro</button></p>
       </div>
       <div class="wrap hero-inner">
-        <h1 class="hero-title" id="hero-title" data-hero-title><span class="line"><span>Drive</span></span> <span class="line"><span>smarter.</span></span></h1>
+        <h1 class="hero-title" id="hero-title" data-hero-title aria-label="Drive smarter."><span class="line" aria-hidden="true"><span>Drive</span></span> <span class="line" aria-hidden="true"><span><em class="rotor" data-rotor>smarter.</em></span></span></h1>
         <p class="hero-lede" data-hero-fade><!--@count--> checked cars on the forecourt at 59B Royal Road, Coromandel. Buy, sell or exchange, and lease through Rogers Capital.</p>
         <form class="search" action="inventory.html" method="get" data-search data-hero-fade>
           <label class="field"><span class="field-label">Make</span>
@@ -85,30 +89,52 @@
       </div>
     </section>
 
-    <section class="section arrivals" aria-labelledby="arrivals-title">
+    <section class="section arrivals" aria-labelledby="arrivals-title" data-chapter="Just in">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="section-title" id="arrivals-title">Just in</h2>
+          <div><p class="eyebrow"><b>02</b>New arrivals</p>
+          <h2 class="section-title" id="arrivals-title">Just <em>in</em></h2></div>
           <a class="btn btn-line" href="inventory.html">See all <!--@total--> cars</a>
         </div>
         <ul class="grid-cars arrivals-grid"><!--@arrivals--></ul>
       </div>
     </section>
 
-    <section class="section bodies" aria-labelledby="bodies-title">
+    <section class="section deck-section" aria-labelledby="deck-title" data-chapter="Quick pick">
+      <div class="wrap deck-wrap">
+        <div class="deck-copy">
+          <p class="eyebrow"><b>03</b>Quick pick</p>
+          <h2 class="section-title deck-title" id="deck-title">Can’t decide? <em>Swipe.</em></h2>
+          <p class="section-sub">One car at a time. Swipe right to save it, left to skip. Your saved cars stay on this device, ready to compare.</p>
+          <p class="deck-tally" aria-live="polite"><span class="tabular-nums" data-deck-seen>0</span> of <span class="tabular-nums" data-deck-total>0</span> seen, <span class="tabular-nums" data-deck-saved>0</span> saved. <a class="link" href="inventory.html?saved=1">Your saved cars</a></p>
+        </div>
+        <div class="deck" data-deck>
+          <div class="deck-stack" data-deck-stack aria-live="polite"></div>
+          <div class="deck-actions">
+            <button type="button" class="deck-btn deck-btn--skip" data-deck-skip aria-label="Skip this car"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+            <a class="deck-btn deck-btn--open" data-deck-open href="inventory.html" aria-label="Open this car"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
+            <button type="button" class="deck-btn deck-btn--save" data-deck-save aria-label="Save this car"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1Z"/></svg></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section bodies" aria-labelledby="bodies-title" data-chapter="Shapes">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="section-title" id="bodies-title">What are you driving next?</h2>
+          <div><p class="eyebrow"><b>04</b>Shapes</p>
+          <h2 class="section-title" id="bodies-title">What are you driving <em>next?</em></h2></div>
           <p class="section-sub">Pick a shape to see everything we have in it.</p>
         </div>
         <ul class="body-tiles"><!--@bodies--></ul>
       </div>
     </section>
 
-    <section class="section swap" aria-labelledby="swap-title">
+    <section class="section swap" aria-labelledby="swap-title" data-chapter="Part-exchange">
       <div class="wrap swap-grid">
         <div class="swap-copy">
-          <h2 class="section-title" id="swap-title">Bring your car. Drive away in one of ours.</h2>
+          <p class="eyebrow"><b>05</b>Part-exchange</p>
+          <h2 class="section-title" id="swap-title">Bring your car. Drive away in <em>one of ours.</em></h2>
           <p class="section-sub">Choose a car from the forecourt and slide to roughly what yours is worth. Your car comes off the price, and the rest can be leased through Rogers Capital.</p>
           <a class="link" href="sell.html">Get a guide price for your car</a>
         </div>
@@ -128,21 +154,33 @@
       </div>
     </section>
 
-    <section class="section makes" aria-labelledby="makes-title">
+    <section class="section makes" aria-labelledby="makes-title" data-chapter="Makes">
       <div class="wrap">
         <div class="section-head">
-          <h2 class="section-title" id="makes-title">Makes on the forecourt</h2>
+          <div><p class="eyebrow"><b>06</b>Makes</p>
+          <h2 class="section-title" id="makes-title">Makes on the <em>forecourt</em></h2></div>
           <p class="section-sub">New stock arrives every week.</p>
         </div>
         <ul class="makes-grid"><!--@makes--></ul>
       </div>
     </section>
 
-    <section class="section sellband" aria-labelledby="sell-title">
+    <section class="section sellband" aria-labelledby="sell-title" data-chapter="Saturday deals">
       <div class="wrap sellband-inner">
         <div>
-          <h2 class="section-title" id="sell-title">Best deals every Saturday.</h2>
+          <p class="eyebrow"><b>07</b>Saturday deals</p>
+          <h2 class="section-title" id="sell-title">Best deals every <em>Saturday.</em></h2>
           <p class="section-sub">Come by on a Saturday, 9:00 to 16:00. Selling instead? We buy cars too, or take yours in part-exchange.</p>
+          <!-- live: counts down to the next Saturday opening, or to closing while it's on -->
+          <div class="countdown" data-countdown aria-live="off">
+            <p class="countdown-label" data-cd-label>Next Saturday deals in</p>
+            <div class="countdown-units">
+              <span><b class="tabular-nums" data-cd="d">0</b><small>days</small></span>
+              <span><b class="tabular-nums" data-cd="h">00</b><small>hours</small></span>
+              <span><b class="tabular-nums" data-cd="m">00</b><small>min</small></span>
+              <span><b class="tabular-nums" data-cd="s">00</b><small>sec</small></span>
+            </div>
+          </div>
         </div>
         <a class="btn btn-primary btn-lg" href="sell.html">Sell or exchange your car</a>
       </div>

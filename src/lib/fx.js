@@ -10,6 +10,14 @@
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
+/** Card photos fade in once they've arrived (a soft sweep plays over the empty frame until then). */
+export function photosArrive() {
+  const mark = (img) => img.closest('.car-media')?.classList.add('is-loaded');
+  document.querySelectorAll('.car-media img').forEach((img) => { if (img.complete && img.naturalWidth) mark(img); });
+  document.addEventListener('load', (e) => { if (e.target.matches?.('.car-media img')) mark(e.target); }, true);
+  document.addEventListener('error', (e) => { if (e.target.matches?.('.car-media img')) mark(e.target); }, true);
+}
+
 export function initFx({ revealSelector } = {}) {
   revBar();
   swipePhotos();

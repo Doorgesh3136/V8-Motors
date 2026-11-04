@@ -25,10 +25,10 @@ f.addEventListener('submit', (e) => {
   e.preventDefault();
   const via = e.submitter?.value || 'wa';
   const reach = f.reach.value.trim();
-  const reachOk = /\S+@\S+\.\S+/.test(reach) || reach.replace(/\D/g, '').length >= 7;
+  const reachOk = reach.replace(/\D/g, '').length >= 7;
   const bad = validateFields([
     [f.name, f.name.value.trim() ? '' : 'Add your name.'],
-    [f.reach, !reach ? 'Add a mobile number or email so we can reply.' : reachOk ? '' : 'That doesn’t look like a phone number or email.'],
+    [f.reach, !reach ? 'Add your mobile number so we can reply.' : reachOk ? '' : 'That doesn’t look like a phone number.'],
     [ta, ta.value.trim().length >= 5 ? '' : 'Write a short message.'],
   ]);
   if (bad) return;

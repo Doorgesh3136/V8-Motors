@@ -2,13 +2,26 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { initLayout, reduced, $, $$, curtainOpen } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
-import { renderStatus } from '../lib/hours.js';
+import { renderStatus, saturdayDeals } from '../lib/hours.js';
+import { initDeck } from '../lib/deck.js';
+import { initChapters } from '../lib/chapters.js';
 import { CARS, byId, rs, monthly, thumb, carName } from '../data.js';
 
-const LAMPS = [[0.352, 0.66], [0.615, 0.66]]; // headlight centres as fractions of the photo
+const LAMPS = [[0.33, 0.5153], [0.6675, 0.511]]; // headlight centres as fractions of the photo (white Range Rover, Unsplash wrRhFFTySnc)
 const ENGINE = new URL('intro/engine.mp3', document.baseURI).href;
 const NAVS = ['[data-nav]', '.tabbar'];
 const GAIN = 0.8; // playback level (the recording itself is mastered quietly)
+// the loader's drifting icons (key, steering wheel, gauge, wheel, fuel, car, spark) and where they float
+const FLOAT_ICONS = [
+  '<path d="M14.5 9.5a3.5 3.5 0 1 1-1.4 2.8L5 20.4 3.6 19l1.4-1.4-1.4-1.4 1.4-1.4 1.4 1.4 4.6-4.6a3.5 3.5 0 0 1 3.5-2.1Z"/>', // key
+  '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M3.6 11h6.2M14.2 11h6.2M12 14.2v6.3"/>', // steering wheel
+  '<path d="M4 16a8 8 0 1 1 16 0M12 16l4-5M7 16h.01M17 16h.01"/>', // gauge
+  '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 3.5v4.5M12 16v4.5M3.5 12H8M16 12h4.5"/>', // wheel
+  '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M3 20h13M14 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3"/>', // fuel
+  '<path d="M3 15v-3l2-5h14l2 5v3M3 15h18v3h-3v-2H6v2H3v-3Z"/>', // car
+  '<path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"/>', // spark
+];
+const FLOAT_SPOTS = [[9, 16], [88, 12], [6, 46], [93, 42], [16, 78], [82, 74], [48, 7], [70, 28], [28, 30]];
 
 const media = $('[data-hero-media]');
 const img = $('[data-hero-img]');
@@ -19,6 +32,8 @@ const flare = $('[data-flare]');
 const { lenis } = initLayout({ home: true });
 wireCardActions();
 renderStatus($('[data-open-status]'));
+initDeck();
+startCountdown();
 
 const playIntro = document.documentElement.classList.contains('play-intro');
 if (playIntro) {
@@ -37,6 +52,8 @@ runIntro().then(async () => {
   flashLights();
   setupSearch();
   setupSwap();
+  initChapters();
+  setTimeout(startRotor, reduced ? 0 : 2600);
   ScrollTrigger.refresh();
 });
 
@@ -49,7 +66,7 @@ runIntro().then(async () => {
      0.9s  it catches: jolt, the light signature sweeps on from the grille outwards
      idle  the camera creeps in, the light breathes with the engine
      4.7s  first rev: high beams flash, the camera punches in
-     5.9s  big rev: flash, the letterbox opens, the camera pulls back and the forest lights up
+     5.9s  big rev: flash, the letterbox opens, the camera pulls back and the driveway lights up
      6.3s  the V8 Motors badge comes up in the light
      7.2s  last rev: a shine runs across the badge, then it flies up into the menu bar */
 
@@ -57,7 +74,7 @@ runIntro().then(async () => {
 /** Where the headlights sit on screen (the photo is object-fit: cover). */
 function layoutScene() {
   const W = img.offsetWidth, H = img.offsetHeight, bx = img.offsetLeft, by = img.offsetTop;
-  const nw = img.naturalWidth || 2200, nh = img.naturalHeight || 1480;
+  const nw = img.naturalWidth || 2200, nh = img.naturalHeight || 1511;
   const k = Math.max(W / nw, H / nh);
   const w = nw * k, h = nh * k;
   const ox = bx + (W - w) * 0.5, oy = by + (H - h) * 0.6;
@@ -79,13 +96,80 @@ function waitForPhoto() {
   return Promise.race([Promise.all([decoded, document.fonts.ready]), new Promise((r) => setTimeout(r, 5000))]);
 }
 
-/** Fetch and decode the engine recording while the visitor looks at the start button. */
-function prepareSound() {
+/** Fetch and decode the engine recording while the visitor looks at the start button. It is read as a
+    stream, so the loader can show how much has arrived. */
+function prepareSound(onProgress = () => {}) {
   const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return null;
+  if (!AC) { onProgress(1); return null; }
   const ctx = new AC(); // starts suspended until the tap
-  const buffer = fetch(ENGINE).then((r) => r.arrayBuffer()).then((b) => new Promise((ok, bad) => ctx.decodeAudioData(b, ok, bad))).catch(() => null);
+  const buffer = fetch(ENGINE).then(async (r) => {
+    const total = +r.headers.get('content-length') || 0;
+    if (!r.body?.getReader || !total) { const b = await r.arrayBuffer(); onProgress(1); return b; }
+    const reader = r.body.getReader(), chunks = [];
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); got += value.length;
+      onProgress(Math.min(0.99, got / total));
+    }
+    const out = new Uint8Array(got);
+    let o = 0;
+    for (const c of chunks) { out.set(c, o); o += c.length; }
+    onProgress(1);
+    return out.buffer;
+  }).then((b) => new Promise((ok, bad) => ctx.decodeAudioData(b, ok, bad))).catch(() => { onProgress(1); return null; });
   return { ctx, buffer };
+}
+
+/* ------------------------------------------------------------------ the loader
+   While the scene loads, the start button's outer ring fills with real progress (the photo, the light
+   shapes, the fonts and the engine recording, which is streamed), the percentage counts up beside it,
+   and a few small line icons drift in the dark. When everything has arrived the ring closes with a
+   flash and the hint becomes "Press to start". You can press it, enter without sound or skip at any time. */
+
+function startLoader(gate) {
+  const bar = $('[data-load-bar]', gate), pct = $('[data-load-pct]', gate), text = $('[data-load-text]', gate);
+  const float = $('[data-float]', gate);
+  // weights: what you'd wait longest for weighs most
+  const parts = { photo: [0, 0.34], lights: [0, 0.1], glow: [0, 0.06], fonts: [0, 0.05], audio: [0, 0.45] };
+  let target = 0, shown = 0, raf = 0, ready = false;
+  const set = (k, v) => { parts[k][0] = Math.max(parts[k][0], Math.min(1, v)); target = Object.values(parts).reduce((a, [x, w]) => a + x * w, 0); };
+  const watch = (el, k) => {
+    if (!el || (el.complete && el.naturalWidth)) return set(k, 1);
+    el.addEventListener('load', () => set(k, 1), { once: true });
+    el.addEventListener('error', () => set(k, 1), { once: true });
+  };
+  watch(img, 'photo'); watch(lights, 'lights'); watch(glow, 'glow');
+  (document.fonts?.ready || Promise.resolve()).then(() => set('fonts', 1));
+
+  if (float && !reduced) {
+    float.innerHTML = FLOAT_SPOTS.map(([x, y], k) => `<svg viewBox="0 0 24 24" style="--x:${x}%;--y:${y}%;--d:${7 + (k % 4) * 1.6}s;--dl:${(k * 0.37).toFixed(2)}s;--r:${(k % 2 ? -1 : 1) * (6 + k)}deg">${FLOAT_ICONS[k % FLOAT_ICONS.length]}</svg>`).join('');
+  }
+
+  const finish = () => {
+    if (ready) return;
+    ready = true;
+    cancelAnimationFrame(raf);
+    bar.style.strokeDashoffset = '0';
+    pct.hidden = true;
+    gate.classList.add('is-ready');
+    if (!reduced) gsap.fromTo(text, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.6, ease: 'expo.out' });
+    text.textContent = 'Sound on. Press to start.';
+  };
+  const tick = () => {
+    shown += (target - shown) * (reduced ? 1 : 0.1);
+    if (target > 0.999 && shown > 0.995) shown = 1;
+    bar.style.strokeDashoffset = String(100 - shown * 100);
+    pct.textContent = `${Math.round(shown * 100)}%`;
+    if (shown >= 1) return finish();
+    raf = requestAnimationFrame(tick);
+  };
+  raf = requestAnimationFrame(tick);
+  // never keep anyone waiting on a slow connection: the start button always works, and after 12 s the
+  // loader steps aside anyway
+  setTimeout(finish, 12000);
+  return { audio: (v) => set('audio', v), stop: () => cancelAnimationFrame(raf) };
 }
 
 /** Loudness of the recording, 60 values a second, 0 (idle) to 1 (the biggest rev). */
@@ -121,7 +205,8 @@ async function runIntro() {
   const spill = $('[data-spill]'), haze = $('[data-haze]'), bloom = $('[data-bloom]');
   const gate = $('[data-gate]'), bars = $$('[data-bars] > span'), badge = $('[data-badge]');
   const controls = $('[data-intro-controls]');
-  const audio = prepareSound();
+  const loader = startLoader(gate);
+  const audio = prepareSound(loader.audio);
 
   let geo = layoutScene();
   img.addEventListener('load', () => (geo = layoutScene()), { once: true });
@@ -137,6 +222,7 @@ async function runIntro() {
   gsap.from(bars, { scaleY: 0, duration: 1.2, ease: 'expo.out' });
 
   const choice = await waitForChoice(gate);
+  loader.stop();
   // resume audio inside the tap itself (iOS and Safari require it)
   if (choice === 'sound' && audio) audio.ctx.resume();
   await gsap.to(gate, { opacity: 0, scale: 0.96, duration: 0.3, ease: 'power2.in' });
@@ -336,6 +422,50 @@ function heroIn() {
   gsap.timeline({ defaults: { ease: 'expo.out' } })
     .from($$('[data-hero-title] .line > span'), { yPercent: 120, skewY: 8, transformOrigin: '0% 100%', duration: 1.15, stagger: 0.09 })
     .from('[data-hero-fade]', { opacity: 0, y: 32, duration: 1, stagger: 0.1, clearProps: 'opacity,transform' }, 0.3);
+}
+
+/* ================================================================== the rotating word
+   "Drive smarter." The accent word rolls over every few seconds, like the drum of an old odometer.
+   It only runs while the headline is on screen and the tab is visible. */
+function startRotor() {
+  const el = $('[data-rotor]');
+  if (!el || reduced) return;
+  const words = ['smarter.', 'in style.', 'away today.', 'home happy.'];
+  let k = 0, timer = 0, visible = true;
+  const swap = () => {
+    k = (k + 1) % words.length;
+    gsap.timeline()
+      .to(el, { yPercent: -110, opacity: 0, duration: 0.45, ease: 'power3.in' })
+      .add(() => { el.textContent = words[k]; })
+      .fromTo(el, { yPercent: 110, opacity: 0 }, { yPercent: 0, opacity: 1, duration: 0.85, ease: 'expo.out' });
+  };
+  const run = () => { clearInterval(timer); if (visible && !document.hidden) timer = setInterval(swap, 3000); };
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; run(); }).observe(el);
+  document.addEventListener('visibilitychange', run);
+}
+
+/* ================================================================== Saturday countdown
+   Counts down to the next Saturday opening, or, while the deals are on, to closing time. Ticks every
+   second, but only while it's on screen. */
+function startCountdown() {
+  const box = $('[data-countdown]');
+  if (!box) return;
+  const label = $('[data-cd-label]', box), unit = (k) => $(`[data-cd="${k}"]`, box);
+  const pad = (n) => String(n).padStart(2, '0');
+  let timer = 0;
+  const tick = () => {
+    const { on, ms } = saturdayDeals();
+    const s = Math.max(0, Math.floor(ms / 1000)), d = Math.floor(s / 86400);
+    box.classList.toggle('is-on', on);
+    box.classList.toggle('no-days', d === 0);
+    label.textContent = on ? 'Saturday deals are on now. They end in' : 'The next Saturday deals start in';
+    unit('d').textContent = d;
+    unit('h').textContent = pad(Math.floor((s % 86400) / 3600));
+    unit('m').textContent = pad(Math.floor((s % 3600) / 60));
+    unit('s').textContent = pad(s % 60);
+  };
+  tick();
+  new IntersectionObserver(([e]) => { clearInterval(timer); if (e.isIntersecting) { tick(); timer = setInterval(tick, 1000); } }).observe(box);
 }
 
 /* ================================================================== search */
