@@ -68,48 +68,100 @@ function privacyNotice() {
   });
 }
 
-/* ------------------------------------------------------------------ page changes
-   Native cross-page transitions (Chrome, Edge, Samsung Internet, Safari 18.2+): the old page fades up and
-   away, the new one rises in, the menu bar stays put, its underline and the dock's pill glide to the new
-   page, and a car's photo flies from its card into the car page. Links are prerendered when a finger
-   lands on them (speculation rules in <head>), so most pages arrive instantly. Browsers without the
-   transitions get a short fade in instead. */
 const html = document.documentElement;
-/** Kept for the home page, which used to wait for the page-change curtain: there is nothing to wait for now. */
-export const curtainOpen = Promise.resolve();
-export const viaCurtain = false;
+/* ------------------------------------------------------------------ page transitions: curtains
+   Leaving: three layers per side (amber edge, panel, ink) sweep in and meet in the middle,
+   showing the logo and where you're going. The next page paints with the curtain already
+   closed (a class set in <head> before first paint), then the layers open outwards. */
+export const viaCurtain = html.classList.contains('curtain-in');
+const ROUTES = {
+  'index.html': 'Home', 'inventory.html': 'Cars for sale', 'sell.html': 'Sell or exchange', 'finance.html': 'Leasing',
+  'contact.html': 'Visit us', 'compare.html': 'Compare', 'privacy.html': 'Privacy policy', 'terms.html': 'Terms of sale',
+};
+const fileOf = (url) => new URL(url, location.href).pathname.split('/').pop() || 'index.html';
 
-function clearHeroNames() {
-  $$('[style*="car-hero"]').forEach((n) => { n.style.viewTransitionName = ''; });
-}
-function initTransitions() {
-  // the clicked card's photo becomes the car page's gallery photo
-  document.addEventListener('click', (e) => {
-    const a = e.target.closest?.('a[href*="cars/"]');
-    if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey) return;
-    const img = a.closest('.car, .swap-box, .deck-card, .mini')?.querySelector('img');
-    clearHeroNames();
-    if (img) img.style.viewTransitionName = 'car-hero';
-  }, true);
-  // coming back with the back button restores this page from cache: clear the name for next time
-  addEventListener('pageshow', clearHeroNames);
+let resolveOpen;
+/** Resolves once the arrival curtain has opened (immediately if there wasn't one). */
+export const curtainOpen = new Promise((r) => (resolveOpen = r));
 
-  // browsers without native transitions or speculation rules: warm the next page when a link is touched
-  if ('PageRevealEvent' in window || reduced || HTMLScriptElement.supports?.('speculationrules')) return;
+function initCurtain() {
+  const c = $('[data-curtain]');
+  const label = $('[data-curtain-label]');
+  if (!c) { resolveOpen(); return; }
+  const L = $$('.curtain-side--l .cl', c), R = $$('.curtain-side--r .cl', c);
+  const mid = $('.curtain-mid', c);
+
+  // arriving: open
+  if (viaCurtain) {
+    label.textContent = sessionStorage.getItem('v8:curtain') || '';
+    sessionStorage.removeItem('v8:curtain');
+    gsap.timeline({ onComplete: () => { html.classList.remove('curtain-in'); gsap.set([...L, ...R, mid], { clearProps: 'all' }); resolveOpen(); } })
+      .to(mid, { opacity: 0, y: -14, duration: 0.25, ease: 'power2.in' }, 0.05)
+      .to([...L].reverse(), { xPercent: -101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15)
+      .to([...R].reverse(), { xPercent: 101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15);
+    setTimeout(resolveOpen, 550); // let the page start its own entrance while the curtain is still opening
+  } else {
+    sessionStorage.removeItem('v8:curtain');
+    resolveOpen();
+  }
+  if (reduced) return;
+
+  // warm up the next page as soon as a link is hovered or touched
   const warmed = new Set();
   const warm = (e) => {
     const a = e.target.closest?.('a[href]');
-    if (!a || a.target === '_blank' || !/(\.html|\/)(\?.*)?$/.test(a.href) || new URL(a.href).origin !== location.origin) return;
-    const href = a.href.split('#')[0];
+    if (!a || !isInternal(a, e)) return;
+    const href = new URL(a.href, location.href).href.split('#')[0];
     if (warmed.has(href)) return;
     warmed.add(href);
-    document.head.appendChild(Object.assign(document.createElement('link'), { rel: 'prefetch', href }));
+    const l = document.createElement('link');
+    l.rel = 'prefetch'; l.href = href;
+    document.head.appendChild(l);
   };
   addEventListener('pointerover', warm, { passive: true });
   addEventListener('touchstart', warm, { passive: true });
+
+  // leaving: close, then go
+  let leaving = false;
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href]');
+    if (!a || leaving || !isInternal(a, e)) return;
+    e.preventDefault();
+    leaving = true;
+    const url = new URL(a.href, location.href);
+    const file = fileOf(url);
+    const name = url.pathname.includes('/cars/')
+      ? (a.closest('.car')?.querySelector('.car-title')?.textContent || a.textContent || '').trim()
+      : ROUTES[file] || 'V8 Motors';
+    label.textContent = name;
+    c.classList.add('is-active');
+    gsap.timeline({ onComplete: () => { sessionStorage.setItem('v8:curtain', name); location.assign(url.href); } })
+      .fromTo(L, { xPercent: -101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
+      .fromTo(R, { xPercent: 101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
+      .fromTo(mid, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 0.5)
+      .to({}, { duration: 0.08 });
+  });
+  // coming back via the back button restores the old page from cache: make sure it's open
+  addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    leaving = false;
+    c.classList.remove('is-active');
+    html.classList.remove('curtain-in');
+    gsap.set([...L, ...R, mid], { clearProps: 'all' });
+  });
 }
 
-/** Kept for card links; transitions handle this now. */
+function isInternal(a, e) {
+  if (e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
+  if (a.target === '_blank' || a.hasAttribute('download')) return false;
+  const url = new URL(a.href, location.href);
+  if (url.origin !== location.origin) return false;
+  if (!/(\.html|\/)$/.test(url.pathname)) return false;
+  if (url.pathname === location.pathname && url.search === location.search) return false; // same page or #hash
+  return true;
+}
+
+/** Kept for card links; the curtain handles the transition. */
 export function nameForTransition() {}
 
 /* ------------------------------------------------------------------ menu bar underline, dock pill
@@ -151,6 +203,14 @@ function initDock() {
   requestAnimationFrame(() => bar.classList.add('is-ready'));
   addEventListener('resize', place, { passive: true });
   document.fonts?.ready.then(place);
+  // tapping a tab: the pill glides to it straight away, while the curtain closes over the page
+  bar.addEventListener('click', (e) => {
+    const t = e.target.closest('a.tab[href]');
+    if (!t || t.classList.contains('tab--call') || t.hasAttribute('aria-current')) return;
+    $$('.tab[aria-current]', bar).forEach((x) => x.removeAttribute('aria-current'));
+    t.setAttribute('aria-current', 'page');
+    place();
+  });
   // a tiny haptic tick under the thumb (Android)
   bar.addEventListener('pointerdown', (e) => { if (e.target.closest('.tab') && e.pointerType === 'touch') navigator.vibrate?.(6); }, { passive: true });
 }
@@ -314,7 +374,7 @@ export const phoneOk = (v) => v.replace(/\D/g, '').length >= 7;
 /* ------------------------------------------------------------------ boot */
 export function initLayout({ home = false } = {}) {
   if ('scrollRestoration' in history) history.scrollRestoration = home ? 'manual' : 'auto';
-  initTransitions();
+  initCurtain();
   photosArrive();
   initNavInk();
   initDock();

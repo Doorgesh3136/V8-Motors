@@ -1,66 +1,91 @@
 /**
- * The page background: a smooth petrol-blue gradient that slowly flows on its own, drawn by a tiny WebGL
- * shader. No texture, no particles: just soft fields of colour drifting past each other, and every few
- * seconds a broad sweep of light gliding across, like light running over a car's paint in a showroom.
- * Nothing in it reacts to touch, the mouse, tilt or scrolling.
- *
- * - It is dithered, so the gradient never shows bands, even on cheap phone screens.
- * - It renders at a fifth of the screen's resolution (a soft gradient upscales invisibly), at 30 fps on
- *   touch devices, and pauses while the tab is hidden or the intro covers the screen.
- * - The first frame is drawn straight away and faded in once the page has finished loading, over the
- *   matching CSS gradient underneath, so the background never pops. Without WebGL that CSS gradient
- *   is what you see; with reduced motion, one still frame.
+ * The page background, drawn by a tiny WebGL shader that animates entirely on its own (nothing in it reacts
+ * to touch, the mouse, tilt or scrolling), under a fine carbon-fibre texture:
+ * - a petrol-blue gradient that flows slowly, with thin cyan seams of light and a warm red glow low down;
+ * - headlight (cyan) and tail-light (red) trails streaming across, like a long exposure of a road at night;
+ * - soft out-of-focus lights drifting upwards;
+ * - every few seconds a broad sweep of light gliding diagonally across, like light over a car's paint.
+ * It renders at a fifth of the screen's resolution, 30 fps on phones, pauses while hidden or under the
+ * intro, draws its first frame straight away and fades in once the page has loaded.
  */
 const VERT = `attribute vec2 p; void main() { gl_Position = vec4(p, 0.0, 1.0); }`;
 const FRAG = `
-#ifdef GL_FRAGMENT_PRECISION_HIGH
-precision highp float;
-#else
 precision mediump float;
-#endif
-uniform vec2 r;   // canvas size
-uniform float t;  // seconds
+uniform vec2 r;        // canvas size
+uniform float t;       // time, seconds
 
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n(vec2 p) {
   vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y);
 }
-// a soft round field of colour
-float field(vec2 q, vec2 c, float rad) { vec2 d = q - c; return exp(-dot(d, d) / (rad * rad)); }
-
+float fbm(vec2 p) {
+  float v = 0.0, a = 0.5;
+  for (int i = 0; i < 4; i++) { v += a * n(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; }
+  return v;
+}
 void main() {
   vec2 uv = gl_FragCoord.xy / r;
   float asp = r.x / r.y;
   vec2 q = vec2(uv.x * asp, uv.y);
-  // a very gentle, slow warp keeps the fields organic without any visible texture
-  q += 0.06 * vec2(n(q * 1.3 + t * 0.05) - 0.5, n(q * 1.3 + 7.3 - t * 0.04) - 0.5);
+  float f0 = t * 1.5; // flow clock
+  vec2 w = vec2(fbm(q * 1.15 + vec2(0.0, f0 * 0.07)), fbm(q * 1.15 + vec2(5.2, 1.3) - f0 * 0.06));
+  float f = fbm(q * 1.5 + w * 1.9 + vec2(f0 * 0.03, -f0 * 0.02));
+  float g = fbm(q * 0.8 - w * 1.2 + f0 * 0.02);
 
-  vec3 top    = vec3(0.157, 0.329, 0.447);   // #285472
-  vec3 bottom = vec3(0.098, 0.227, 0.322);   // #193a52
-  vec3 col = mix(bottom, top, smoothstep(0.0, 1.0, uv.y));
+  vec3 deep  = vec3(0.071, 0.188, 0.290);  // #12304a
+  vec3 ink   = vec3(0.184, 0.353, 0.471);  // #2f5a78
+  vec3 light = vec3(0.247, 0.455, 0.588);  // #3f7496
+  vec3 cyan  = vec3(0.624, 0.890, 0.961);  // logo cyan
+  vec3 red   = vec3(0.878, 0.149, 0.184);  // logo red
+  vec3 white = vec3(0.86, 0.95, 1.0);
+  vec3 col = mix(deep, ink, smoothstep(0.22, 0.52, f));
+  col = mix(col, light, smoothstep(0.55, 0.8, f) * 0.85);
+  // thin bright seams where the flow folds, like light running over paint
+  col += cyan * pow(smoothstep(0.42, 0.85, w.x * f * 1.6), 3.0) * 0.3;
+  // a warm tail-lamp glow drifting low on the page
+  col = mix(col, red, smoothstep(0.58, 0.9, g) * (1.0 - smoothstep(0.0, 0.8, uv.y)) * 0.26);
 
-  // drifting fields: a lit petrol bloom, a cool cyan haze, a deep navy pool and a faint warm tail-lamp glow
-  vec2 c1 = vec2(asp * (0.30 + 0.12 * sin(t * 0.050)), 0.72 + 0.10 * cos(t * 0.043));
-  vec2 c2 = vec2(asp * (0.78 + 0.10 * cos(t * 0.037)), 0.58 + 0.14 * sin(t * 0.061));
-  vec2 c3 = vec2(asp * (0.62 + 0.16 * sin(t * 0.029 + 1.7)), 0.12 + 0.08 * cos(t * 0.047));
-  vec2 c4 = vec2(asp * (0.12 + 0.08 * cos(t * 0.041 + 0.6)), 0.10 + 0.06 * sin(t * 0.053));
-  col = mix(col, vec3(0.243, 0.459, 0.604), field(q, c1, 0.55 * max(asp, 1.0)) * 0.75);  // #3e759a
-  col = mix(col, vec3(0.306, 0.588, 0.706), field(q, c2, 0.42 * max(asp, 1.0)) * 0.38);  // #4e96b4
-  col = mix(col, vec3(0.063, 0.161, 0.239), field(q, c3, 0.60 * max(asp, 1.0)) * 0.55);  // #10293d
-  col = mix(col, vec3(0.545, 0.180, 0.220), field(q, c4, 0.38 * max(asp, 1.0)) * 0.16);  // a hint of the logo red
+  // light trails: headlamps streaming one way, tail-lamps the other, like a long exposure of a road at night
+  for (int i = 0; i < 5; i++) {
+    float fi = float(i);
+    float dir = mod(fi, 2.0) < 0.5 ? 1.0 : -1.0;
+    float y = 0.12 + fi * 0.19 + 0.05 * sin(q.x * 1.3 + fi * 1.7 + f0 * 0.12) + (q.x - asp * 0.5) * 0.08 * (fi - 2.0);
+    float d = q.y - y;
+    float s = q.x * 0.85 - dir * f0 * (0.16 + 0.1 * h(vec2(fi, 3.0))) + h(vec2(fi, 9.0)) * 10.0;
+    float seg = floor(s), p = fract(s);
+    float car = step(0.4, h(vec2(seg, fi)));           // some stretches of road are empty
+    float pp = dir > 0.0 ? p : 1.0 - p;               // head at the leading end
+    float trail = pow(pp, 1.7) * (1.0 - smoothstep(0.95, 1.0, pp)) * car;
+    float core = exp(-d * d * 1800.0), halo = exp(-d * d * 160.0);
+    vec3 lamp = dir > 0.0 ? mix(cyan, white, 0.5) : red * 1.1;
+    col += lamp * trail * (core * 0.34 + halo * 0.07);
+    col += lamp * halo * 0.025;                         // the lane's faint glow, even between cars
+  }
+  // soft out-of-focus lights drifting upwards, two layers for depth
+  for (int k = 0; k < 2; k++) {
+    float fk = float(k);
+    float sz = 2.6 + fk * 2.2;
+    vec2 bq = q * sz + vec2(f0 * (0.03 + fk * 0.02), -f0 * (0.06 + fk * 0.05)) + fk * 17.0;
+    vec2 cell = floor(bq), fr = fract(bq) - 0.5;
+    float rn = h(cell + fk * 31.0);
+    vec2 off = (vec2(h(cell + 1.3), h(cell + 7.1)) - 0.5) * 0.5;
+    float rad = 0.13 + 0.14 * h(cell + 4.2);
+    float b = (1.0 - smoothstep(rad * 0.55, rad, length(fr - off))) * step(0.62, rn);
+    float tw = 0.55 + 0.45 * sin(f0 * 0.9 + rn * 40.0);
+    col += mix(cyan, white, rn) * b * tw * (0.09 - fk * 0.03);
+  }
 
-  // the showroom sweep: every 8 seconds a broad, soft band of light glides diagonally across
-  float ph = mod(t, 8.0) / 2.6;
-  float pos = mix(-0.7, asp + 1.2, ph);
-  float dx = (q.x + (q.y - 0.5) * 0.6) - pos;
-  float sweep = (1.0 - step(1.0, ph)) * exp(-dx * dx * 5.0);
-  col += vec3(0.62, 0.82, 0.92) * sweep * 0.085;
+  // the sweep: every 7 seconds a broad band of light glides diagonally across, with a fine bright edge
+  float ph = mod(t, 7.0) / 2.2;                        // 2.2 s to cross, then a pause
+  float pos = mix(-0.6, asp + 1.1, ph);
+  float dx = (q.x + (q.y - 0.5) * 0.55) - pos;
+  float on = 1.0 - step(1.0, ph);
+  col += mix(cyan, white, 0.6) * on * (exp(-dx * dx * 6.0) * 0.13 + exp(-dx * dx * 220.0) * 0.14);
 
-  // a soft vignette, then dither so the gradient never bands
-  col *= 1.0 - 0.16 * pow(length(uv - vec2(0.5, 0.55)), 1.6);
-  col += (h(gl_FragCoord.xy + fract(t) * 61.0) - 0.5) / 255.0;
-  gl_FragColor = vec4(col, 1.0);
+  // gentle vignette keeps the edges deep
+  col *= 1.0 - 0.18 * length(uv - 0.5);
+  gl_FragColor = vec4(col + (h(gl_FragCoord.xy + t) - 0.5) / 255.0, 1.0);
 }`;
 
 export function initBackground() {

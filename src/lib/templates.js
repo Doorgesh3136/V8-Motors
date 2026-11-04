@@ -107,8 +107,15 @@ export const NAV_PAGES = [
   { key: 'contact', href: 'contact.html', label: 'Visit us' },
 ];
 
+/** Page-change curtain: three layers per side sweep in, meet in the middle, then open on the next page. */
+export function curtainHTML(P = '') {
+  const side = (k) => `<div class="curtain-side curtain-side--${k}"><span class="cl cl-1"></span><span class="cl cl-2"></span><span class="cl cl-3"></span></div>`;
+  return `<div class="curtain" data-curtain aria-hidden="true">${side('l')}${side('r')}
+    <div class="curtain-mid">${markSVG('mark curtain-mark', P)}<span class="curtain-label" data-curtain-label></span></div></div>`;
+}
+
 export function navHTML(page, P = '') {
-  return `<header class="nav" data-nav>
+  return `${curtainHTML(P)}<header class="nav" data-nav>
     <a href="${P}./" class="wordmark" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark', P)}<span>V8 Motors</span></a>
     <nav aria-label="Main" class="nav-links" data-nav-links>
       ${NAV_PAGES.map((p) => `<a href="${P}${p.href}"${p.key === page ? ' aria-current="page"' : ''}>${p.label}</a>`).join('')}
@@ -215,10 +222,10 @@ export function footerHTML(P = '') {
 export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   const url = SITE + path;
   const img = image || `${SITE}og.jpg`;
-  return `<script>(function(d){try{if(!('PageRevealEvent' in window))d.classList.add('no-vt');
+  return `<script>(function(d){try{if(sessionStorage.getItem('v8:curtain')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('curtain-in');
     /* if the page script never runs (offline, blocked), don't leave the intro or hidden content in the way */
     setTimeout(function(){if(!window.__v8){d.classList.remove('play-intro','js');}},9000);}catch(e){}})(document.documentElement)</script>
-  <script type="speculationrules">{"prerender":[{"where":{"and":[{"selector_matches":"a[href]"},{"not":{"selector_matches":"[rel~=noopener],[href^='tel:'],[href^='mailto:'],[href*='://']"}}]},"eagerness":"conservative"}],"prefetch":[{"where":{"and":[{"selector_matches":"a[href]"},{"not":{"selector_matches":"[rel~=noopener],[href^='tel:'],[href^='mailto:'],[href*='://']"}}]},"eagerness":"moderate"}]}</script>
+  <script type="speculationrules">{"prefetch":[{"where":{"and":[{"selector_matches":"a[href]"},{"not":{"selector_matches":"[rel~=noopener],[href^='tel:'],[href^='mailto:'],[href*='://']"}}]},"eagerness":"moderate"}]}</script>
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(desc)}" />
   <link rel="canonical" href="${url}" />
@@ -337,8 +344,8 @@ export function carPageHTML(c, P = '../') {
           <button type="button" class="gal-arrow gal-next" data-gal-next aria-label="Next photo">${ICON.arrowR}</button>` : ''}
           <button type="button" class="gal-expand" data-gal-open aria-label="Open photos full screen">${ICON.expand}<span class="tabular-nums" data-gal-count>1 / ${n}</span></button>
         </div>
-        ${n > 1 ? `<div class="gallery-thumbs">${c.thumbs.map((src, i) =>
-          `<button type="button" data-gal-thumb="${i}" aria-current="${i === 0}" aria-label="Show photo ${i + 1}"><img src="${P}${src}" width="480" height="317" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+        ${n > 1 ? `<div class="gallery-thumbs" style="--n:${Math.min(n, 6)}">${c.thumbs.slice(0, 6).map((src, i) =>
+          `<button type="button" data-gal-thumb="${i}" aria-current="${i === 0}" aria-label="Show photo ${i + 1}"><img src="${P}${src}" width="480" height="317" alt="" loading="lazy">${i === 5 && n > 6 ? `<span class="gal-more" data-gal-open aria-label="Show all ${n} photos">+${n - 5}</span>` : ''}</button>`).join('')}</div>` : ''}
       </div>
 
       <aside class="summary" data-summary>

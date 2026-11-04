@@ -84,6 +84,8 @@
   .bg-canvas { position: fixed; left: 0; right: 0; top: 0; z-index: -1; width: 100%; height: 100vh; height: 100lvh; pointer-events: none;
     opacity: 0; transition: opacity 1.6s cubic-bezier(.4, 0, .2, 1); }
   .bg-canvas.is-on { opacity: 1; }
+  /* carbon-fibre and grain texture over the background */
+  body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background: url("/bg/texture.png") 0 0 / 192px 192px repeat; }
   html.lenis, html.lenis body { height: auto; }
   body {
     background: transparent; color: var(--bone); font-family: var(--font-sans); font-size: 1rem; line-height: 1.55;
@@ -579,9 +581,14 @@
   :is(.gal-arrow, .gal-expand, .lb-arrow, .lb-close, .rail-arrows button) svg { width: 1.2rem; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .gal-expand { right: var(--s4); bottom: var(--s4); height: var(--tap); padding-inline: var(--s4); grid-auto-flow: column; gap: var(--s2); font-weight: 700; font-size: .8125rem; }
   /* thumbnails share the width and wrap to a second row if needed: they can never push the page wider than the screen */
-  .gallery-thumbs { margin-top: var(--s3); display: grid; grid-template-columns: repeat(auto-fill, minmax(min(4.5rem, 30%), 7rem)); gap: var(--s2); }
+  /* one even row of thumbnails that always fills the width exactly (six at most; a "+3" tile opens the rest) */
+  .gallery-thumbs { margin-top: var(--s3); display: grid; grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr)); gap: clamp(3px, 1vw, var(--s2)); }
+  .gallery-thumbs button { position: relative; aspect-ratio: auto; height: clamp(46px, 11vw, 4.75rem); transition: opacity .25s, transform .35s var(--spring); }
+  .gallery-thumbs button:active { transform: scale(.94); }
+  .gal-more { position: absolute; inset: 0; display: grid; place-items: center; background: rgb(10 26 38 / .62); color: #fff; font-weight: 800; font-size: 1rem; }
   .gallery-thumbs button { width: 100%; min-width: 0; aspect-ratio: 16/10; border-radius: var(--r-sm); overflow: hidden; opacity: .5; transition: opacity .2s; }
-  .gallery-thumbs button[aria-current="true"] { opacity: 1; outline: 2px solid var(--accent); outline-offset: 2px; }
+  .gallery-thumbs button[aria-current="true"] { opacity: 1; outline: 2px solid var(--accent); outline-offset: -2px; }
+  .gallery-thumbs button[aria-current="true"] img { opacity: .92; }
   .gallery-thumbs img { width: 100%; height: 100%; object-fit: cover; }
   .summary { position: sticky; top: calc(var(--nav-h) + var(--s4)); display: grid; gap: var(--s4); padding: clamp(1.25rem, 2.5vw, 2rem); border-radius: var(--r-lg); background: var(--panel); }
   .summary-kicker { color: var(--accent); font-weight: 650; font-size: .9375rem; }
@@ -1175,23 +1182,29 @@
   @media (max-width: 559px) { .footer-ways .btn { flex: 1 1 100%; } }
 }
 
-/* ---------------------------------------------------------------- page changes */
-@view-transition { navigation: auto; }
-::view-transition-old(root) { animation: vt-out .26s cubic-bezier(.4, 0, 1, 1) both; }
-::view-transition-new(root) { animation: vt-in .55s cubic-bezier(.16, 1, .3, 1) .04s both; }
-@keyframes vt-out { to { opacity: 0; transform: translateY(-14px) scale(.992); } }
-@keyframes vt-in { from { opacity: 0; transform: translateY(22px); } }
-::view-transition-group(site-nav), ::view-transition-group(tabbar) { z-index: 20; animation: none; }
-::view-transition-old(site-nav), ::view-transition-old(tabbar) { animation: none; opacity: 0; }
-::view-transition-new(site-nav), ::view-transition-new(tabbar) { animation: none; }
-::view-transition-group(nav-ink), ::view-transition-group(tab-pill) { z-index: 30; animation-duration: .5s; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
-::view-transition-group(car-hero) { z-index: 10; animation-duration: .6s; animation-timing-function: cubic-bezier(.16, 1, .3, 1); }
-::view-transition-old(car-hero), ::view-transition-new(car-hero) { animation-duration: .6s; height: 100%; object-fit: cover; overflow: clip; border-radius: 16px; }
-/* browsers without cross-page transitions: the page simply rises in */
-html.no-vt main { animation: vt-in .6s cubic-bezier(.16, 1, .3, 1) both; }
+/* ---------------------------------------------------------------- page changes: the curtain (src/lib/layout.js) */
+@layer components {
+  /* Page-change curtain: hidden when idle; the script slides the layers in (leaving) and out (arriving). */
+  .curtain { position: fixed; inset: 0; z-index: 600; visibility: hidden; pointer-events: none; }
+  .curtain.is-active, html.curtain-in .curtain { visibility: visible; pointer-events: auto; }
+  .curtain-side { position: absolute; top: 0; bottom: 0; width: 50.2%; overflow: hidden; }
+  .curtain-side--l { left: 0; }
+  .curtain-side--r { right: 0; }
+  .cl { position: absolute; inset: 0; }
+  .curtain.is-active .cl, html.curtain-in .cl { will-change: transform; }
+  /* layer 1 leads with the ice-blue edge, layer 2 is a lighter panel, layer 3 is the ink that settles on top */
+  .cl-1 { background: var(--red); }
+  .cl-2 { background: var(--panel-2); }
+  .cl-3 { background: var(--ink-2); }
+  .curtain-side--l .cl-3 { box-shadow: inset -1px 0 0 var(--line); }
+  .curtain-mid { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--s4); opacity: 0; text-align: center; padding: var(--s5); }
+  html.curtain-in .curtain-mid { opacity: 1; }
+  .curtain-mark { width: 3.5rem; }
+  .curtain-label { font-weight: 850; font-size: clamp(1.75rem, 5vw, 3.25rem); line-height: 1; letter-spacing: -.025em; font-variation-settings: "wdth" 120; max-width: 18ch; }
+  .curtain-side--l .cl-2 { box-shadow: inset -2px 0 0 var(--chrome); }
+  .curtain-side--r .cl-2 { box-shadow: inset 2px 0 0 var(--chrome); }
+}
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
-  html.no-vt main { animation: none; }
   .sheet, .sheet-scrim, .nav-ink.is-ready, .tabbar.is-ready .tab-pill { transition: none; }
 }
 

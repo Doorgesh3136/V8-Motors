@@ -58,7 +58,7 @@ function setupGallery() {
     if (Math.abs(dx) > 50 && n > 1) show(i + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
     else if (Math.abs(dx) < 8) openLb();
   });
-  $('[data-gal-open]').addEventListener('click', openLb);
+  $$('[data-gal-open]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openLb(); }));
   $('[data-lb-close]').addEventListener('click', () => lb.close());
   $('[data-lb-prev]')?.addEventListener('click', () => show(i - 1, -1));
   $('[data-lb-next]')?.addEventListener('click', () => show(i + 1, 1));
