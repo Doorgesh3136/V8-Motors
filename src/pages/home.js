@@ -5,7 +5,10 @@ import { wireCardActions } from '../lib/card.js';
 import { renderStatus, saturdayDeals } from '../lib/hours.js';
 import { initDeck } from '../lib/deck.js';
 import { initChapters } from '../lib/chapters.js';
-import { CARS, byId, rs, monthly, thumb, carName } from '../data.js';
+import { initDial } from '../lib/dial.js';
+import { initRevs } from '../lib/revs.js';
+import { odo } from '../lib/odo.js';
+import { byId, rs, monthly, thumb, carName } from '../data.js';
 
 const LAMPS = [[0.33, 0.5153], [0.6675, 0.511]]; // headlight centres as fractions of the photo (white Range Rover, Unsplash wrRhFFTySnc)
 const ENGINE = new URL('intro/engine.mp3', document.baseURI).href;
@@ -33,7 +36,9 @@ const { lenis } = initLayout({ home: true });
 wireCardActions();
 renderStatus($('[data-open-status]'));
 initDeck();
+initDial(undefined, { onRev: initRevs() });
 startCountdown();
+initRail();
 
 const playIntro = document.documentElement.classList.contains('play-intro');
 if (playIntro) {
@@ -50,7 +55,7 @@ runIntro().then(async () => {
   lenis?.start();
   if (!heroStarted) { await curtainOpen; heroIn(); }
   flashLights();
-  setupSearch();
+  heroScrub();
   setupSwap();
   initChapters();
   setTimeout(startRotor, reduced ? 0 : 2600);
@@ -244,6 +249,7 @@ async function runIntro() {
   const [buffer] = await Promise.all([audio ? audio.buffer : null, waitForPhoto()]);
   const env = envelope(buffer);
   const withSound = choice === 'sound' && buffer;
+  if (withSound) dispatchEvent(new Event('v8:sound-on'));
   if (!withSound) audio?.ctx.close();
   geo = layoutScene();
 
@@ -459,30 +465,59 @@ function startCountdown() {
     box.classList.toggle('is-on', on);
     box.classList.toggle('no-days', d === 0);
     label.textContent = on ? 'Saturday deals are on now. They end in' : 'The next Saturday deals start in';
-    unit('d').textContent = d;
-    unit('h').textContent = pad(Math.floor((s % 86400) / 3600));
-    unit('m').textContent = pad(Math.floor((s % 3600) / 60));
-    unit('s').textContent = pad(s % 60);
+    const put = reduced ? (el, v) => { el.textContent = v; } : odo;
+    put(unit('d'), d);
+    put(unit('h'), pad(Math.floor((s % 86400) / 3600)));
+    put(unit('m'), pad(Math.floor((s % 3600) / 60)));
+    put(unit('s'), pad(s % 60));
   };
   tick();
   new IntersectionObserver(([e]) => { clearInterval(timer); if (e.isIntersecting) { tick(); timer = setInterval(tick, 1000); } }).observe(box);
 }
 
-/* ================================================================== search */
-function setupSearch() {
-  const f = $('[data-search]');
-  const out = $('[data-search-count]');
-  const count = () => {
-    const make = f.make.value, body = f.body.value, max = +f.max.value || Infinity;
-    const n = CARS.filter((c) => (!make || c.make === make) && (!body || c.body === body) && c.price <= max).length;
-    out.textContent = n;
-    f.querySelector('button').disabled = n === 0;
+/* ================================================================== driving through the headlights
+   The hero holds still for a moment as you start to scroll: the headline lifts away, the camera pushes in on the
+   Range Rover, its lights come on and flare, and the screen washes into the page. Scrubbed, so your thumb is
+   driving. Transform and opacity only. Short landscape screens skip it (there's no room to hold still). */
+function heroScrub() {
+  const pin = $('[data-hero-pin]');
+  if (reduced || !pin || innerHeight < 560) return;
+  layoutScene();
+  const portrait = innerHeight > innerWidth;
+  // on a tall screen the car also comes down towards the thumb. The camera zooms about the headlights, so moving
+  // down by exactly as much as the zoom lifts the photo's top edge keeps that edge at the top of the screen
+  const end = portrait ? 2 : 2.1;
+  const drop = portrait ? parseFloat(getComputedStyle(media).transformOrigin.split(' ')[1]) * (end - 1) : 0;
+  gsap.set([lights, glow], { clearProps: 'clipPath' });
+  gsap.set('[data-bloom]', { opacity: 0, scale: 1 });
+  gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: pin, start: 'top top', end: 'bottom bottom', scrub: true, invalidateOnRefresh: false } })
+    .to('.hero-inner', { y: portrait ? -40 : -80, opacity: 0, duration: 0.34, ease: 'power1.in' }, 0)
+    .to(media, { scale: end, y: drop, duration: 1, ease: 'power1.in' }, 0)
+    .to('.hero-shade', { opacity: 0, duration: 0.2 }, 0.5)
+    .to(lights, { opacity: 1, duration: 0.24, ease: 'power1.out' }, 0.14)
+    .to(glow, { opacity: 1, duration: 0.24, ease: 'power1.out' }, 0.2)
+    .fromTo(flare, { opacity: 0, scaleX: 0.3 }, { opacity: 1, scaleX: 1.7, duration: 0.3 }, 0.34)
+    .to('[data-bloom]', { opacity: 1, scale: 2.6, duration: 0.36, ease: 'power2.in' }, 0.42)
+    .to('.hero-flash', { opacity: 1, duration: 0.2, ease: 'power2.in' }, 0.66)
+    .to('.hero', { opacity: 0, duration: 0.18, ease: 'power1.inOut' }, 0.82);
+}
+
+/* ================================================================== the Just in rail: a bar, and arrows with a mouse */
+function initRail() {
+  const rail = $('[data-rail]'), bar = $('[data-rail-bar]');
+  if (!rail) return;
+  const update = () => {
+    const max = rail.scrollWidth - rail.clientWidth;
+    const w = rail.clientWidth / rail.scrollWidth;
+    bar.style.width = `${w * 100}%`;
+    bar.style.transform = `translateX(${max > 0 ? (rail.scrollLeft / max) * ((1 / w) - 1) * 100 : 0}%)`;
   };
-  f.addEventListener('change', count);
-  // keep the URL tidy: empty fields are left out
-  f.addEventListener('submit', () => $$('select', f).forEach((s) => { s.disabled = !s.value; }));
-  addEventListener('pageshow', () => $$('select', f).forEach((s) => (s.disabled = false)));
-  count();
+  rail.addEventListener('scroll', () => requestAnimationFrame(update), { passive: true });
+  addEventListener('resize', update, { passive: true });
+  update();
+  const go = (d) => rail.scrollBy({ left: d * (rail.firstElementChild.offsetWidth + 24), behavior: reduced ? 'auto' : 'smooth' });
+  $('[data-rail-prev]').addEventListener('click', () => go(-1));
+  $('[data-rail-next]').addEventListener('click', () => go(1));
 }
 
 /* ================================================================== part-exchange calculator */
@@ -512,9 +547,9 @@ function setupSwap() {
       left, month, duration: reduced ? 0 : 0.6, ease: 'expo.out',
       onUpdate: () => {
         $('[data-swap-left]', box).textContent = rs(Math.round(shown.left / 1000) * 1000);
-        $('[data-swap-month]', box).textContent = rs(Math.round(shown.month / 100) * 100);
       },
     });
+    odo($('[data-swap-month]', box), rs(Math.round(month / 100) * 100));
     if (carChanged) showCar(c);
   };
   sel.addEventListener('change', () => update(true));

@@ -5,6 +5,7 @@ import { initLayout, reduced, $, $$, scrollToEl, titleIn, syncStoreUI } from '..
 import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
 import { CARS, BODY_TYPES, FUELS, DEALER, byId, rs, thumb, carName } from '../data.js';
+import { odo } from '../lib/odo.js';
 
 gsap.registerPlugin(Flip);
 initLayout();
@@ -129,12 +130,27 @@ function renderChips(s) {
   ['body', 'make', 'fuel', 'gearbox'].forEach((k) => s[k].forEach((v) => chips.push([k, v, v])));
   if (!RANGES.price.isDefault()) chips.push(['price', '', `${rs(s.price[0])} to ${rs(s.price[1])}`]);
   if (!RANGES.year.isDefault()) chips.push(['year', '', `${s.year[0]} to ${s.year[1]}`]);
-  if (s.saved) chips.push(['saved', '', 'Saved only']);
+  if (s.saved) chips.push(['saved', '', 'My garage']);
   $('[data-chips]').innerHTML = chips.map(([k, v, label]) =>
     `<button type="button" class="chip" data-chip="${k}" data-chip-v="${v}" aria-label="Remove filter: ${label}">${label}<span aria-hidden="true"></span></button>`).join('') +
     (chips.length > 1 ? '<button type="button" class="link chip-clear" data-reset>Clear all</button>' : '');
   const n = $('[data-active-n]');
   n.hidden = !chips.length; n.textContent = chips.length;
+}
+
+/** The cars you parked, as one message to the dealer: nothing to retype, and they see what you like. */
+function renderGarage(s) {
+  const box = $('[data-garage]');
+  const cars = store.saved().map(byId).filter(Boolean);
+  box.hidden = !s.saved;
+  if (!s.saved) return;
+  $('[data-garage-sub]').textContent = cars.length
+    ? `${cars.length} ${cars.length === 1 ? 'car' : 'cars'} parked on this device. Send the list and we'll tell you what's still here, and when you can drive ${cars.length === 1 ? 'it' : 'them'}.`
+    : 'Empty for now. Tap the heart on any car, or double-tap one on the forecourt, and it parks here.';
+  const send = $('[data-garage-send]'), walk = $('[data-garage-walk]');
+  send.hidden = walk.hidden = !cars.length;
+  const lines = cars.map((c) => `- ${carName(c)}, ${rs(c.price)}`).join('\n');
+  send.href = `https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(`Hi V8 Motors, these are the cars in my garage:\n${lines}\nAre they still available, and when can I come and see them?`)}`;
 }
 
 function render({ animate = true, keepShown = false } = {}) {
@@ -148,7 +164,8 @@ function render({ animate = true, keepShown = false } = {}) {
   visible.forEach((c) => grid.appendChild(cards.get(c.id)));
   cards.forEach((li, id) => (li.hidden = !vis.has(id)));
 
-  $('[data-count]').textContent = list.length;
+  if (reduced) $('[data-count]').textContent = list.length; else odo($('[data-count]'), list.length);
+  renderGarage(s);
   $('[data-count-word]').textContent = list.length === 1 ? 'car' : 'cars';
   $('[data-count-btn]').textContent = list.length;
   $('[data-empty]').hidden = list.length > 0;

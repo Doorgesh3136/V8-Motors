@@ -28,6 +28,12 @@ export const km = (n) => (n == null ? 'Ask us' : n.toLocaleString('en-US') + ' k
 /** Local thumbnail of photo `i` (480 px wide; the first photo also has a 960 px version). */
 export const thumb = (c, i = 0, w = 480, P = '') => `${P}stock/${c.id}-${i}-${i === 0 ? w : 480}.webp`;
 
+/** The dearest car a monthly figure pays for, on the same example terms as monthly(). */
+export function priceForMonthly(m, depositPct = 20, months = 60, rate = DEALER.financeRate) {
+  const r = rate / 100 / 12;
+  return (m * (1 - Math.pow(1 + r, -months))) / r / (1 - depositPct / 100);
+}
+
 export function monthly(price, depositPct = 20, months = 60, rate = DEALER.financeRate) {
   const principal = price * (1 - depositPct / 100);
   const r = rate / 100 / 12;

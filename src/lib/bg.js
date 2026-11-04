@@ -1,6 +1,7 @@
 /**
- * The page background, drawn by a tiny WebGL shader that animates entirely on its own (nothing in it reacts
- * to touch, the mouse, tilt or scrolling), under a fine carbon-fibre texture:
+ * The page background, drawn by a tiny WebGL shader that animates entirely on its own (nothing in it reacts to
+ * touch, the mouse or tilt), under a fine carbon-fibre texture. The one thing that follows the visitor is the
+ * hour: the site is a night drive, so the top of a page is deep night and the bottom is sunrise over Coromandel.
  * - a petrol-blue gradient that flows slowly, with thin cyan seams of light and a warm red glow low down;
  * - headlight (cyan) and tail-light (red) trails streaming across, like a long exposure of a road at night;
  * - soft out-of-focus lights drifting upwards;
@@ -13,6 +14,7 @@ const FRAG = `
 precision mediump float;
 uniform vec2 r;        // canvas size
 uniform float t;       // time, seconds
+uniform float d;       // how far down the page: 0 night, 1 sunrise
 
 float h(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n(vec2 p) {
@@ -33,18 +35,20 @@ void main() {
   float f = fbm(q * 1.5 + w * 1.9 + vec2(f0 * 0.03, -f0 * 0.02));
   float g = fbm(q * 0.8 - w * 1.2 + f0 * 0.02);
 
-  vec3 deep  = vec3(0.071, 0.188, 0.290);  // #12304a
-  vec3 ink   = vec3(0.184, 0.353, 0.471);  // #2f5a78
-  vec3 light = vec3(0.247, 0.455, 0.588);  // #3f7496
+  float dawn = smoothstep(0.62, 1.0, d);    // the sky only turns near the end of the page
+  float morn = smoothstep(0.1, 1.0, d) * 0.62;  // the night lifts slowly on the way down
+  vec3 deep  = mix(vec3(0.031, 0.102, 0.153), vec3(0.071, 0.188, 0.290), morn);
+  vec3 ink   = mix(vec3(0.075, 0.180, 0.255), vec3(0.165, 0.325, 0.440), morn);
+  vec3 light = mix(vec3(0.120, 0.260, 0.350), vec3(0.230, 0.430, 0.560), morn);
   vec3 cyan  = vec3(0.624, 0.890, 0.961);  // logo cyan
   vec3 red   = vec3(0.878, 0.149, 0.184);  // logo red
   vec3 white = vec3(0.86, 0.95, 1.0);
   vec3 col = mix(deep, ink, smoothstep(0.22, 0.52, f));
   col = mix(col, light, smoothstep(0.55, 0.8, f) * 0.85);
   // thin bright seams where the flow folds, like light running over paint
-  col += cyan * pow(smoothstep(0.42, 0.85, w.x * f * 1.6), 3.0) * 0.3;
+  col += cyan * pow(smoothstep(0.42, 0.85, w.x * f * 1.6), 3.0) * 0.1;
   // a warm tail-lamp glow drifting low on the page
-  col = mix(col, red, smoothstep(0.58, 0.9, g) * (1.0 - smoothstep(0.0, 0.8, uv.y)) * 0.26);
+  col = mix(col, red, smoothstep(0.6, 0.92, g) * (1.0 - smoothstep(0.0, 0.5, uv.y)) * 0.12);
 
   // light trails: headlamps streaming one way, tail-lamps the other, like a long exposure of a road at night
   for (int i = 0; i < 5; i++) {
@@ -59,8 +63,9 @@ void main() {
     float trail = pow(pp, 1.7) * (1.0 - smoothstep(0.95, 1.0, pp)) * car;
     float core = exp(-d * d * 1800.0), halo = exp(-d * d * 160.0);
     vec3 lamp = dir > 0.0 ? mix(cyan, white, 0.5) : red * 1.1;
-    col += lamp * trail * (core * 0.34 + halo * 0.07);
-    col += lamp * halo * 0.025;                         // the lane's faint glow, even between cars
+    float night = 1.0 - dawn * 0.85;                    // the traffic thins as the day comes
+    col += lamp * trail * (core * 0.22 + halo * 0.022) * night;
+    col += lamp * halo * 0.014 * night;                 // the lane's faint glow, even between cars
   }
   // soft out-of-focus lights drifting upwards, two layers for depth
   for (int k = 0; k < 2; k++) {
@@ -73,7 +78,7 @@ void main() {
     float rad = 0.13 + 0.14 * h(cell + 4.2);
     float b = (1.0 - smoothstep(rad * 0.55, rad, length(fr - off))) * step(0.62, rn);
     float tw = 0.55 + 0.45 * sin(f0 * 0.9 + rn * 40.0);
-    col += mix(cyan, white, rn) * b * tw * (0.09 - fk * 0.03);
+    col += mix(cyan, white, rn) * b * tw * (0.04 - fk * 0.014);
   }
 
   // the sweep: every 7 seconds a broad band of light glides diagonally across, with a fine bright edge
@@ -81,7 +86,12 @@ void main() {
   float pos = mix(-0.6, asp + 1.1, ph);
   float dx = (q.x + (q.y - 0.5) * 0.55) - pos;
   float on = 1.0 - step(1.0, ph);
-  col += mix(cyan, white, 0.6) * on * (exp(-dx * dx * 6.0) * 0.13 + exp(-dx * dx * 220.0) * 0.14);
+  col += mix(cyan, white, 0.6) * on * (exp(-dx * dx * 6.0) * 0.07 + exp(-dx * dx * 220.0) * 0.07);
+
+  // sunrise: rose low on the screen, amber at the horizon, the sky above still blue
+  float hz = 1.0 - smoothstep(0.0, 0.92, uv.y);
+  vec3 rose = vec3(0.780, 0.380, 0.380), amber = vec3(1.0, 0.690, 0.420);
+  col += mix(rose, amber, hz) * hz * hz * dawn * 0.06;
 
   // gentle vignette keeps the edges deep
   col *= 1.0 - 0.18 * length(uv - 0.5);
@@ -110,7 +120,7 @@ export function initBackground() {
   const loc = gl.getAttribLocation(prog, 'p');
   gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  const uR = gl.getUniformLocation(prog, 'r'), uT = gl.getUniformLocation(prog, 't');
+  const uR = gl.getUniformLocation(prog, 'r'), uT = gl.getUniformLocation(prog, 't'), uD = gl.getUniformLocation(prog, 'd');
 
   document.body.prepend(canvas);
   html.classList.add('bg-live');
@@ -132,9 +142,21 @@ export function initBackground() {
 
   // the clock only advances while frames are drawn, so the picture carries on where it left off after a pause
   let clock = 10 + Math.random() * 40, last = performance.now(), lastDraw = 0;
+  let hour = 0, room = 1;
+  // the sky has fully turned by the time the footer's horizon comes up the screen
+  const measure = () => {
+    const end = document.querySelector('.footer')?.offsetTop ?? document.documentElement.scrollHeight;
+    room = Math.max(1, end - innerHeight * 0.5);
+  };
+  measure();
+  addEventListener('load', measure);
+  addEventListener('resize', measure, { passive: true });
+  setInterval(measure, 2500); // pages grow as photos and lists fill in
   const draw = (now) => {
     clock += Math.min(0.1, Math.max(0, (now - last) / 1000)); last = now;
+    hour += (Math.min(1, scrollY / room) - hour) * 0.08;  // eased, so it never jumps with the scroll
     gl.uniform1f(uT, clock);
+    gl.uniform1f(uD, hour);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     lastDraw = now;
   };
@@ -149,7 +171,7 @@ export function initBackground() {
     else reveal();
   });
 
-  if (reduced) return;
+  if (reduced) { addEventListener('scroll', () => { hour = Math.min(1, scrollY / room); draw(performance.now()); }, { passive: true }); return; }
   const minGap = coarse ? 1000 / 30 - 2 : 0;
   let raf = 0;
   const loop = (now) => {

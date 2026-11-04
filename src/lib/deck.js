@@ -17,7 +17,7 @@ const ICON = {
 };
 
 /** A shuffle that stays the same all day (Mauritius date), so the deck doesn't reshuffle on every visit. */
-function dailyOrder(list) {
+export function dailyOrder(list) {
   const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Indian/Mauritius' }).format(new Date());
   let seed = [...day].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
   const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -29,7 +29,7 @@ function dailyOrder(list) {
 function cardHTML(c) {
   return `<a class="deck-card" href="${P}cars/${c.id}.html" data-id="${c.id}" draggable="false">
     <img src="${thumb(c, 0, 960, P)}" width="960" height="634" alt="" draggable="false" decoding="async">
-    <span class="deck-stamp deck-stamp--save" aria-hidden="true">Save</span>
+    <span class="deck-stamp deck-stamp--save" aria-hidden="true">Park</span>
     <span class="deck-stamp deck-stamp--skip" aria-hidden="true">Skip</span>
     <span class="deck-info">
       <span class="car-kicker tabular-nums">${[c.year, c.body, c.colour].filter(Boolean).map(esc).join(' · ')}</span>
@@ -82,9 +82,9 @@ export function initDeck(root = document.querySelector('[data-deck]')) {
     root.classList.add('is-done');
     stack.innerHTML = `<div class="deck-end">
       <p class="deck-end-title">That’s all <em>${order.length}.</em></p>
-      <p>You saved ${savedHere} ${savedHere === 1 ? 'car' : 'cars'} this round.</p>
+      <p>You parked ${savedHere} ${savedHere === 1 ? 'car' : 'cars'} this round.</p>
       <div class="deck-end-actions">
-        <a class="btn btn-primary" href="${P}inventory.html?saved=1">See saved cars</a>
+        <a class="btn btn-primary" href="${P}inventory.html?saved=1">Open my garage</a>
         <button type="button" class="btn btn-line" data-deck-again>Start again</button>
       </div></div>`;
     stack.querySelector('[data-deck-again]').addEventListener('click', () => {
@@ -103,7 +103,7 @@ export function initDeck(root = document.querySelector('[data-deck]')) {
       savedHere++;
       syncStoreUI();
       bump('[data-saved-link]');
-      if (savedHere === 1) toast('Saved. Your saved cars are under the heart.', { href: `${P}inventory.html?saved=1`, label: 'View' });
+      if (savedHere === 1) toast('Parked in your garage.', { href: `${P}inventory.html?saved=1`, label: 'Open garage' });
     }
     navigator.vibrate?.(dir > 0 ? [8, 40, 12] : 6);
     card.classList.add('is-gone');

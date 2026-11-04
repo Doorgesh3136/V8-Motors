@@ -79,13 +79,24 @@
 
           <fieldset class="fgroup fgroup--toggles">
             <legend class="sr-only">More options</legend>
-            <label class="toggle"><input type="checkbox" name="saved" /><span>Saved cars only</span></label>
+            <label class="toggle"><input type="checkbox" name="saved" /><span>My garage only</span></label>
           </fieldset>
         </form>
         <div class="inv-filters-apply"><button type="button" class="btn btn-primary" data-close-filters>Show <span class="tabular-nums" data-count-btn><!--@total--></span> cars</button></div>
       </aside>
 
       <section class="inv-results" id="results" aria-label="Results">
+        <!-- the garage: the cars you parked (saved). Send the whole list to the dealer in one tap. -->
+        <div class="garage" data-garage hidden>
+          <div>
+            <h2 class="garage-title">My <em>garage</em></h2>
+            <p class="garage-sub" data-garage-sub></p>
+          </div>
+          <div class="garage-acts">
+            <a class="btn btn-primary" data-garage-send rel="noopener">Send to V8 Motors on WhatsApp</a>
+            <a class="btn btn-line" data-garage-walk href="forecourt.html?saved=1">Walk them</a>
+          </div>
+        </div>
         <div class="inv-toolbar">
           <p class="inv-count" aria-live="polite"><strong class="tabular-nums" data-count><!--@total--></strong> <span data-count-word>cars</span></p>
           <button type="button" class="btn btn-line btn-sm inv-open-filters" data-open-filters>Filters <span class="badge" data-active-n hidden></span></button>

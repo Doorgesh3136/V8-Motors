@@ -17,6 +17,12 @@ export const META = {
     desc: `All ${n} cars at V8 Motors in Coromandel, with real photos and prices in rupees. Filter by make, body type, price, year, fuel and gearbox.`,
     jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Cars', 'inventory.html']])],
   },
+  'forecourt.html': {
+    path: 'forecourt.html',
+    title: `Walk the forecourt: all ${n} cars, full screen | V8 Motors`,
+    desc: `Every car at V8 Motors as its own short film. Swipe up for the next car, double-tap to park it in your garage, WhatsApp us in one tap.`,
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['The forecourt', 'forecourt.html']])],
+  },
   'compare.html': {
     path: 'compare.html',
     title: 'Compare cars side by side | V8 Motors',

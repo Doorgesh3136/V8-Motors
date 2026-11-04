@@ -2,9 +2,9 @@ import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve, relative, sep } from 'node:path';
 import { readdirSync, existsSync } from 'node:fs';
-import { headHTML, navHTML, footerHTML, mobileBarHTML, arrivalsHTML, bodyTilesHTML, makesHTML, inventoryGridHTML, filterOptionsHTML } from './src/lib/templates.js';
+import { headHTML, navHTML, footerHTML, mobileBarHTML, arrivalsHTML, bodyTilesHTML, makesHTML, inventoryGridHTML, filterOptionsHTML, dialSvg } from './src/lib/templates.js';
 import { META } from './src/lib/meta.js';
-import { CARS, BODY_TYPES, thumb } from './src/data.js';
+import { CARS, thumb } from './src/data.js';
 
 // part-exchange calculator on the home page: cheapest first, a mid-priced car preselected
 const SWAP_LIST = [...CARS].sort((a, b) => a.price - b.price);
@@ -33,6 +33,8 @@ function prerender() {
           .replace(/<!--@tabbar:(\w+)-->/, (_, k) => mobileBarHTML(k, P))
           .replace('<!--@footer-->', () => footerHTML(P))
           .replace('<!--@arrivals-->', () => arrivalsHTML(P))
+          .replace('<!--@dial-->', () => dialSvg())
+          .replaceAll('<!--@from-->', () => Math.min(...CARS.map((c) => c.price)).toLocaleString('en-US'))
           .replace('<!--@bodies-->', () => bodyTilesHTML(P))
           .replace('<!--@makes-->', () => makesHTML(P))
           .replace('<!--@grid-->', () => inventoryGridHTML(P))
@@ -41,9 +43,7 @@ function prerender() {
           .replaceAll('<!--@total-->', () => String(CARS.length))
           .replace('<!--@caroptions-->', () => SWAP_LIST.map((c) => `<option value="${c.id}"${c === SWAP_PICK ? ' selected' : ''}>${c.year} ${c.make} ${c.model}, Rs ${c.price.toLocaleString('en-US')}</option>`).join(''))
           .replace('<!--@swapcard-->', () => `<img src="${thumb(SWAP_PICK)}" width="480" height="317" alt="" /><span><strong>${SWAP_PICK.year} ${SWAP_PICK.make} ${SWAP_PICK.model}</strong><span>${SWAP_PICK.trim}</span></span>`)
-          .replace('data-swap-card href="inventory.html"', () => `data-swap-card href="cars/${SWAP_PICK.id}.html"`)
-          .replace('<!--@makeoptions-->', () => [...new Set(CARS.map((c) => c.make))].sort().map((m) => `<option>${m}</option>`).join(''))
-          .replace('<!--@bodyoptions-->', () => BODY_TYPES.filter((t) => CARS.some((c) => c.body === t)).map((t) => `<option>${t}</option>`).join(''));
+          .replace('data-swap-card href="inventory.html"', () => `data-swap-card href="cars/${SWAP_PICK.id}.html"`);
       },
     },
   };

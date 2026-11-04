@@ -47,7 +47,7 @@ for (const c of CARS) {
 
 // ---------------------------------------------------------------- sitemap / robots / llms
 const today = new Date().toISOString().slice(0, 10);
-const staticPages = ['', 'inventory.html', 'sell.html', 'finance.html', 'contact.html', 'compare.html', 'privacy.html', 'terms.html'];
+const staticPages = ['', 'inventory.html', 'forecourt.html', 'sell.html', 'finance.html', 'contact.html', 'compare.html', 'privacy.html', 'terms.html'];
 const urls = [
   ...staticPages.map((p) => ({ loc: SITE + p, pri: p === '' ? '1.0' : p === 'inventory.html' ? '0.9' : '0.6' })),
   ...CARS.map((c) => ({ loc: `${SITE}cars/${c.id}.html`, pri: '0.8' })),

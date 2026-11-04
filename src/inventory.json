@@ -1,5 +1,5 @@
 {
- "syncedAt": "2026-11-02T17:21:03.114Z",
+ "syncedAt": "2026-11-04T14:12:37.712Z",
  "source": "https://v8.farhaan.info/api/cars",
  "cars": [
   {
@@ -631,80 +631,6 @@
     "stock/2019-honda-cr-v-255-3-480.webp",
     "stock/2019-honda-cr-v-255-4-480.webp",
     "stock/2019-honda-cr-v-255-5-480.webp"
-   ]
-  },
-  {
-   "id": "2021-skoda-kodiaq-254",
-   "apiId": 254,
-   "make": "Skoda",
-   "model": "Kodiaq",
-   "year": 2021,
-   "price": 1350000,
-   "km": null,
-   "fuel": "Petrol",
-   "gearbox": "Automatic",
-   "body": "SUV",
-   "engineCc": 1395,
-   "engine": "1.4 L",
-   "colour": "Blue",
-   "seats": 7,
-   "doors": 4,
-   "description": "The Skoda Kodiaq is a highly practical, mid-sized 7-seat family SUV that received a refreshed in 2021 featuring updated aerodynamics, slim LED/Matrix headlights and efficient engine choices.",
-   "options": null,
-   "deal": false,
-   "added": "2026-09-09T11:40:05.333Z",
-   "photos": [
-    "https://v8.farhaan.info/uploads/1788954002751-cd421f33b06b3206.webp",
-    "https://v8.farhaan.info/uploads/1788954003462-ba327ba8974c640b.webp",
-    "https://v8.farhaan.info/uploads/1788954004050-95d75bc35c57a4a4.webp",
-    "https://v8.farhaan.info/uploads/1788954004714-1b4e76c89ef2750e.webp",
-    "https://v8.farhaan.info/uploads/1788954004961-2c348ee6126ed95b.webp",
-    "https://v8.farhaan.info/uploads/1788954005326-76deb9db9a5f5f6e.webp"
-   ],
-   "thumbs": [
-    "stock/2021-skoda-kodiaq-254-0-480.webp",
-    "stock/2021-skoda-kodiaq-254-1-480.webp",
-    "stock/2021-skoda-kodiaq-254-2-480.webp",
-    "stock/2021-skoda-kodiaq-254-3-480.webp",
-    "stock/2021-skoda-kodiaq-254-4-480.webp",
-    "stock/2021-skoda-kodiaq-254-5-480.webp"
-   ]
-  },
-  {
-   "id": "2021-skoda-superb-252",
-   "apiId": 252,
-   "make": "Skoda",
-   "model": "Superb",
-   "year": 2021,
-   "price": 1200000,
-   "km": null,
-   "fuel": "Petrol",
-   "gearbox": "Automatic",
-   "body": "Sedan",
-   "engineCc": 1395,
-   "engine": "1.4 L",
-   "colour": "Grey",
-   "seats": 5,
-   "doors": 4,
-   "description": "The Skoda Superb is a large, premium 5-seat family car available in hatchback and estate/wagon body styles, featuring smooth dual-clutch automatic (DSG) transmissions.",
-   "options": null,
-   "deal": false,
-   "added": "2026-09-09T11:19:19.177Z",
-   "photos": [
-    "https://v8.farhaan.info/uploads/1788952757120-16e26e8bb571d86e.webp",
-    "https://v8.farhaan.info/uploads/1788952757793-4b0e7a3242d68451.webp",
-    "https://v8.farhaan.info/uploads/1788952758258-c7631810f5692204.webp",
-    "https://v8.farhaan.info/uploads/1788952758681-cb73bd2a24609b0e.webp",
-    "https://v8.farhaan.info/uploads/1788952758921-d30b03c021c29d74.webp",
-    "https://v8.farhaan.info/uploads/1788952759171-ad2bf2e137b65b9b.webp"
-   ],
-   "thumbs": [
-    "stock/2021-skoda-superb-252-0-480.webp",
-    "stock/2021-skoda-superb-252-1-480.webp",
-    "stock/2021-skoda-superb-252-2-480.webp",
-    "stock/2021-skoda-superb-252-3-480.webp",
-    "stock/2021-skoda-superb-252-4-480.webp",
-    "stock/2021-skoda-superb-252-5-480.webp"
    ]
   },
   {

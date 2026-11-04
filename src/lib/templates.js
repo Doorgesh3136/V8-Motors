@@ -33,6 +33,7 @@ export const ICON = {
   palette: svg('<path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 2-2 0-1.5-1-2 0-3s3 0 4-1 3-2 3-4a8 8 0 0 0-9-8Z"/><circle cx="7.5" cy="11" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="16" cy="8.5" r="1"/>'),
   wheel: svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M4.5 14.5l5-1.5M19.5 14.5l-5-1.5"/>'),
   menu: svg('<path d="M4 7h16M4 12h16M4 17h10"/>'),
+  reel: svg('<rect x="6" y="3.5" width="12" height="17" rx="2.5"/><path d="m10.5 9.5 4 2.5-4 2.5v-5Z"/>'),
   mail: svg('<path d="M3.5 6h17v12h-17zM4 6.5l8 6.5 8-6.5"/>'),
   route: svg('<path d="M6 19a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM18 10a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM8.5 16.5h7a3 3 0 0 0 0-6h-7a3 3 0 0 1 0-6H15"/>'),
   whatsapp: svg('<path d="M4.5 19.5l1.1-3.6A8 8 0 1 1 8.3 18.6l-3.8.9Z"/><path d="M9.2 8.6c.3-.6.6-.6.9-.6h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2.1.4 0 .6l-.5.6c-.1.2-.2.4 0 .6.6 1 1.4 1.8 2.4 2.3.2.1.4.1.6-.1l.6-.7c.2-.2.4-.2.6-.1l1.6.8c.2.1.4.2.4.4 0 .3 0 1-.5 1.5-.5.5-1.6.9-2.6.6a9 9 0 0 1-5.1-4.5c-.6-1.3-.4-2.3.2-3.1Z"/>'),
@@ -78,7 +79,6 @@ export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px)
     </a>
     <div class="car-tools">
       <button type="button" class="save" data-save="${c.id}" aria-pressed="false" aria-label="Save the ${esc(carName(c))}">${ICON.heart}</button>
-      <button type="button" class="save" data-compare="${c.id}" aria-pressed="false" aria-label="Compare the ${esc(carName(c))}">${ICON.scales}</button>
     </div>
     <div class="car-info">
       <p class="car-kicker tabular-nums">${[c.year, c.body, c.colour].filter(Boolean).join(' · ')}</p>
@@ -93,7 +93,7 @@ export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px)
           <p class="car-price tabular-nums">${rs(c.price)}</p>
           <p class="car-monthly tabular-nums">or about ${rs(monthly(c.price))} a month</p>
         </div>
-        <span class="car-go" aria-hidden="true">${ICON.arrowR}</span>
+        <button type="button" class="save save--plain" data-compare="${c.id}" aria-pressed="false" aria-label="Compare the ${esc(carName(c))}">${ICON.scales}</button>
       </div>
     </div>
   </li>`;
@@ -102,6 +102,7 @@ export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px)
 /* ------------------------------------------------------------------ chrome */
 export const NAV_PAGES = [
   { key: 'inventory', href: 'inventory.html', label: 'Cars for sale' },
+  { key: 'forecourt', href: 'forecourt.html', label: 'The forecourt' },
   { key: 'sell', href: 'sell.html', label: 'Sell or exchange' },
   { key: 'finance', href: 'finance.html', label: 'Leasing' },
   { key: 'contact', href: 'contact.html', label: 'Visit us' },
@@ -141,9 +142,9 @@ export function mobileBarHTML(page, P = '') {
     <span class="tab-pill" data-tab-pill aria-hidden="true"></span>
     ${tab('home', `${P}./`, markSVG('mark tab-mark', P), 'Home')}
     ${tab('inventory', `${P}inventory.html`, ICON.car, 'Cars')}
-    ${tab('sell', `${P}sell.html`, ICON.tag, 'Sell')}
+    ${tab('forecourt', `${P}forecourt.html`, ICON.reel, 'Forecourt')}
     <a href="${DEALER.phoneHref}" class="tab tab--call">${ICON.phone}<span>Call</span></a>
-    <button type="button" class="tab" data-menu-open aria-haspopup="dialog" aria-expanded="false" aria-controls="menu-sheet"${['finance', 'contact', 'compare'].includes(page) ? ' aria-current="page"' : ''}>${ICON.menu}<span>Menu</span></button>
+    <button type="button" class="tab" data-menu-open aria-haspopup="dialog" aria-expanded="false" aria-controls="menu-sheet"${['sell', 'finance', 'contact', 'compare'].includes(page) ? ' aria-current="page"' : ''}>${ICON.menu}<span>Menu</span></button>
   </nav>
   ${menuSheetHTML(page, P)}`;
 }
@@ -163,11 +164,12 @@ export function menuSheetHTML(page, P = '') {
     <nav class="sheet-links" aria-label="All pages">
       ${link('home', `${P}./`, markSVG('mark', P), 'Home', '')}
       ${link('inventory', `${P}inventory.html`, ICON.car, 'Cars for sale', `${CARS.length} in stock`)}
+      ${link('forecourt', `${P}forecourt.html`, ICON.reel, 'The forecourt', 'Every car, full screen')}
       ${link('sell', `${P}sell.html`, ICON.tag, 'Sell or exchange', 'A guide price in 3 steps')}
       ${link('finance', `${P}finance.html`, ICON.coin, 'Leasing', `With ${DEALER.leasing}`)}
       ${link('contact', `${P}contact.html`, ICON.pin, 'Visit us', `${DEALER.street}, ${DEALER.locality}`)}
       ${link('compare', `${P}compare.html`, ICON.scales, 'Compare', 'Up to three cars')}
-      ${link('saved', `${P}inventory.html?saved=1`, ICON.heart, 'Saved cars', '<span data-saved-count>0</span> saved')}
+      ${link('saved', `${P}inventory.html?saved=1`, ICON.heart, 'My garage', '<span data-saved-count>0</span> parked')}
     </nav>
     <div class="sheet-ways">
       <a href="${DEALER.phoneHref}" class="way-btn">${ICON.phone}<span>Call</span></a>
@@ -178,9 +180,21 @@ export function menuSheetHTML(page, P = '') {
   </div>`;
 }
 
+/** The end of the drive: the sun comes up behind the Moka range, as seen from the Royal Road: Le Pouce, the thumb,
+    and Pieter Both with the boulder on its summit. Silhouettes generated by a small script, no images. */
+const HORIZON = `<div class="horizon" data-horizon aria-hidden="true">
+  <span class="horizon-sun" data-sun></span>
+  <svg viewBox="0 0 1600 300" preserveAspectRatio="none">
+    <path class="ridge ridge-3" d="M0 300V189L10 188L20 187L30 185L40 185L50 183L60 181L70 179L80 176L90 174L100 172L110 170L120 167L130 166L140 164L150 164L160 164L170 164L180 165L190 166L200 167L210 168L220 168L230 169L240 170L250 170L260 170L270 171L280 172L290 174L300 174L310 173L320 173L330 171L340 171L350 170L360 168L370 166L380 165L390 164L400 162L410 160L420 157L430 155L440 152L450 152L460 150L470 149L480 148L490 148L500 147L510 146L520 148L530 149L540 150L550 151L560 151L570 153L580 154L590 155L600 156L610 157L620 160L630 162L640 163L650 164L660 163L670 163L680 163L690 164L700 163L710 162L720 161L730 160L740 158L750 156L760 154L770 152L780 150L790 149L800 147L810 146L820 146L830 144L840 144L850 143L860 141L870 141L880 140L890 140L900 140L910 141L920 141L930 142L940 143L950 145L960 146L970 148L980 150L990 149L1000 150L1010 152L1020 155L1030 157L1040 158L1050 160L1060 160L1070 161L1080 161L1090 162L1100 162L1110 163L1120 163L1130 161L1140 160L1150 160L1160 157L1170 154L1180 153L1190 151L1200 149L1210 148L1220 147L1230 145L1240 143L1250 142L1260 141L1270 141L1280 141L1290 141L1300 140L1310 141L1320 142L1330 143L1340 144L1350 147L1360 149L1370 150L1380 152L1390 155L1400 157L1410 159L1420 160L1430 161L1440 162L1450 162L1460 163L1470 163L1480 164L1490 164L1500 164L1510 164L1520 165L1530 166L1540 167L1550 168L1560 170L1570 171L1580 174L1590 177L1600 180H1600V300Z"/>
+    <path class="ridge ridge-2" d="M0 300V238L8 238L16 238L24 237L32 237L40 237L48 237L56 236L64 235L72 235L80 234L88 232L96 231L104 231L112 230L120 229L128 227L136 226L144 224L152 222L160 220L168 218L176 217L184 215L192 214L200 213L208 211L216 211L224 210L232 209L240 208L248 208L256 210L264 210L272 212L280 214L288 215L296 218L304 220L312 221L320 222L328 222L336 223L344 223L352 222L360 221L368 219L376 215L384 212L392 208L400 204L408 202L416 200L424 198L432 199L440 201L448 203L456 205L464 209L472 212L480 216L488 220L496 224L504 226L512 230L520 233L528 235L536 236L544 237L552 237L560 239L568 239L576 199L584 188L592 175L600 164L608 151L616 136L624 124L632 116L640 106L648 121L656 143L664 159L672 181L680 198L688 230L696 228L704 226L712 222L720 220L728 218L736 215L744 212L752 209L760 207L768 206L776 204L784 203L792 201L800 201L808 201L816 201L824 201L832 201L840 201L848 201L856 201L864 199L872 199L880 198L888 198L896 199L904 200L912 202L920 205L928 208L936 211L944 216L952 220L960 223L968 226L976 217L984 207L992 197L1000 187L1008 174L1016 164L1024 144L1032 136L1040 127L1048 111L1056 97L1062 69L1062 64L1053 58L1052 55L1052 52L1053 49L1055 46L1057 44L1061 42L1064 41L1068 41L1072 42L1076 43L1079 45L1081 48L1082 51L1082 54L1081 57L1072 64L1072 69L1080 99L1088 114L1096 128L1104 135L1112 149L1120 161L1128 179L1136 188L1144 194L1152 210L1160 215L1168 223L1176 220L1184 219L1192 217L1200 215L1208 211L1216 208L1224 205L1232 203L1240 200L1248 198L1256 196L1264 193L1272 191L1280 189L1288 190L1296 191L1304 191L1312 193L1320 195L1328 198L1336 200L1344 202L1352 204L1360 206L1368 209L1376 211L1384 212L1392 211L1400 212L1408 211L1416 210L1424 207L1432 206L1440 204L1448 204L1456 204L1464 204L1472 205L1480 206L1488 207L1496 209L1504 211L1512 213L1520 215L1528 217L1536 220L1544 224L1552 226L1560 228L1568 229L1576 231L1584 233L1592 235L1600 236H1600V300Z"/>
+    <path class="ridge ridge-1" d="M0 300V258L12 257L24 256L36 256L48 256L60 255L72 255L84 255L96 254L108 254L120 254L132 253L144 253L156 253L168 253L180 253L192 254L204 255L216 256L228 256L240 257L252 257L264 258L276 258L288 259L300 260L312 260L324 261L336 261L348 261L360 261L372 262L384 262L396 262L408 262L420 262L432 262L444 261L456 261L468 260L480 259L492 258L504 258L516 257L528 256L540 256L552 255L564 254L576 252L588 251L600 250L612 250L624 250L636 249L648 249L660 249L672 248L684 247L696 247L708 247L720 247L732 248L744 248L756 249L768 249L780 249L792 249L804 250L816 250L828 250L840 250L852 251L864 251L876 252L888 252L900 253L912 253L924 253L936 253L948 253L960 253L972 253L984 253L996 254L1008 253L1020 253L1032 253L1044 253L1056 252L1068 252L1080 252L1092 251L1104 251L1116 250L1128 249L1140 248L1152 248L1164 248L1176 248L1188 247L1200 246L1212 246L1224 246L1236 246L1248 246L1260 246L1272 246L1284 247L1296 247L1308 248L1320 249L1332 249L1344 250L1356 250L1368 251L1380 251L1392 252L1404 252L1416 254L1428 254L1440 255L1452 256L1464 256L1476 257L1488 258L1500 258L1512 259L1524 260L1536 262L1548 262L1560 263L1572 263L1584 264L1596 264H1600V300Z"/>
+  </svg>
+</div>`;
+
 export function footerHTML(P = '') {
   const makes = [...new Set(CARS.map((c) => c.make))].sort();
   return `<footer class="footer">
+    <div class="footer-sky">
     <div class="wrap">
       <section class="footer-cta" aria-labelledby="footer-cta-title">
         <div>
@@ -194,28 +208,60 @@ export function footerHTML(P = '') {
           <a class="btn btn-line btn-lg" href="${MAPS_DIR}" rel="noopener">${ICON.route}Directions</a>
         </div>
       </section>
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="${P}./" class="wordmark wordmark--lg" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark', P)}<span>V8 Motors</span></a>
-          <p class="footer-lead">Buy, sell or exchange, with leasing through ${DEALER.leasing}. ${DEALER.street}, ${DEALER.locality}.</p>
+    </div>
+    ${HORIZON}
+    </div>
+    <div class="footer-ground">
+      <div class="wrap">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <a href="${P}./" class="wordmark wordmark--lg" aria-label="V8 Motors, home">${markSVG('mark wordmark-mark', P)}<span>V8 Motors</span></a>
+            <p class="footer-lead">Buy, sell or exchange, with leasing through ${DEALER.leasing}. ${DEALER.street}, ${DEALER.locality}.</p>
+          </div>
+          <nav aria-label="Footer: pages"><p class="footer-h">Pages</p>
+            <a href="${P}./">Home</a>${NAV_PAGES.map((p) => `<a href="${P}${p.href}">${p.label}</a>`).join('')}<a href="${P}compare.html">Compare</a></nav>
+          <nav aria-label="Footer: makes"><p class="footer-h">Makes in stock</p>
+            <div class="footer-makes">${makes.map((m) => `<a href="${P}inventory.html?make=${encodeURIComponent(m)}">${m}</a>`).join('')}</div></nav>
+          <div><p class="footer-h">Showroom</p>
+            <address>${DEALER.street}<br>${DEALER.locality}, Mauritius</address>
+            <p class="footer-phones">${DEALER.phones.map(([t, h]) => `<a href="${h}" class="tabular-nums">${t}</a>`).join('')}</p>
+            <p><a href="${WA()}" rel="noopener">WhatsApp</a></p>
+            <p><a href="mailto:${DEALER.email}">${DEALER.email}</a></p></div>
         </div>
-        <nav aria-label="Footer: pages"><p class="footer-h">Pages</p>
-          <a href="${P}./">Home</a>${NAV_PAGES.map((p) => `<a href="${P}${p.href}">${p.label}</a>`).join('')}<a href="${P}compare.html">Compare</a></nav>
-        <nav aria-label="Footer: makes"><p class="footer-h">Makes in stock</p>
-          ${makes.slice(0, 9).map((m) => `<a href="${P}inventory.html?make=${encodeURIComponent(m)}">${m}</a>`).join('')}</nav>
-        <div><p class="footer-h">Showroom</p>
-          <address>${DEALER.street}<br>${DEALER.locality}, Mauritius</address>
-          <p class="footer-phones">${DEALER.phones.map(([t, h]) => `<a href="${h}" class="tabular-nums">${t}</a>`).join('')}</p>
-          <p><a href="${WA()}" rel="noopener">WhatsApp</a></p>
-          <p><a href="mailto:${DEALER.email}">${DEALER.email}</a></p></div>
+        <div class="footer-row">
+          <p>© ${new Date().getFullYear()} ${DEALER.legalName}. Leasing subject to approval by ${DEALER.leasing}.</p>
+          <p class="footer-legal"><a href="${P}privacy.html">Privacy policy</a><a href="${P}terms.html">Terms of sale</a></p>
+        </div>
+        <p class="footer-credits">Stock photos by V8 Motors. Home page photo by Cartist Sarvam on Unsplash. Engine sound built from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>
       </div>
-      <div class="footer-row">
-        <p>© ${new Date().getFullYear()} ${DEALER.legalName}. Leasing subject to approval by ${DEALER.leasing}.</p>
-        <p class="footer-legal"><a href="${P}privacy.html">Privacy policy</a><a href="${P}terms.html">Terms of sale</a></p>
-      </div>
-      <p class="footer-credits">Stock photos by V8 Motors. Home page photo by Cartist Sarvam on Unsplash. Engine sound built from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>
     </div>
   </footer>`;
+}
+
+/* ------------------------------------------------------------------ budget dial */
+export const DIAL = { min: 3000, max: 25000, step: 500, start: 12000, sweep: 125 };
+/** The rev counter: a tick every Rs 1,000, a numbered tick every Rs 5,000, redline at the top end. */
+export function dialSvg() {
+  const { min, max, sweep } = DIAL;
+  const ang = (v) => -sweep + ((v - min) / (max - min)) * sweep * 2;
+  const pt = (a, r) => { const t = (a * Math.PI) / 180; return [200 + r * Math.sin(t), 200 - r * Math.cos(t)]; };
+  const fx = (n) => n.toFixed(1);
+  let ticks = '', nums = '';
+  for (let v = min; v <= max; v += 1000) {
+    const big = v % 5000 === 0, a = ang(v), red = v >= 20000 ? ' is-red' : '';
+    const [x1, y1] = pt(a, big ? 156 : 165), [x2, y2] = pt(a, 178);
+    ticks += `<line class="dt${big ? ' dt--big' : ''}${red}" x1="${fx(x1)}" y1="${fx(y1)}" x2="${fx(x2)}" y2="${fx(y2)}"/>`;
+    if (big) { const [x, y] = pt(a, 130); nums += `<text class="dn${red}" x="${fx(x)}" y="${fx(y + 8)}" text-anchor="middle">${v / 1000}</text>`; }
+  }
+  const [ax, ay] = pt(-sweep, 190), [bx, by] = pt(sweep, 190);
+  const arc = `M${fx(ax)} ${fx(ay)}A190 190 0 1 1 ${fx(bx)} ${fx(by)}`;
+  return `<svg class="dial-svg" viewBox="0 0 400 400" aria-hidden="true">
+    <path class="dial-track" d="${arc}"/>
+    <path class="dial-fill" d="${arc}" pathLength="100" data-dial-fill/>
+    ${ticks}${nums}
+    <g class="dial-needle" data-dial-needle><path d="M196 214 199.2 62h1.6L204 214a4 4 0 0 1-8 0Z"/></g>
+    <circle class="dial-hub" cx="200" cy="200" r="11"/>
+  </svg>`;
 }
 
 /* ------------------------------------------------------------------ head / SEO */
@@ -447,7 +493,7 @@ export function carPageHTML(c, P = '../') {
 
 /* ------------------------------------------------------------------ home blocks */
 export function arrivalsHTML(P = '') {
-  return [...CARS].sort((a, b) => b.added.localeCompare(a.added)).slice(0, 6).map((c) => carCard(c, P)).join('');
+  return [...CARS].sort((a, b) => b.added.localeCompare(a.added)).slice(0, 8).map((c) => carCard(c, P, { sizes: '(min-width: 1000px) 26vw, 76vw' })).join('');
 }
 
 export function bodyTilesHTML(P = '') {
@@ -462,7 +508,7 @@ export function bodyTilesHTML(P = '') {
 
 export function makesHTML(P = '') {
   const makes = [...new Set(CARS.map((c) => c.make))].sort();
-  return makes.map((m) => `<li><a href="${P}inventory.html?make=${encodeURIComponent(m)}" class="make-link"><span>${m}</span><span class="make-n tabular-nums">${CARS.filter((c) => c.make === m).length}</span></a></li>`).join('');
+  return makes.map((m) => `<li><a href="${P}inventory.html?make=${encodeURIComponent(m)}" class="make-link"><span>${m}</span><sup class="make-n tabular-nums">${CARS.filter((c) => c.make === m).length}</sup></a></li>`).join('');
 }
 
 export function inventoryGridHTML(P = '') {

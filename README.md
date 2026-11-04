@@ -3,6 +3,8 @@
 Showroom and stock website for V8 Motors, a used car dealer at 59B Royal Road, Coromandel, Mauritius.
 Vite, Tailwind CSS v4, GSAP and Lenis. No framework, no 3D library: about 60 KB of JavaScript (gzipped) shared by every page.
 
+**The idea:** the whole site is one drive. It starts in the dark with the white Range Rover's start button, you drive through its headlights as you scroll, the night slowly lifts on the way down, and every page ends at sunrise behind Le Pouce and Pieter Both. Three things belong to this site and no other: the **budget dial**, the **forecourt** and the **garage**.
+
 Live site: https://doorgesh3136.github.io/V8-Motors/
 
 ```
@@ -28,25 +30,40 @@ Only what the dealer publishes is shown. There are no invented inspection scores
 
 ## Design
 
-Petrol blue, taken from the dealership's own logo (grey V, red 8, cyan lettering):
+Petrol, taken from the dealership's own logo (grey V, red 8, cyan lettering), much deeper than before so there's a night to climb out of. `src/site.css` is the base; `src/flagship.css`, loaded after it, is the current design layer and the first place to look.
 
-- **Colours:** petrol-blue surfaces (`#2f5a78`, panels a soft gradient from `#4478a0` to `#366583`), never black or white; white type; soft blue-white secondary text (`#d6e6f1`).
-- **Accents:** the logo's red (`#e0262f`) only for the main action and the Saturday deals band, and the logo's cyan (`#9fe3f5`) for small highlights.
-- **Type:** Archivo (self-hosted, variable width and weight) for everything, sentence-case headlines, and one accent word per headline in Bodoni Moda italic (self-hosted, 17 KB): "Drive *smarter.*", "Just *in*", "Come and *drive* one." Nothing on the site is smaller than 12 px.
-- **Surfaces:** every panel shares one look: a petrol gradient with a faint top light, a hairline edge and a soft drop. Form fields are darker inset wells that read clearly on any panel.
-- **Background:** a petrol-blue gradient that flows on its own (`src/lib/bg.js`, a tiny WebGL shader) under a fine carbon-fibre texture (`public/bg/texture.png`): headlight and tail-light trails stream across like a long exposure of a road at night, soft lights drift upwards, and every few seconds a sweep of light glides across. Drawn at a fifth of the screen's resolution, 30 fps on phones, paused while hidden or under the intro, faded in once the page has loaded. Nothing in it reacts to touch.
+- **Colours:** deep petrol surfaces (`#123246`, `#0c2231`), ivory type (`#f6f2ea`, the Range Rover's paint), the logo's red (`#e0262f`) kept for the one main action on a screen and the Saturday band, ice blue (`#9fe3f5`) for small highlights, and a warm dawn only at the very end.
+- **Type:** Archivo (self-hosted, variable width and weight), wide and tight for headlines, with one accent word per headline in Bodoni Moda italic: "Drive *smarter.*" Nothing on the site is smaller than 12 px.
+- **Rhythm:** one vertical gap between chapters on every page (`--sec`), one gap from heading to content (`--head-gap`), one spacing scale for everything else.
+- **Numbers:** digits sit on drums and roll like an odometer (`src/lib/odo.js`): the dial, the car counts, the Saturday countdown, the monthly figures.
+- **Background:** a petrol gradient that flows on its own (`src/lib/bg.js`, a tiny WebGL shader) under a fine carbon-fibre texture, with headlight and tail-light trails, soft lights and a slow sweep of light. Nothing in it reacts to touch; the one thing that follows you is the hour, from deep night at the top of a page to first light at the bottom. Drawn at a fifth of the screen's resolution, 30 fps on phones, paused while hidden or under the intro.
+- **The footer:** the sky is part of the page, so the horizon always sits behind the ridges. The ridgelines are generated with fractal noise on a hand-set profile, with Le Pouce and Pieter Both's summit boulder set by hand; the sun rises behind the boulder as you arrive.
 - **Layout:** no horizontal scrolling and no text overflow at any size from 320 to 1920 px, portrait or landscape; every tap target is at least 44 px.
+
+### The budget dial (home page)
+
+A rev counter you turn with your thumb (`src/lib/dial.js`). Set what you can spend a month and every car that fits parks underneath, with links to walk those cars or see the full list. A sideways start turns the dial; a finger going up or down scrolls the page instead, so it never traps anyone. The first time it comes into view the needle does a dashboard's self-test. It also works by tapping the scale, with the - and + buttons, and from the keyboard (there's a real range input over it). Monthly figures use the example terms in `src/dealer.js` and say so on screen.
+
+The speaker button revs the real V8 recording with the needle (`src/lib/revs.js`). It's off unless you ask for it, or pressed Start with the sound on in the intro.
+
+### The forecourt (`forecourt.html`)
+
+Every car as its own short film (`src/pages/forecourt.js`). The dealer's photos become a slow camera move: on a tall phone a wide photo pans across the car, with story ticks along the top. Swipe up for the next car, tap the sides for the next or previous photo, hold to pause, double-tap to park the car in your garage. Park, Compare, Share and WhatsApp sit under the thumb. Only the car on screen and its neighbours have photos loaded, and only the car on screen moves. The order is shuffled once a day; the list can be narrowed with `?max=`, `?body=`, `?make=` or `?saved=1`, and `?car=` opens on one car, so a copied link lands on it.
+
+### The garage (`inventory.html?saved=1`)
+
+Hearts park a car in your garage, on this device. The garage page sends the whole list to the dealer's WhatsApp in one tap, already written.
 
 ### Car cards
 
-Every car card (inventory, home page, similar cars) is one contained card with the same order: photo; year, body and colour; make and model; spec pills for engine and fuel, gearbox, and mileage where the dealer has entered it; then the price, the monthly figure and a go button. The whole card is one link; save and compare sit on the photo. Photos fade in once they've arrived, with a soft light sweep over the empty frame until then. On phones, swipe sideways across a card's photo to flick through all its pictures (with a mouse, move across it).
+Every car card (inventory, home page, similar cars) has no box around it: a photo; year, body and colour; make and model; engine, gearbox and mileage where the dealer has entered it; then the price and the monthly figure. The whole card is one link; the heart sits on the photo and compare beside the price. On phones the inventory is two across, or a row per car in list view, so all the stock is a short scroll. Photos fade in once they've arrived. On phones, swipe sideways across a card's photo to flick through all its pictures (with a mouse, move across it).
 
 ### Navigation
 
-- **Phones:** a dock at the bottom (Home, Cars, Sell, Call, Menu), within reach of the thumb. A pill sits behind the current place and glides to the next one when you change page. Menu opens a bottom sheet (never a full-screen popup) with every page, the live open/closed status and one-tap Call, WhatsApp, Email and Directions. Drag it down, tap outside or press Escape to close.
+- **Phones:** a floating dock at the bottom (Home, Cars, Forecourt, Call, Menu), within reach of the thumb. A pill sits behind the current place and glides to the next one when you change page. Menu opens a bottom sheet (never a full-screen popup) with every page, the live open/closed status and one-tap Call, WhatsApp, Email and Directions. Drag it down, tap outside or press Escape to close.
 - **Wide screens:** one underline glides under whichever menu link you point at, and back to the current page.
 - **Page changes:** the curtain, in every browser: red, petrol and blue layers sweep in from both sides, meet on the logo and the name of the page (or the car), and open on the next page. The dock pill glides to the tapped tab as it closes. The next page is prefetched when a link is touched or hovered.
-- **Chapters:** the home page is told in numbered chapters (02 New arrivals, 03 Quick pick, 04 Shapes, 05 Part-exchange, 06 Makes, 07 Saturday deals). On phones the menu bar shows the chapter you're in, in place of the wordmark; on wide screens a slim rail of marks sits in the left margin, and a mark jumps to its chapter.
+- **Chapters:** the home page is told in numbered chapters (02 New arrivals, 03 Budget dial, 04 Quick pick, 05 Shapes, 06 Part-exchange, 07 Makes, 08 Saturday deals). On phones the menu bar shows the chapter you're in, in place of the wordmark; on wide screens a slim rail of marks sits in the left margin, and a mark jumps to its chapter.
 - **Footer:** every page closes on "Come and *drive* one.", with Call, WhatsApp and Directions and the live opening status.
 
 ### Home page intro
@@ -71,11 +88,13 @@ Once the home page is showing (after the intro, or on arriving from another page
 
 ### Home page
 
-- **Hero:** "Drive *smarter.*", where the accent word rolls over every few seconds like an odometer drum (smarter, in style, away today, home happy), with what we do in one plain sentence and one primary action: the quick search.
-- **Quick pick:** a deck of every car in stock, one at a time. Swipe right to save, left to skip (or use the buttons or arrow keys); tapping a card opens the car. Saved cars go to the same list as the hearts. Shuffled once a day.
-- **Shapes:** body-type tiles whose little cars drive in, wheels turning, as they scroll into view (and spin under the mouse).
-- **Saturday deals:** a live countdown to the next Saturday opening, or to closing time while the deals are on (Mauritius time).
-- Part-exchange calculator, makes, and the live open/closed status.
+- **Hero:** "Drive *smarter.*", where the accent word rolls over every few seconds like an odometer drum, one plain sentence, one primary action, and a readout of real numbers (cars in stock, the lowest price, open or closed right now).
+- **Through the headlights:** the hero holds still as you start to scroll. The camera pushes in on the Range Rover, its lights come on and flare, the screen washes white, and you're through. Your thumb drives it. Short landscape screens and reduced motion skip it.
+- **Just in:** the newest cars on a rail you swipe.
+- **Budget dial:** above.
+- **Quick pick:** a deck of every car in stock, one at a time. Swipe right to park it in your garage, left to skip (or use the buttons or arrow keys); tapping a card opens the car. Shuffled once a day.
+- **Shapes:** body-type tiles whose little cars drive in, wheels turning, as they scroll into view.
+- **Part-exchange calculator, makes** (a large type index), and **Saturday deals** with a live countdown on mechanical drums (Mauritius time).
 
 ### Mobile performance
 
@@ -89,7 +108,8 @@ Once the home page is showing (after the intro, or on arriving from another page
 
 | Page | What it does |
 | --- | --- |
-| `index.html` | Intro, hero with quick search, newest cars, Quick pick deck, body types, part-exchange calculator, makes, Saturday deals with countdown |
+| `index.html` | Intro, hero, newest cars, budget dial, Quick pick deck, body types, part-exchange calculator, makes, Saturday deals with countdown |
+| `forecourt.html` | Every car, full screen, as a short film: swipe, tap, double-tap to park |
 | `inventory.html` | Every car, with filters (body, price and year ranges, fuel, gearbox, make) in a bottom sheet on phones, chips, sort, grid/list, filters kept in the URL, compare tray |
 | `cars/<id>.html` | One real page per car (generated at build): the dealer's photos with full screen and zoom, key specs, the dealer's description, leasing estimate, viewing request, similar cars |
 | `compare.html` | Up to three cars side by side, best value per row marked |
@@ -107,11 +127,11 @@ The viewing, sell/exchange and contact forms validate on the page, then open Wha
 
 - `src/dealer.js`: dealer details (address, phones, hours, leasing partner, example rate). `src/data.js`: the stock from `src/inventory.json`, plus helpers.
 - `src/lib/templates.js`: HTML templates shared by the build and the browser (nav, dock, menu sheet, footer, cards, car pages, meta tags, structured data).
-- `src/lib/layout.js`: what every page shares (transitions, nav underline, dock, menu sheet, scrolling, toasts, forms). `src/lib/bg.js`: the background. `src/lib/fx.js`: reveals, count-ups, the rev bar, photo swipes. `src/lib/deck.js`: Quick pick. `src/lib/chapters.js`: the chapter indicator. `src/lib/hours.js`: opening hours and the Saturday countdown.
+- `src/lib/layout.js`: what every page shares (transitions, nav underline, dock, menu sheet, scrolling, toasts, forms). `src/lib/bg.js`: the background. `src/lib/fx.js`: reveals, count-ups, the rev bar, photo swipes. `src/lib/deck.js`: Quick pick. `src/lib/dial.js`: the budget dial. `src/lib/revs.js`: its engine sound. `src/lib/odo.js`: the odometer numbers. `src/lib/chapters.js`: the chapter indicator. `src/lib/hours.js`: opening hours and the Saturday countdown.
 - `vite.config.js`: a small plugin fills `<!--@...-->` placeholders, so every page ships complete HTML.
 - `scripts/prerender.mjs`: writes `cars/*.html`, `public/sitemap.xml`, `public/robots.txt` and `public/llms.txt` (generated, not committed).
 - `scripts/make-intro-lights.mjs`: draws the intro's light signature for the home page photo.
-- `src/site.css`: the whole design system. `src/pages/*.js`: behaviour for each page.
+- `src/site.css`: the base styles. `src/flagship.css`: the current design layer, loaded after it. `src/pages/*.js`: behaviour for each page.
 
 ## Still needs the dealer
 
