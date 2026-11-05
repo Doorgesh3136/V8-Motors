@@ -7,19 +7,24 @@
   <link rel="preload" href="/src/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="/src/fonts/bodoni-moda-latin-500-italic.woff2" as="font" type="font/woff2" crossorigin />
   <script>
-    // The intro plays on every fresh load and every refresh of the home page, but not when you arrive
-    // from another page on the site (the page transition covers that) or come back with the back button.
+    // The intro plays on every fresh load and every refresh, wherever it happened, but not when you arrive from
+    // another page on the site (the page transition covers that) or come back with the back button.
     try {
+      // where the 3D car will run, the page keeps its stage dark until the car is ready. The still is framed differently,
+      // so showing it first would look like the car jumping when the live one takes over
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && !(navigator.connection && navigator.connection.saveData)) document.documentElement.classList.add('has-3d');
       var nav = performance.getEntriesByType('navigation')[0], type = nav ? nav.type : 'navigate';
       var fromSite = document.referrer && new URL(document.referrer).origin === location.origin;
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && (type === 'reload' || (type === 'navigate' && !fromSite))) {
+      var sent = sessionStorage.getItem('v8:restart'); // refreshed on another page, and sent here
+      sessionStorage.removeItem('v8:restart');
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches && (sent || type === 'reload' || (type === 'navigate' && !fromSite))) {
         document.documentElement.classList.add('play-intro');
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         scrollTo(0, 0);
       }
     } catch (e) {}
   </script>
-  <link rel="preload" as="image" href="hero/range-rover.webp" fetchpriority="high" />
+  <link rel="preload" as="image" href="gate/ignite-off.webp" fetchpriority="high" />
   <script type="module" src="/src/pages/home.js" blocking="render"></script>
 </head>
 <body class="page-home">
@@ -28,21 +33,25 @@
   <!--@nav:home-->
 
   <main id="main">
-    <!-- the hero holds still while you scroll: the car comes at you, its lights come on, and you drive through them -->
+    <!-- one unbroken shot while you scroll: the car pulls away, the camera comes round, and you drive through its lights -->
     <div class="hero-pin" data-hero-pin>
     <section class="hero" aria-labelledby="hero-title" data-chapter="Welcome">
       <!-- Intro: one continuous shot, drawn live in 3D (src/lib/rover3d.js). The still is the same car, for reduced motion,
            data saver, no WebGL, or while the model loads. -->
       <div class="hero-media" data-hero-media>
-        <img class="hero-img" data-hero-img src="hero/range-rover.webp" width="1600" height="1280" fetchpriority="high" decoding="async"
+        <img class="hero-img" data-hero-img src="hero/range-rover.webp" width="1600" height="1280" fetchpriority="high" decoding="async" draggable="false"
           alt="A white Range Rover with a red bow on its bonnet and its headlights on, at night" />
         <canvas class="hero-canvas" data-hero-canvas aria-hidden="true"></canvas>
         <div class="hero-dark" data-hero-dark aria-hidden="true"></div>
-        <span class="flare" data-flare aria-hidden="true"></span>
         <span class="hero-flash" aria-hidden="true"></span>
       </div>
       <div class="hero-shade" aria-hidden="true"></div>
       <p class="hero-hint" data-hero-hint hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c2.5-3 5.6-4.5 9-4.5s6.500 1.500 9 4.500M21 12l-3.200-.6M21 12l.6-3.200M3 12c2.500 3 5.600 4.500 9 4.500"/></svg>Drag to turn it. Tap to flash the lights.</p>
+      <div class="hero-moves" data-hero-moves role="group" aria-label="Make the car move" hidden>
+        <button type="button" data-move="spin">Spin it</button>
+        <button type="button" data-move="dance">Make it dance</button>
+        <button type="button" data-move="lights">Light show</button>
+      </div>
       <!-- intro only: letterbox, the V8 badge that flies into the menu bar, and controls while it plays -->
       <div class="bars" data-bars aria-hidden="true"><span></span><span></span></div>
       <div class="intro-badge" data-badge aria-hidden="true"><img src="brand/v8-mark.png" width="364" height="343" alt="" /></div>
@@ -50,29 +59,34 @@
 
       <!-- Intro gate: browsers only allow sound after a tap, so the intro starts with the car's start button -->
       <div class="gate" data-gate>
-        <!-- small line icons drifting in the dark while the scene loads -->
-        <div class="gate-float" data-float aria-hidden="true"></div>
-        <button type="button" class="ignition" data-ignite aria-label="Start the engine and enter the site with sound">
-          <!-- real loading progress: the 3D car and the engine recording -->
-          <svg class="ignition-load" viewBox="0 0 120 120" aria-hidden="true"><circle class="il-track" cx="60" cy="60" r="56"/><circle class="il-bar" cx="60" cy="60" r="56" pathLength="100" data-load-bar/></svg>
-          <span class="ignition-ring" aria-hidden="true"></span>
-          <span class="ignition-face" aria-hidden="true"><span>Engine</span><strong>Start</strong><span>Stop</span></span>
-        </button>
-        <p class="gate-hint" data-gate-hint aria-live="polite"><span data-load-text>Warming up the engine</span> <span class="gate-pct tabular-nums" data-load-pct>0%</span></p>
-        <p class="gate-alt"><button type="button" data-ignite-quiet>Enter without sound</button><button type="button" data-skip>Skip intro</button></p>
+        <div class="ig-stage">
+          <span class="ig-halo" aria-hidden="true"></span>
+          <span class="ig-ripple" aria-hidden="true"></span><span class="ig-ripple" aria-hidden="true"></span><span class="ig-ripple" aria-hidden="true"></span>
+          <button type="button" class="ignition" data-ignite aria-label="Start the engine and enter the site">
+            <img class="ig-layer" src="gate/ignite-off.webp" width="1000" height="1000" alt="" draggable="false">
+            <img class="ig-layer ig-ring" src="gate/ignite-ring.webp" width="1000" height="1000" alt="" draggable="false">
+            <img class="ig-layer ig-text" src="gate/ignite-text.webp" width="1000" height="1000" alt="" draggable="false">
+          </button>
+        </div>
       </div>
       <div class="wrap hero-inner">
         <h1 class="hero-title" id="hero-title" data-hero-title aria-label="Drive smarter."><span class="line" aria-hidden="true"><span>Drive</span></span> <span class="line" aria-hidden="true"><span><em class="rotor" data-rotor>smarter.</em></span></span></h1>
-        <p class="hero-lede" data-hero-fade><!--@count--> checked cars at 59B Royal Road, Coromandel. Buy, sell, exchange or lease.</p>
-        <div class="hero-acts" data-hero-fade>
-          <a class="btn btn-primary btn-lg" href="forecourt.html">Walk the forecourt<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-          <a class="hero-all" href="inventory.html">See all <!--@total--> cars</a>
+        <div class="finder" role="search" aria-label="Search cars" data-finder data-hero-fade>
+          <p class="finder-title"><svg viewBox="0 0 28 24" aria-hidden="true"><path d="M3 15v-3l2.4-5.2A2 2 0 0 1 7.2 5.6h7.5M3 15h9m-6 0v2.4M1 11h2M20.5 15a5.5 5.5 0 1 0-4-1.7"/><circle cx="19" cy="9" r="5"/><path d="m23 13 4 4"/></svg>Search cars</p>
+          <div class="finder-row">
+            <label class="finder-field"><span class="sr-only">Make</span><select name="make"><option value="">Choose make</option></select></label>
+            <label class="finder-field"><span class="sr-only">Model</span><select name="model"><option value="">Choose model</option></select></label>
+            <label class="finder-field"><span class="sr-only">Year</span><select name="year"><option value="">Choose year</option></select></label>
+            <a class="btn btn-primary finder-go" href="inventory.html" data-finder-go><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span data-finder-label>Search <!--@total--> cars</span></a>
+            <button type="button" class="finder-reset" data-finder-reset aria-label="Reset the search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9L4 8.5M4 4v4.5h4.5"/></svg></button>
+          </div>
+          <script type="application/json" data-finder-data><!--@finder--></script>
         </div>
-        <dl class="dash" data-hero-fade>
-          <div><dt>On the forecourt</dt><dd class="tabular-nums"><!--@total--> cars</dd></div>
-          <div><dt>Prices from</dt><dd class="tabular-nums">Rs <!--@from--></dd></div>
-          <div class="dash-status"><dt>Showroom</dt><dd><span class="open-status" data-open-status>Open Monday to Saturday</span></dd></div>
-        </dl>
+        <div class="hero-foot" data-hero-fade>
+          <a class="hero-all" href="inventory.html">See all <!--@total--> cars</a>
+          <span class="hero-from">Prices from <strong class="tabular-nums">Rs <!--@from--></strong></span>
+          <span class="open-status" data-open-status>Open Monday to Saturday</span>
+        </div>
       </div>
     </section>
     </div>

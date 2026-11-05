@@ -60,13 +60,27 @@ function privacyNotice() {
   n.setAttribute('aria-label', 'Privacy notice');
   n.innerHTML = `<p>No tracking here. Your saved cars stay on this device. <a href="${P}privacy.html">Privacy policy</a></p>
     <button type="button" class="btn btn-line btn-sm">OK</button>`;
-  document.body.appendChild(n);
-  requestAnimationFrame(() => n.classList.add('is-on'));
-  $('button', n).addEventListener('click', () => {
+  let timer = 0;
+  const close = () => {
+    clearTimeout(timer);
     localStorage.setItem('v8:notice', '1');
     n.classList.remove('is-on');
     setTimeout(() => n.remove(), 500);
-  });
+  };
+  const show = () => {
+    document.body.appendChild(n);
+    requestAnimationFrame(() => n.classList.add('is-on'));
+    timer = setTimeout(close, 12000); // it only informs, so it doesn't wait around
+  };
+  $('button', n).addEventListener('click', close);
+  // on the home page it would sit on the main button, so it waits until the visitor has scrolled past the hero
+  if (!document.querySelector('.hero')) { show(); return; }
+  const past = () => {
+    if (scrollY < innerHeight * 1.5) return;
+    removeEventListener('scroll', past);
+    show();
+  };
+  addEventListener('scroll', past, { passive: true });
 }
 
 const html = document.documentElement;
@@ -301,7 +315,7 @@ function initScroll() {
     lenis = new Lenis({ lerp: 0.12, wheelMultiplier: 0.9 });
     lenis.on('scroll', ScrollTrigger.update);
     gsap.ticker.add((t) => lenis.raf(t * 1000));
-    gsap.ticker.lagSmoothing(0);
+    gsap.ticker.lagSmoothing(500, 33); // off for ordinary frames so scrolling stays exact, but after a gap (a hidden tab) time resumes instead of leaping
   }
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href^="#"]');

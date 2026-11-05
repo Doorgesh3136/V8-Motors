@@ -14,21 +14,9 @@ import { DARK, HERO } from '../lib/rover-shots.js';
 const ENGINE = new URL('intro/engine.mp3', document.baseURI).href;
 const NAVS = ['[data-nav]', '.tabbar'];
 const GAIN = 0.8; // playback level (the recording itself is mastered quietly)
-// the loader's drifting icons (key, steering wheel, gauge, wheel, fuel, car, spark) and where they float
-const FLOAT_ICONS = [
-  '<path d="M14.5 9.5a3.5 3.5 0 1 1-1.4 2.8L5 20.4 3.6 19l1.4-1.4-1.4-1.4 1.4-1.4 1.4 1.4 4.6-4.6a3.5 3.5 0 0 1 3.5-2.1Z"/>', // key
-  '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M3.6 11h6.2M14.2 11h6.2M12 14.2v6.3"/>', // steering wheel
-  '<path d="M4 16a8 8 0 1 1 16 0M12 16l4-5M7 16h.01M17 16h.01"/>', // gauge
-  '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 3.5v4.5M12 16v4.5M3.5 12H8M16 12h4.5"/>', // wheel
-  '<path d="M5 20V5a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v15M3 20h13M14 9h2a2 2 0 0 1 2 2v5a1.5 1.5 0 0 0 3 0V8l-3-3"/>', // fuel
-  '<path d="M3 15v-3l2-5h14l2 5v3M3 15h18v3h-3v-2H6v2H3v-3Z"/>', // car
-  '<path d="M13 3 5 14h6l-1 7 8-11h-6l1-7Z"/>', // spark
-];
-const FLOAT_SPOTS = [[9, 16], [88, 12], [6, 46], [93, 42], [16, 78], [82, 74], [48, 7], [70, 28], [28, 30]];
 
 const media = $('[data-hero-media]');
 const canvas = $('[data-hero-canvas]');
-const flare = $('[data-flare]');
 const dark = $('[data-hero-dark]');
 
 const { lenis } = initLayout({ home: true });
@@ -53,26 +41,35 @@ if (playIntro) {
    never holds up the page. Everything here animates one object of numbers, `s`; that file draws what they say.
    With reduced motion, data saver, no WebGL or a failed download, the still of the same car stays on screen. */
 const s = { ...(playIntro ? DARK : HERO) };
+if (import.meta.env.MODE === 'dbg') window.__s = s;
 let stage = null, modelDone = 0, onModel = () => {};
 const wantStage = !reduced && !navigator.connection?.saveData;
 const stageReady = !wantStage ? Promise.resolve(null) : import('../lib/rover3d.js')
   .then(({ createStage }) => createStage({
     canvas, s, input: $('.hero'),
-    onProgress: (v) => { modelDone = v; onModel(v); },
+    onProgress: (v) => { modelDone = v * 0.9; onModel(modelDone); }, // the last tenth is getting it ready to draw
+    withEngine: playIntro,
     onTap: () => flashLights(0),
+    onSign: signBlink,
+    onTooSlow: () => { // this machine can't run the car: the photo takes over and the page carries on
+      stage = null;
+      moving?.kill();
+      document.documentElement.classList.remove('has-3d');
+      $('[data-hero-moves]')?.setAttribute('hidden', '');
+      $('[data-hero-hint]')?.setAttribute('hidden', '');
+    },
   }))
   .then((st) => {
     stage = st;
-    gsap.ticker.add(() => {
-      st.draw();
-      if (parseFloat(flare.style.opacity) > 0.001) flare.style.top = `${st.lampY()}px`;
-    });
+    modelDone = 1;
+    onModel(1);
+    gsap.ticker.add(() => st.draw());
     return st;
   })
-  .catch((e) => { console.warn('3D car unavailable, showing the still', e); modelDone = 1; onModel(1); return null; });
-if (!wantStage) modelDone = 1;
-media.style.setProperty('--u', `${(innerWidth * 1.3) / 100}px`);
+  .catch((e) => { console.warn('3D car unavailable, showing the still', e); document.documentElement.classList.remove('has-3d'); modelDone = 1; onModel(1); return null; });
+if (!wantStage) { modelDone = 1; document.documentElement.classList.remove('has-3d'); }
 
+setupFinder();
 runIntro().then(async () => {
   document.documentElement.classList.remove('play-intro');
   lenis?.start();
@@ -80,6 +77,7 @@ runIntro().then(async () => {
   flashLights();
   heroScrub();
   showHint();
+  showMoves();
   setupSwap();
   initChapters();
   setTimeout(startRotor, reduced ? 0 : 2600);
@@ -91,11 +89,14 @@ runIntro().then(async () => {
    Pressing it plays a real, healthy V8 (public/intro/engine.mp3: a starter crank, then a V8 catching,
    idling smoothly and revving, CC0 recordings from Freesound). The picture runs on the audio clock, and the
    body's roll and the camera shake follow the recording's loudness frame by frame:
-     0.3s  crank: the lamps flicker with the starter, the camera right up against a headlamp in the dark
-     0.9s  it catches: the body kicks on its springs, the running lights and beams come up
-     idle  the camera drifts across the grille, the body trembles with the engine
-     4.7s  first rev: high beams flash, the camera punches in
-     5.9s  big rev: flash, the letterbox opens, the car rolls forward as the camera swings out and the night lifts
+     0.3s  crank: black, a headlamp filling the screen, its LED blade slowly waking with the starter
+     0.9s  it catches: the headlamp's pods light one by one from the inside out, the body kicks on its springs, and
+           the camera lifts off the lamp in one
+           unbroken flight around the car: along the flank, round the tail lights as they fire, over the roof, across
+           the bow and the lettering, and back out to the far end of the hall
+     4.7s  first rev: one flash of the high beams, the camera pushes in
+     5.9s  big rev: the hall's lights run towards you, the car launches, tyres smoking
+     7.0s  it brakes right in front of you, nose down, and the camera swings out
      6.3s  the V8 Motors badge comes up in the light
      7.2s  last rev: a shine runs across the badge, then it flies up into the menu bar */
 
@@ -127,14 +128,11 @@ function prepareSound(onProgress = () => {}) {
 }
 
 /* ------------------------------------------------------------------ the loader
-   While the scene loads, the start button's outer ring fills with real progress (the 3D car, the fonts
-   and the engine recording, which is streamed), the percentage counts up beside it,
-   and a few small line icons drift in the dark. When everything has arrived the ring closes with a
-   flash and the hint becomes "Press to start". You can press it, enter without sound or skip at any time. */
+   The start screen is the button and nothing else. While the scene loads, its ring fills with real progress (the 3D car
+   and the V8, the fonts and the engine recording, which is streamed). When everything is ready the lettering lights up
+   and rings of red light roll out from the button. Pressing it early is fine: the intro waits for the car. */
 
 function startLoader(gate) {
-  const bar = $('[data-load-bar]', gate), pct = $('[data-load-pct]', gate), text = $('[data-load-text]', gate);
-  const float = $('[data-float]', gate);
   // weights: what you'd wait longest for weighs most
   const parts = { model: [0, 0.7], fonts: [0, 0.05], audio: [0, 0.25] };
   let target = 0, shown = 0, raf = 0, ready = false;
@@ -143,32 +141,23 @@ function startLoader(gate) {
   onModel = (v) => set('model', v);
   (document.fonts?.ready || Promise.resolve()).then(() => set('fonts', 1));
 
-  if (float && !reduced) {
-    float.innerHTML = FLOAT_SPOTS.map(([x, y], k) => `<svg viewBox="0 0 24 24" style="--x:${x}%;--y:${y}%;--d:${7 + (k % 4) * 1.6}s;--dl:${(k * 0.37).toFixed(2)}s;--r:${(k % 2 ? -1 : 1) * (6 + k)}deg">${FLOAT_ICONS[k % FLOAT_ICONS.length]}</svg>`).join('');
-  }
 
   const finish = () => {
     if (ready) return;
     ready = true;
     cancelAnimationFrame(raf);
-    bar.style.strokeDashoffset = '0';
-    pct.hidden = true;
+    gate.style.setProperty('--load', '1');
     gate.classList.add('is-ready');
-    if (!reduced) gsap.fromTo(text, { opacity: 0, y: 6 }, { opacity: 1, y: 0, duration: 0.6, ease: 'expo.out' });
-    text.textContent = 'Sound on. Press to start.';
   };
   const tick = () => {
     shown += (target - shown) * (reduced ? 1 : 0.1);
     if (target > 0.999 && shown > 0.995) shown = 1;
-    bar.style.strokeDashoffset = String(100 - shown * 100);
-    pct.textContent = `${Math.round(shown * 100)}%`;
+    gate.style.setProperty('--load', shown.toFixed(3));
     if (shown >= 1) return finish();
     raf = requestAnimationFrame(tick);
   };
   raf = requestAnimationFrame(tick);
-  // never keep anyone waiting on a slow connection: the start button always works, and after 12 s the
-  // loader steps aside anyway
-  setTimeout(finish, 12000);
+  setTimeout(finish, 25000); // never keep anyone waiting on a slow connection
   return { audio: (v) => set('audio', v), stop: () => cancelAnimationFrame(raf) };
 }
 
@@ -191,8 +180,6 @@ function waitForChoice(gate) {
     const pick = (v) => () => { if (done) return; done = true; removeEventListener('keydown', onKey); resolve(v); };
     const onKey = (e) => { if (e.key === 'Escape') pick('skip')(); };
     $('[data-ignite]', gate).addEventListener('click', pick('sound'));
-    $('[data-ignite-quiet]', gate).addEventListener('click', pick('quiet'));
-    $('[data-skip]', gate).addEventListener('click', pick('skip'));
     addEventListener('keydown', onKey);
     $('[data-ignite]', gate).focus({ preventScroll: true });
   });
@@ -207,7 +194,6 @@ async function runIntro() {
   const audio = prepareSound(loader.audio);
   const phone = innerWidth < 700;
 
-  gsap.set(flare, { opacity: 0, scaleX: 0.05 });
   gsap.set(badge, { opacity: 0 });
   gsap.from(gate.children, { opacity: 0, y: 16, duration: 0.9, stagger: 0.1, ease: 'expo.out', delay: 0.2 });
   gsap.from(bars, { scaleY: 0, duration: 1.2, ease: 'expo.out' });
@@ -232,8 +218,8 @@ async function runIntro() {
     return;
   }
 
-  // the button works before everything has arrived, but never wait long for the car
-  const [buffer] = await Promise.all([audio ? audio.buffer : null, Promise.race([stageReady, new Promise((r) => setTimeout(r, 6000))]), document.fonts?.ready]);
+  // the button works before everything has arrived, but the film needs the car
+  const [buffer] = await Promise.all([audio ? audio.buffer : null, Promise.race([stageReady, new Promise((r) => setTimeout(r, 25000))]), document.fonts?.ready]);
   const env = envelope(buffer);
   const withSound = choice === 'sound' && buffer;
   if (withSound) dispatchEvent(new Event('v8:sound-on'));
@@ -249,44 +235,110 @@ async function runIntro() {
   };
   placeBadge();
 
+  // ---- the film: one unbroken shot, no cuts. Numbers are metres and radians
   const tl = gsap.timeline({ paused: true });
-  const flash = (at, power) => tl
-    .to(s, { keyframes: [{ high: power, duration: 0.06 }, { high: 0, duration: 0.62, ease: 'power2.out' }] }, at)
-    .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.25, duration: 0.08 }, { opacity: 0.45, scaleX: 1, duration: 0.55 }] }, at);
+  if (import.meta.env.MODE === 'dbg') window.__tl = tl;
+  const Z = DARK.carZ, tall = innerWidth / innerHeight < 0.8, near = (m) => (tall ? m * 1.55 : m); // a tall screen needs more room
+  const flash = (at, power) => tl.to(s, { keyframes: [{ high: power, duration: 0.09, ease: 'sine.out' }, { high: 0, duration: 0.85, ease: 'sine.inOut' }] }, at);
 
-  // crank (0.3 to 0.85s): the lamps dim and brighten with the starter
-  tl.to(s, { keyframes: [0.05, 0.01, 0.1, 0.02, 0.08].map((v) => ({ drl: v, duration: 0.11 })) }, 0.3)
-    .to(s, { keyframes: [0.12, -0.1, 0.1, -0.06, 0].map((v) => ({ jolt: v, duration: 0.11 })) }, 0.3)
-    // 0.9s: it catches. The body kicks and settles on its springs, and the lights come up
-    .to(s, { keyframes: [{ jolt: 1, duration: 0.07, ease: 'power2.out' }, { jolt: 0, duration: 1.1, ease: 'elastic.out(1, 0.32)' }] }, 0.88)
-    .to(s, { drl: HERO.drl, duration: 0.8, ease: 'power3.out' }, 0.9)
-    .to(s, { red: 0.45, duration: 0.5 }, 0.95)
-    .to(s, { beam: 0.8, duration: 1.1, ease: 'expo.out' }, 0.98)
-    .to(s, { env: 0.13, key: 0.06, sky: 0.12, duration: 2.4, ease: 'power2.out' }, 1)
-    .to(flare, { opacity: 0.45, scaleX: 1, duration: 1.4, ease: 'expo.out' }, 0.98)
-    // idle: the camera drifts across the grille from one lamp to the other
-    .to(s, { az: -0.4, tx: -0.42, ty: 0.9, near: 3.9, roll: 0.03, duration: 3.45, ease: 'sine.inOut' }, 1.2);
-  // 4.7s: first rev, the camera punches in
+  // the flight, as points on a smooth curve (Catmull-Rom), so the camera never changes speed abruptly
+  const shot = (az, el, dist, tx, ty, tz, roll, lens) => ({ az, el, near: dist, tx, ty, tz, roll, lens });
+  const path = [
+    shot(DARK.az, DARK.el, DARK.near, DARK.tx, DARK.ty, DARK.tz, DARK.roll, DARK.lens),  // on the headlamp
+    shot(0.95, 0.03, near(2.7), 0.74, 0.86, Z + 1.5, -0.02, 30),                         // lifting off it
+    shot(1.72, 0.04, near(4.3), 0.3, 0.72, Z + 0.3, 0, 32),                              // along the flank
+    shot(2.62, 0.05, near(4.4), tall ? 0.55 : 0.2, 0.86, Z - 1.3, 0.02, 32),             // round the tail lights
+    shot(3.6, 0.16, near(5.3), 0, 0.96, Z - 1, 0.02, 32),                                // behind it, rising
+    shot(4.7, 0.34, near(5.7), -0.2, 1, Z + 0.2, 0, 30),                                 // over the far side
+    shot(5.7, 0.5, near(3.7), 0, 1.12, Z + 1.5, -0.02, 28),                              // down onto the bow
+    shot(Math.PI * 2, 0.36, near(3.5), 0, 1.1, Z + 1.9, 0, 28),                          // the lettering
+    shot(Math.PI * 2, 0.012, near(11.5), 0, 0.92, Z, 0, 26),                             // and back down the hall
+  ];
+  const keys = Object.keys(path[0]), segs = path.length - 1;
+  const flight = { p: 0 };
+  const fly = () => {
+    const x = Math.min(segs - 1e-6, flight.p * segs), i = Math.floor(x), u = x - i;
+    const a = path[Math.max(0, i - 1)], b = path[i], c = path[i + 1], d = path[Math.min(segs, i + 2)];
+    for (const k of keys) s[k] = 0.5 * (2 * b[k] + (c[k] - a[k]) * u + (2 * a[k] - 5 * b[k] + 4 * c[k] - d[k]) * u * u + (3 * b[k] - a[k] - 3 * c[k] + d[k]) * u * u * u);
+  };
+
+  // crank (0.3 to 0.85s): the blade slowly wakes with the starter
+  tl.to(s, { drl: 0.12, sweep: 0.62, duration: 0.55, ease: 'sine.inOut' }, 0.3)
+    .to(s, { keyframes: [{ jolt: 0.12, duration: 0.2, ease: 'sine.out' }, { jolt: 0, duration: 0.35, ease: 'sine.inOut' }] }, 0.3)
+    // 0.9s: it catches. The LEDs ignite, the body kicks and settles on its springs
+    .to(s, { keyframes: [{ jolt: 1, duration: 0.08, ease: 'power2.out' }, { jolt: 0, duration: 1.1, ease: 'elastic.out(1, 0.32)' }] }, 0.88)
+    .set(s, { drl: 1.35, pod: 1.3 }, 0.9)
+    .to(s, { sweep: 1.05, duration: 0.85, ease: 'sine.inOut' }, 0.9)
+    .to(s, { drl: 1, pod: 0.6, duration: 0.7, ease: 'sine.inOut' }, 1.75)
+    .to(s, { env: 0.07, key: 0.05, beam: 0.7, dust: 1, duration: 1.2, ease: 'sine.inOut' }, 0.95)
+    // and the camera lifts away
+    .to(flight, { p: 1, duration: 3.66, ease: 'sine.inOut', onUpdate: fly }, 0.94)
+    .set(s, { red: 1.5 }, 2.1)
+    .to(s, { sweepR: 1.1, duration: 0.6, ease: 'sine.inOut' }, 2.1)
+    .to(s, { red: 0.8, duration: 0.8, ease: 'sine.inOut' }, 2.8)
+    .to(s, { env: 0.2, key: 0.18, duration: 0.9, ease: 'sine.inOut' }, 2.9)
+    .to(s, { env: 0.06, key: 0.03, beam: 1, duration: 0.8, ease: 'sine.inOut' }, 3.9);
+  // 4.7s: first rev. One flash of the high beams, and the far end of the hall stirs
+  tl.set(s, { az: 0 }, 4.61);
   flash(4.66, 0.9);
-  tl.to(s, { keyframes: [{ near: 3.15, duration: 0.14, ease: 'power3.out' }, { near: 3.7, duration: 0.7, ease: 'power2.out' }] }, 4.66);
-  // 5.9s: the big rev. Flash, the letterbox opens, the car pulls forward as the camera swings out and the night lifts
+  tl.to(s, { keyframes: [{ hall: 0.16, duration: 0.3, ease: 'sine.out' }, { hall: 0.05, duration: 0.7, ease: 'sine.inOut' }] }, 4.68)
+    .to(s, { near: near(10.8), duration: 1, ease: 'sine.out' }, 4.66)
+    .to(s, { keyframes: [{ jolt: 0.7, duration: 0.1, ease: 'sine.out' }, { jolt: 0, duration: 0.7, ease: 'elastic.out(1, 0.4)' }] }, 4.66);
+  // 5.9s: the big rev. The lights run down the hall towards you and the car launches, squatting, tyres smoking
   flash(5.86, 1);
-  tl.to(s, { az: HERO.az, el: HERO.el, tx: HERO.tx, ty: HERO.ty, tz: HERO.tz, roll: 0, frame: 1, duration: 2.35, ease: 'expo.inOut' }, 5.92)
-    .to(s, { carZ: 0, duration: 2, ease: 'power2.inOut' }, 5.95)
-    .to(s, { env: HERO.env, key: HERO.key, sky: HERO.sky, duration: 2.1, ease: 'power2.inOut' }, 6.1)
-    .to(s, { beam: HERO.beam, red: HERO.red, duration: 1.7, ease: 'power2.inOut' }, 6.6)
-    .to(bars, { scaleY: 0, duration: 1.3, ease: 'expo.inOut' }, 6.0)
+  tl.to(s, { hall: 1, duration: 1.15, ease: 'power1.inOut' }, 5.86)
+    .to(s, { env: 1, key: 1, duration: 1.3, ease: 'power2.in' }, 5.9)
+    .to(s, { beam: 1, duration: 0.3 }, 5.86)
+    .to(s, { carZ: 0, duration: 1.6, ease: 'power2.inOut' }, 5.92)
+    .to(s, { dive: -1, duration: 0.5, ease: 'sine.out' }, 5.92)
+    .to(s, { smoke: 1, duration: 2, ease: 'none' }, 5.95)
+    .to(s, { lens: 38, duration: 1.3, ease: 'sine.inOut' }, 5.92)
+    .to(bars, { scaleY: 0, duration: 1, ease: 'expo.inOut' }, 6)
     .to(dark, { opacity: 0, duration: 2, ease: 'power2.inOut' }, 6.15) // only still there when the 3D car isn't
-    // 6.3s: the badge comes up in the light (opacity and scale only: an animated blur filter stutters on phones)
-    .fromTo(badge, { opacity: 0, scale: 1.35 }, { opacity: 1, scale: 1, duration: 0.9, ease: 'expo.out' }, 6.3)
-    // 7.2s: last rev, a pulse on the badge and a last pulse of light
-    .to(badge, { keyframes: [{ scale: 1.08, duration: 0.08 }, { scale: 1, duration: 0.6, ease: 'power2.out' }] }, 7.22)
-    .to(s, { keyframes: [{ high: 0.55, duration: 0.06 }, { high: 0, duration: 0.7, ease: 'power2.out' }] }, 7.22)
-    .to(flare, { keyframes: [{ opacity: 0.9, scaleX: 1.3, duration: 0.08 }, { opacity: 0, scaleX: 1.7, duration: 1.1, ease: 'power2.out' }] }, 7.22)
-    .add(heroIn, 7.7)
-    .add(() => flyBadge(), 7.95)
-    .to(NAVS, { opacity: 1, duration: 0.8, ease: 'power2.out' }, 8.1)
-    .to({}, { duration: 0.01 }, 8.9);
+    // it brakes right in front of you: the nose dips as it slows, and rocks back as it stops
+    .to(s, { keyframes: [{ dive: 1.3, duration: 0.5, ease: 'sine.inOut' }, { dive: 0, duration: 1.1, ease: 'back.out(2.2)' }] }, 6.86);
+
+  // 7.8s: facing you, it pops its bonnet. The V8 rises out of the bay, comes apart in the air, and the pieces fly together
+  // into the logo, which goes up into the menu bar. Without the 3D car, the badge simply comes up in the light
+  const E = 7.8, hero = stage ? E + 4.75 : 7.2, gone = stage ? E + 5.1 : 7.95;
+  if (stage) {
+    tl.to(s, { near: tall ? near(6.4) : 6.9, el: 0.05, ty: 1.62, tz: 1, lens: 30, duration: 1.6, ease: 'sine.inOut' }, E - 0.55)
+      .to(s, { keyframes: [{ bonnet: 0.05, duration: 0.09, ease: 'power2.out' }, { bonnet: 0.035, duration: 0.14, ease: 'sine.in' }] }, E)
+      .to(s, { keyframes: [{ jolt: 0.4, duration: 0.06, ease: 'power2.out' }, { jolt: 0, duration: 0.5, ease: 'sine.out' }] }, E)
+      .to(s, { bonnet: 1, duration: 0.95, ease: 'power2.inOut' }, E + 0.28)
+      .to(s, { bayGlow: 1, duration: 0.8, ease: 'sine.in' }, E + 0.3)
+      .to(s, { hall: 0.62, beam: 0.3, duration: 0.8, ease: 'sine.inOut' }, E + 0.4)
+      .to(s, { eRise: 1, duration: 1.15, ease: 'power3.out' }, E + 0.85)
+      .to(s, { keyframes: [{ dive: -0.7, duration: 0.25, ease: 'power2.out' }, { dive: 0, duration: 0.9, ease: 'elastic.out(1, 0.4)' }] }, E + 0.85)
+      .to(s, { bayGlow: 0.5, duration: 1, ease: 'sine.inOut' }, E + 1.1)
+      // it revs up there, and shakes itself to pieces
+      .to(s, { eShake: 1, duration: 0.4, ease: 'power2.in' }, E + 1.85);
+    flash(E + 2.25, 0.9);
+    tl.to(s, { eBurst: 1, duration: 1.05, ease: 'none' }, E + 2.25)
+      .to(s, { hall: 0.4, bayGlow: 0, duration: 0.8, ease: 'sine.inOut' }, E + 2.3)
+      .to(s, { eForm: 1, duration: 1.15, ease: 'none' }, E + 2.95)
+      // the moment the pieces land the badge is there in their place, in a flash of light
+      .add(() => { const m = stage?.markOnScreen(); if (m) gsap.set(badge, { width: m.w, left: m.x - m.w / 2, top: m.y - (m.w * 343) / 728 }); }, E + 3.8)
+      .fromTo(badge, { opacity: 0, scale: 1.12 }, { opacity: 1, scale: 1, duration: 0.3, ease: 'power2.out' }, E + 3.98);
+    flash(E + 4, 1);
+    // the bonnet drops and the hall comes back up
+    tl.to(s, { bonnet: 0, duration: 0.5, ease: 'power2.in' }, E + 4.15)
+      .to(s, { keyframes: [{ jolt: 1, dive: 0.7, duration: 0.07, ease: 'power2.out' }, { jolt: 0, dive: 0, duration: 0.8, ease: 'elastic.out(1, 0.38)' }] }, E + 4.65)
+      .to(s, { hall: 1, duration: 0.7, ease: 'sine.inOut' }, E + 4.2)
+      .add(() => stage?.dropEngine(), E + 4.4);
+  } else {
+    tl.fromTo(badge, { opacity: 0, scale: 1.35 }, { opacity: 1, scale: 1, duration: 0.9, ease: 'expo.out' }, 6.3);
+  }
+  // and the camera swings out to the hero
+  tl.to(s, { frame: 1, az: HERO.az, el: HERO.el, tx: HERO.tx, ty: HERO.ty, tz: HERO.tz, duration: 1.65, ease: 'sine.inOut' }, hero)
+    .to(s, { beam: HERO.beam, red: HERO.red, drl: HERO.drl, pod: HERO.pod, dust: HERO.dust, duration: 1.5, ease: 'power2.inOut' }, hero + 0.1)
+    // a last pulse on the badge and of the lights
+    .to(badge, { keyframes: [{ scale: 1.08, duration: 0.08 }, { scale: 1, duration: 0.6, ease: 'power2.out' }] }, hero + 0.02)
+    .to(s, { keyframes: [{ high: 0.6, duration: 0.1, ease: 'sine.out' }, { high: 0, duration: 0.7, ease: 'sine.inOut' }] }, hero + 0.02)
+    .add(heroIn, gone - 0.15)
+    .add(() => flyBadge(), gone)
+    .to(NAVS, { opacity: 1, duration: 0.8, ease: 'power2.out' }, gone + 0.15)
+    .to({}, { duration: 0.01 }, gone + 0.95);
 
   // the badge flies to the logo in the menu bar and hands over to it
   function flyBadge() {
@@ -300,10 +352,12 @@ async function runIntro() {
   }
 
   // the body rocks and the camera trembles with the recording's loudness
+  const REV_AT = E + 1.6, REV_FROM = 5.2;
   const react = (t) => {
-    if (!env || t < 0.85 || t > 8.6) { s.rev = 0; return; }
-    const fadeOut = t > 7.5 ? Math.max(0, 1 - (t - 7.5) / 1.1) : 1;
-    s.rev = env[Math.min(env.length - 1, Math.floor(t * 60))] * fadeOut * (phone ? 0.8 : 1);
+    if (!env || t < 0.85 || t > 12.2) { s.rev = 0; return; }
+    const at = stage && t > REV_AT ? t - REV_AT + REV_FROM : t; // the second rev, for the engine in the air
+    const fadeOut = t > 11 ? Math.max(0, 1 - (t - 11) / 1.1) : t > 7.5 && t < REV_AT ? Math.max(0.15, 1 - (t - 7.5) / 1.1) : 1;
+    s.rev = env[Math.min(env.length - 1, Math.floor(at * 60))] * fadeOut * (phone ? 0.8 : 1);
   };
 
   // controls while it plays: sound off, skip
@@ -333,7 +387,13 @@ async function runIntro() {
       src.connect(vol).connect(ctx.destination);
       t0 = ctx.currentTime + 0.05;
       src.start(t0);
-      src.onended = () => ctx.close().catch(() => {});
+      // the engine revs again up in the air, then the clock keeps running after the recording has ended
+      if (stage) {
+        const again = ctx.createBufferSource();
+        again.buffer = buffer;
+        again.connect(vol);
+        again.start(t0 + REV_AT, REV_FROM);
+      }
     }
     const now = () => (withSound ? audio.ctx.currentTime : performance.now() / 1000);
     const tick = () => {
@@ -345,7 +405,8 @@ async function runIntro() {
         return;
       }
       // the picture follows the audio clock: if a frame drops, it catches up instead of drifting
-      const t = Math.max(0, now() - t0);
+      let t = Math.max(0, now() - t0);
+      if (import.meta.env.MODE === 'dbg' && window.__hold !== undefined) t = window.__hold;
       tl.time(Math.min(t, tl.duration()));
       react(t);
       if (t >= tl.duration()) { gsap.ticker.remove(tick); resolve(); }
@@ -354,10 +415,13 @@ async function runIntro() {
   });
   removeEventListener('keydown', onKey);
   gsap.to(controls, { opacity: 0, duration: 0.3, onComplete: () => controls.remove() });
+  if (withSound) audio.ctx.close().catch(() => {});
+  stage?.dropEngine();
   finishIntro();
 }
 
 function finishIntro() {
+  Object.assign(s, HERO);
   gsap.set(NAVS, { clearProps: 'opacity' }); // never touch the nav's transform: it slides via CSS
   $('[data-badge]')?.remove();
   $('[data-bars]')?.remove();
@@ -366,23 +430,164 @@ function finishIntro() {
 }
 
 /* ================================================================== the Range Rover flashes its lights at you
-   Once the home page is showing (after the intro, or on arriving from another page) the car gives two quick flashes
+   Once the home page is showing (after the intro, or on arriving from another page) the car gives a soft flash
    of its high beams. Tap the car and it does it again. */
 let flashing = false;
 async function flashLights(delay = 0.7) {
   if (reduced) return;
   await stageReady;
-  if (!stage || flashing || scrollY > 40 || document.documentElement.classList.contains('play-intro')) return;
+  if (!stage || flashing || moving || scrollY > 40 || document.documentElement.classList.contains('play-intro')) return;
   flashing = true;
-  gsap.timeline({ delay, onComplete: () => { flashing = false; } })
-    .to(s, { keyframes: [
-      { high: 0.85, duration: 0.07, ease: 'power2.out' }, { high: 0.04, duration: 0.14, ease: 'power1.in' },
-      { high: 1, duration: 0.07, ease: 'power2.out' }, { high: 0, duration: 1, ease: 'power2.out' },
-    ] }, 0)
-    .to(flare, { keyframes: [
-      { opacity: 0.5, scaleX: 1.1, duration: 0.07 }, { opacity: 0.03, scaleX: 1, duration: 0.14 },
-      { opacity: 0.6, scaleX: 1.3, duration: 0.07 }, { opacity: 0, scaleX: 1.6, duration: 1, ease: 'power2.out' },
-    ] }, 0);
+  gsap.to(s, {
+    delay, onComplete: () => { flashing = false; },
+    keyframes: [{ high: 0.85, duration: 0.16, ease: 'sine.out' }, { high: 0, duration: 0.9, ease: 'sine.inOut' }],
+  });
+}
+
+/* ================================================================== the car's party tricks
+   Each one is a timeline on the same numbers the intro uses. Scrolling away settles the car straight back. */
+const PLAY = {
+  spin() {
+    const tl = gsap.timeline();
+    Object.assign(s, { skid: 0, spin: 0 });
+    tl.to(s, { rev: 1, lock: 0.62, dive: -1, pull: 0.2, duration: 0.3, ease: 'power2.out' }, 0)
+      .to(s, { burn: 1, duration: 0.3, ease: 'power1.in' }, 0.12)
+      .set(s, { skid: 1 }, 0.3)
+      .to(s, { spin: Math.PI * 2, duration: 2.3, ease: 'power2.inOut' }, 0.25)
+      .to(s, { lean: 1, dive: 0, duration: 0.5, ease: 'sine.out' }, 0.5)
+      .to(s, { high: 0.7, duration: 0.12, ease: 'none' }, 1.3)
+      .to(s, { high: 0, duration: 0.5, ease: 'sine.in' }, 1.42)
+      .to(s, { burn: 0, rev: 0, lock: 0, lean: 0, duration: 0.55, ease: 'sine.inOut' }, 2.0)
+      .to(s, { dive: 1, duration: 0.2, ease: 'power2.out' }, 2.4)
+      .to(s, { dive: 0, pull: 0, duration: 0.6, ease: 'sine.inOut' }, 2.6);
+    // light chases along the sign while the car goes round
+    tl.to(s, { waveAmp: 2.2, duration: 0.2, ease: 'none' }, 0.3)
+      .fromTo(s, { wave: -0.2 }, { wave: 1.2, duration: 0.6, repeat: 2, ease: 'none' }, 0.3)
+      .to(s, { waveAmp: 0, duration: 0.25, ease: 'none' }, 2.05);
+    return tl;
+  },
+  dance() {
+    const tl = gsap.timeline();
+    const beat = 0.34;
+    const steps = [{ nod: -1, hop: 0.07 }, { nod: 1, hop: 0.07 }, { nod: 0, lean: 1, hop: 0.05 }, { nod: 0, lean: -1, hop: 0.05 }, { nod: -1, lean: 0, hop: 0.09 }, { nod: 1, hop: 0.09 }];
+    steps.forEach((step, i) => {
+      tl.to(s, { ...step, duration: beat * 0.72, ease: 'power3.out' }, i * beat)
+        .to(s, { high: i % 2 ? 0 : 0.65, red: i % 2 ? 1 : 0.2, signRed: i % 2 ? -0.9 : 0.7, signWhite: i % 2 ? 0.7 : -0.9, duration: 0.05, ease: 'none' }, i * beat); // V8 and MOTORS trade places on the beat
+    });
+    const up = steps.length * beat;
+    tl.to(s, { nod: 0, lean: 0, hop: -0.1, high: 0, red: 0.55, signRed: 0, signWhite: 0, duration: 0.26, ease: 'power2.inOut' }, up)
+      .to(s, { signFlash: 1, duration: 0.07, ease: 'none' }, up + 0.9)
+      .to(s, { signFlash: 0, duration: 0.6, ease: 'sine.in' }, up + 0.97)
+      .to(s, { air: 0.62, hop: 0.05, pull: 0.1, rev: 1, duration: 0.34, ease: 'power2.out' }, up + 0.26)
+      .to(s, { air: 0, duration: 0.3, ease: 'power2.in' }, up + 0.6)
+      .to(s, { hop: -0.09, dive: 1, jolt: 1, rev: 0, duration: 0.08, ease: 'power2.out' }, up + 0.9)
+      .to(s, { hop: 0, dive: 0, jolt: 0, pull: 0, duration: 0.9, ease: 'elastic.out(1, 0.4)' }, up + 0.98);
+    return tl;
+  },
+  lights() {
+    const tl = gsap.timeline();
+    tl.to(s, { hall: 0.1, key: 0.35, drl: 0, pod: 0, red: 0, beam: 0, duration: 0.45, ease: 'sine.inOut' }, 0)
+      .set(s, { sweep: 0.3, sweepR: 0.2 }, 0.45)
+      .to(s, { drl: 1.4, pod: 1, red: 1, duration: 0.05 }, 0.55)
+      .to(s, { sweep: 2, sweepR: 2, duration: 0.8, ease: 'power2.out' }, 0.55);
+    // alone in the dark hall, the sign answers the car: light runs along it, then it strobes with the high beams
+    tl.set(s, { sign: 1, waveAmp: 2.6, signWhite: -0.8, signRed: -0.8 }, 0.6)
+      .fromTo(s, { wave: -0.2 }, { wave: 1.2, duration: 0.75, ease: 'sine.inOut' }, 0.6)
+      .to(s, { signWhite: 0, signRed: 0, waveAmp: 0, duration: 0.3, ease: 'none' }, 1.15);
+    [1.45, 1.65, 1.85, 2.05].forEach((at, i) => {
+      tl.to(s, { high: 1, red: i % 2 ? 0.2 : 1, signFlash: 1, signRed: i % 2 ? -0.9 : 0.4, signWhite: i % 2 ? 0.4 : -0.9, duration: 0.05, ease: 'none' }, at).to(s, { high: 0, red: i % 2 ? 1 : 0.2, signFlash: 0, duration: 0.13, ease: 'sine.in' }, at + 0.05);
+    });
+    tl.set(s, { signRed: 0, signWhite: 0 }, 2.25).to(s, { sign: 0, duration: 0.6, ease: 'none' }, 2.95);
+    tl.to(s, { beam: 1, high: 0.5, duration: 0.2, ease: 'power2.out' }, 2.3)
+      .to(s, { hall: 1, key: 1, beam: 0.3, high: 0, drl: 1, pod: 0.3, red: 0.55, duration: 0.9, ease: 'sine.inOut' }, 2.55);
+    return tl;
+  },
+};
+let moving = null, signBusy = false;
+async function stunt(name) {
+  if (reduced) return;
+  await stageReady;
+  if (!stage || moving || scrollY > 40 || document.documentElement.classList.contains('play-intro')) return;
+  const rest = { rev: 0, lock: 0, burn: 0, dive: 0, nod: 0, lean: 0, hop: 0, air: 0, pull: 0, jolt: 0, high: 0, red: 0.55, hall: 1, key: 1, drl: 1, pod: 0.3, beam: 0.3, sweep: 2, sweepR: 2, sign: 0, signRed: 0, signWhite: 0, signFlash: 0, waveAmp: 0 };
+  const end = () => { moving = null; removeEventListener('scroll', bail); };
+  const bail = () => {
+    if (scrollY < 60) return;
+    moving?.kill();
+    end();
+    gsap.to(s, { ...rest, spin: Math.round(s.spin / (Math.PI * 2)) * Math.PI * 2, skid: 0, duration: 0.3, ease: 'sine.out', onComplete: () => { s.spin = 0; } });
+  };
+  addEventListener('scroll', bail, { passive: true });
+  moving = PLAY[name]();
+  moving.eventCallback('onComplete', () => {
+    end();
+    if (name === 'spin') { s.spin = 0; s.turnDone = 1; gsap.fromTo(s, { skid: 1 }, { skid: 0, duration: 7, ease: 'sine.in' }); }
+  });
+}
+
+/* ================================================================== the search in the hero
+   Make narrows the models, model narrows the years, and the button always says how many cars it will show. It is a real
+   link to the inventory with the filters in the address, so the page transition and the back button work as usual. */
+function setupFinder() {
+  const box = $('[data-finder]');
+  if (!box) return;
+  const cars = JSON.parse($('[data-finder-data]', box).textContent);
+  const [make, model, year] = ['make', 'model', 'year'].map((n) => $(`[name="${n}"]`, box));
+  const go = $('[data-finder-go]', box), label = $('[data-finder-label]', box);
+  const fill = (sel, values, head) => {
+    const keep = sel.value;
+    sel.replaceChildren(new Option(head, ''), ...values.map((v) => new Option(v, v)));
+    sel.value = values.map(String).includes(keep) ? keep : '';
+  };
+  const update = () => {
+    fill(make, [...new Set(cars.map((c) => c[0]))].sort(), 'Choose make');
+    const byMake = cars.filter((c) => !make.value || c[0] === make.value);
+    fill(model, [...new Set(byMake.map((c) => c[1]))].sort(), 'Choose model');
+    const byModel = byMake.filter((c) => !model.value || c[1] === model.value);
+    fill(year, [...new Set(byModel.map((c) => c[2]))].sort((a, b) => b - a), 'Choose year');
+    const hits = byModel.filter((c) => !year.value || String(c[2]) === year.value).length;
+    const q = new URLSearchParams();
+    if (make.value) q.set('make', make.value);
+    if (model.value) q.set('q', model.value);
+    if (year.value) q.set('year', `${year.value}-${year.value}`);
+    go.href = q.size ? `inventory.html?${q}` : 'inventory.html';
+    label.textContent = `Search ${hits} car${hits === 1 ? '' : 's'}`;
+  };
+  box.addEventListener('change', update);
+  $('[data-finder-reset]', box).addEventListener('click', () => {
+    make.value = model.value = year.value = '';
+    update();
+  });
+  update();
+}
+
+/** Click the wall sign: it blinks at you, light runs along it, and the car flashes back. */
+function signBlink() {
+  if (moving || signBusy) return;
+  signBusy = true;
+  const tl = gsap.timeline({ onComplete: () => { signBusy = false; } });
+  [0, 0.13, 0.26].forEach((at) => {
+    tl.to(s, { sign: 0, signWhite: -1, signRed: -1, duration: 0.03, ease: 'none' }, at).to(s, { signWhite: 0, signRed: 0, signFlash: 0.8, duration: 0.03, ease: 'none' }, at + 0.07);
+  });
+  tl.to(s, { signFlash: 0, duration: 0.5, ease: 'sine.in' }, 0.34)
+    .set(s, { waveAmp: 2.4 }, 0.42)
+    .fromTo(s, { wave: -0.2 }, { wave: 1.2, duration: 0.7, ease: 'sine.inOut' }, 0.42)
+    .to(s, { waveAmp: 0, duration: 0.2, ease: 'none' }, 1);
+  flashLights(0.5);
+}
+
+function showMoves() {
+  const box = $('[data-hero-moves]');
+  if (!box) return;
+  stageReady.then((st) => {
+    if (!st) return;
+    box.hidden = false;
+    gsap.from(box.children, { opacity: 0, y: 10, duration: 0.7, delay: 1.6, stagger: 0.08, ease: 'expo.out', clearProps: 'opacity,transform' });
+    box.addEventListener('click', (e) => { const b = e.target.closest('[data-move]'); if (b) stunt(b.dataset.move); });
+    // the tricks only work at the top of the page, so the buttons leave as soon as the drive starts
+    const away = () => box.classList.toggle('is-away', scrollY > 30);
+    addEventListener('scroll', away, { passive: true });
+    away();
+  });
 }
 
 /** A small note that the car can be turned, until someone has. */
@@ -392,7 +597,7 @@ async function showHint() {
   hint.hidden = false;
   gsap.fromTo(hint, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.8, delay: 1.2, ease: 'expo.out' });
   const hide = () => {
-    if (!stage.turned && scrollY < innerHeight * 0.15) return;
+    if (stage && !stage.turned && scrollY < innerHeight * 0.15) return;
     removeEventListener('pointerup', hide);
     removeEventListener('scroll', hide);
     gsap.to(hint, { opacity: 0, duration: 0.4, onComplete: () => hint.remove() });
@@ -458,30 +663,94 @@ function startCountdown() {
   new IntersectionObserver(([e]) => { clearInterval(timer); if (e.isIntersecting) { tick(); timer = setInterval(tick, 1000); } }).observe(box);
 }
 
-/* ================================================================== driving through the headlights
-   The hero holds still for a moment as you start to scroll, and your thumb is the throttle: the headline lifts away,
-   the camera drops in front of the bonnet, the wheels turn and the road markings rush past, the high beams come on
-   and the screen washes into the page. Short landscape screens skip it (there's no room to hold still). */
+/* ================================================================== the drive
+   The hero stays on screen for a long stretch of scrolling, and your thumb is the throttle. It is one unbroken shot:
+     0.00  the headline lifts away and the car pulls off, the camera sliding round to its side
+     0.28  flat out along the hall, side-on, the wheels a blur and the road markings streaming past
+     0.44  the camera comes round the bonnet to dead ahead, and the high beams come on
+     0.50  the camera keeps easing in on the bonnet, slowly, right through to the end
+     0.60  a long dissolve: the showroom fades into the page while "Just in" fades up through it
+   So there is never a cut, never a flash and never a moment with nothing on screen. Short landscape screens skip it.
+
+   With a mouse or trackpad the drive is a set of stops: one flick of the wheel plays the next part of the film, and the
+   page holds still until it lands, so the wheel's notches can't make it stutter. Touch screens scroll it freely. */
 async function heroScrub() {
   const pin = $('[data-hero-pin]');
   if (reduced || !pin || innerHeight < 560) return;
   const st = await stageReady;
+  if (st) document.documentElement.classList.add('hero-cover');
   const portrait = innerHeight > innerWidth;
-  const tl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: pin, start: 'top top', end: 'bottom bottom', scrub: true, invalidateOnRefresh: false } })
-    .to('.hero-inner', { y: portrait ? -40 : -80, opacity: 0, duration: 0.34, ease: 'power1.in' }, 0)
-    .to('.hero-shade', { opacity: 0, duration: 0.2 }, 0.5)
-    .fromTo(flare, { opacity: 0, scaleX: 0.3 }, { opacity: 1, scaleX: 1.7, duration: 0.3, immediateRender: false }, 0.34)
-    .to('.hero-flash', { opacity: 1, duration: 0.2, ease: 'power2.in' }, 0.66)
-    .to('.hero', { opacity: 0, duration: 0.18, ease: 'power1.inOut' }, 0.82);
+  const next = $('.arrivals');
+  const tl = gsap.timeline({
+    defaults: { ease: 'none' },
+    scrollTrigger: { trigger: pin, start: 'top top', end: 'bottom bottom', scrub: lenis ? 0.2 : 0.3, invalidateOnRefresh: false },
+    onUpdate() {
+      s.off = this.progress() > 0.875; // fully faded: stop drawing the 3D scene
+      document.documentElement.classList.toggle('hero-cover', this.progress() < 0.56); // nothing behind it needs drawing, until it starts to fade
+    },
+  }).to('.hero-inner', { y: portrait ? -60 : -110, autoAlpha: 0, duration: 0.12, ease: 'power2.in' }, 0)
+    .to('.hero-shade', { opacity: 0, duration: 0.14 }, 0.03);
   if (st) {
-    tl.to(s, { frame: 0, near: 3.4, az: 0.1, el: 0.03, tx: 0, ty: 0.86, tz: 2.2, duration: 0.86, ease: 'power2.inOut' }, 0)
-      .to(s, { road: 90, duration: 1, ease: 'power2.in' }, 0)
-      .to(s, { roadGlow: 1, beam: 1, duration: 0.34, ease: 'power1.out' }, 0.12)
-      .to(s, { env: 0.45, key: 0.4, sky: 0.45, duration: 0.4 }, 0.14)
-      .to(s, { high: 1, duration: 0.32, ease: 'power2.in' }, 0.42);
+    const near = (m) => (portrait ? m * 1.5 : m);
+    tl.to(s, { road: 16, duration: 0.3, ease: 'power2.in' }, 0)
+      .to(s, { road: 62, duration: 0.4, ease: 'none' }, 0.3)
+      .to(s, { road: 72, duration: 0.06, ease: 'power1.out' }, 0.7)
+      .to(s, { roadGlow: 1, duration: 0.12 }, 0.06)
+      .to(s, { env: 0.75, key: 0.7, hall: 0.8, duration: 0.2 }, 0.05)
+      .to(s, { dust: 1, duration: 0.1 }, 0.1)
+      // round to the side
+      .to(s, { frame: 0, near: near(9), az: 1.56, el: 0.05, tx: 0, ty: 0.72, tz: 0, duration: 0.28, ease: 'power2.inOut' }, 0)
+      .to(s, { near: near(7.4), el: 0.025, duration: 0.12, ease: 'sine.inOut' }, 0.28)
+      // round the bonnet to dead ahead
+      .to(s, { az: 0.08, tz: 0.9, el: 0.035, near: near(9), ty: 0.84, duration: 0.1, ease: 'sine.inOut' }, 0.4)
+      .to(s, { pod: 1, duration: 0.14 }, 0.42)
+      .to(s, { env: 0.4, key: 0.3, duration: 0.16 }, 0.46)
+      // and in, through the lamps
+      .to(s, { high: 0.22, duration: 0.2, ease: 'sine.inOut' }, 0.5)
+      .to(s, { az: 0, near: near(5.4), lens: 30, tz: 1.5, ty: 0.9, duration: 0.42, ease: 'sine.inOut' }, 0.5);
   } else {
-    tl.to(media, { scale: 2, duration: 1, ease: 'power1.in' }, 0);
+    tl.to(media, { scale: 2, duration: 0.7, ease: 'power1.in' }, 0);
   }
+  // the showroom dissolves into the page, and the next section fades up through it
+  tl.to('.hero', { autoAlpha: 0, duration: 0.2, ease: 'sine.inOut' }, 0.58)
+    .fromTo(next, { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.16, ease: 'sine.out' }, 0.62)
+    .to({}, { duration: 0.22 }, 0.78);
+  (window.requestIdleCallback || setTimeout)(() => {
+    $$('.arrivals img').slice(0, 6).forEach((im) => { im.loading = 'eager'; im.decode?.().catch(() => {}); });
+  }, { timeout: 1500 });
+  if (lenis) wheelStops(tl.scrollTrigger);
+}
+
+/** One flick of the wheel, one stretch of the film. The page is held until it lands. */
+function wheelStops(st) {
+  const stops = [0, 0.3, 0.47, 1];
+  const time = [1.5, 1.2, 2];
+  const gentle = (t) => (1 - Math.cos(Math.PI * t)) / 2;
+  // the last stretch eases in and carries on at speed: the next section is fully up well before the end, so there is
+  // nothing left on screen to slow down for, and it hands straight back to you
+  const away = (t) => (t < 0.4 ? (t * t) / 0.64 : (2 * t - 0.4) / 1.6);
+  let busy = false, last = 0, doneAt = 0;
+  addEventListener('wheel', (e) => {
+    if (e.ctrlKey || !e.deltaY) return;
+    const dir = Math.sign(e.deltaY), y = scrollY, a = st.start, b = st.end;
+    if (!(y < b - 2 || (y <= b + 2 && dir < 0))) return; // past the drive: the page scrolls as normal
+    e.preventDefault();
+    e.stopPropagation();
+    const now = performance.now(), gap = now - last;
+    last = now;
+    if (busy || (gap < 160 && now - doneAt < 260)) return; // the tail of the same flick
+    const p = (y - a) / (b - a);
+    const to = dir > 0 ? stops.find((v) => v > p + 0.012) : [...stops].reverse().find((v) => v < p - 0.012);
+    if (to === undefined) return;
+    busy = true;
+    const i = dir > 0 ? stops.indexOf(to) - 1 : stops.indexOf(to);
+    setTimeout(() => { busy = false; }, time[i] * 1000 + 500); // never stuck, whatever happens to the tab meanwhile
+    lenis.scrollTo(a + to * (b - a), {
+      duration: time[i], lock: true, force: true,
+      easing: i === 2 && dir > 0 ? away : gentle,
+      onComplete: () => { busy = false; doneAt = performance.now(); },
+    });
+  }, { passive: false, capture: true });
 }
 
 /* ================================================================== the Just in rail: a bar, and arrows with a mouse */

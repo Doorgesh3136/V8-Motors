@@ -61,8 +61,9 @@ function normalise(c) {
   };
 }
 
-// Card and gallery-strip thumbnails for every photo (480 px wide), plus a 960 px version of the
-// first photo for big cards. Existing files are kept, so later syncs only fetch new cars.
+// Card and gallery-strip thumbnails for every photo (480 px wide), a 960 px version of the first photo for big
+// cards, and a 1280 px copy of every photo for the car page gallery: the dealer's photo server takes about two
+// seconds per photo, so the gallery never loads from it directly. Existing files are kept, so later syncs only fetch new cars.
 async function thumbs(cars) {
   mkdirSync(THUMBS, { recursive: true });
   const keep = new Set();
@@ -70,7 +71,7 @@ async function thumbs(cars) {
   for (const c of cars) {
     c.thumbs = c.photos.map((url, i) => {
       const name = `${c.id}-${i}`;
-      const sizes = i === 0 ? [480, 960] : [480];
+      const sizes = i === 0 ? [480, 960, 1280] : [480, 1280];
       sizes.forEach((w) => keep.add(`${name}-${w}.webp`));
       if (!sizes.every((w) => existsSync(`${THUMBS}/${name}-${w}.webp`))) jobs.push({ url, name, sizes });
       return `stock/${name}-480.webp`;
@@ -83,7 +84,9 @@ async function thumbs(cars) {
       if (!res.ok) throw new Error(`photo ${job.url} answered ${res.status}`);
       const buf = Buffer.from(await res.arrayBuffer());
       for (const w of job.sizes) {
-        await sharp(buf).rotate().resize({ width: w, height: Math.round(w * 0.66), fit: 'cover', position: 'attention' })
+        const out = sharp(buf).rotate();
+        if (w === 1280) await out.resize({ width: w, withoutEnlargement: true }).webp({ quality: 74 }).toFile(`${THUMBS}/${job.name}-${w}.webp`);
+        else await out.resize({ width: w, height: Math.round(w * 0.66), fit: 'cover', position: 'attention' })
           .webp({ quality: w > 500 ? 70 : 66 }).toFile(`${THUMBS}/${job.name}-${w}.webp`);
       }
       process.stdout.write('.');

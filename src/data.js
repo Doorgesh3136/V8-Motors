@@ -26,6 +26,9 @@ export const rs = (n) => 'Rs ' + Math.round(n).toLocaleString('en-US');
 export const km = (n) => (n == null ? 'Ask us' : n.toLocaleString('en-US') + ' km');
 
 /** Local thumbnail of photo `i` (480 px wide; the first photo also has a 960 px version). */
+/** The gallery's copy of photo `i`, 1280 px wide, hosted with the site. */
+export const large = (c, i = 0, P = '') => `${P}stock/${c.id}-${i}-1280.webp`;
+
 export const thumb = (c, i = 0, w = 480, P = '') => `${P}stock/${c.id}-${i}-${i === 0 ? w : 480}.webp`;
 
 /** The dearest car a monthly figure pays for, on the same example terms as monthly(). */

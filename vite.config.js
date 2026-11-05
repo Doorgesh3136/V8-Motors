@@ -39,6 +39,7 @@ function prerender() {
           .replace('<!--@makes-->', () => makesHTML(P))
           .replace('<!--@grid-->', () => inventoryGridHTML(P))
           .replace('<!--@count-->', () => String(CARS.length))
+          .replace('<!--@finder-->', () => JSON.stringify(CARS.map((c) => [c.make, c.model, c.year])))
           .replace(/<!--@opts:(\w+)-->/g, (_, k) => filterOptionsHTML(k))
           .replaceAll('<!--@total-->', () => String(CARS.length))
           .replace('<!--@caroptions-->', () => SWAP_LIST.map((c) => `<option value="${c.id}"${c === SWAP_PICK ? ' selected' : ''}>${c.year} ${c.make} ${c.model}, Rs ${c.price.toLocaleString('en-US')}</option>`).join(''))

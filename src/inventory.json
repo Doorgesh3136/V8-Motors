@@ -1,7 +1,79 @@
 {
- "syncedAt": "2026-11-05T09:43:13.277Z",
+ "syncedAt": "2026-11-05T20:09:33.972Z",
  "source": "https://v8.farhaan.info/api/cars",
  "cars": [
+  {
+   "id": "2011-kia-sportage-285",
+   "apiId": 285,
+   "make": "Kia",
+   "model": "Sportage",
+   "year": 2011,
+   "price": 325000,
+   "km": null,
+   "fuel": "Petrol",
+   "gearbox": "Manual",
+   "body": "Hatchback",
+   "engineCc": 1998,
+   "engine": "2.0 L",
+   "colour": "Silver",
+   "seats": 5,
+   "doors": 4,
+   "description": "The Kia Sportage is a stylish and spacious SUV offering reliable performance, comfortable seating and a practical interior, ideal for everyday driving.",
+   "options": null,
+   "deal": false,
+   "added": "2026-11-05T11:34:42.032Z",
+   "photos": [
+    "https://v8.farhaan.info/uploads/1793878480755-9c3baa4fe96745cd.webp",
+    "https://v8.farhaan.info/uploads/1793878481060-f0e3f02454467ec6.webp",
+    "https://v8.farhaan.info/uploads/1793878481395-1c3cb7f7da118ce9.webp",
+    "https://v8.farhaan.info/uploads/1793878481699-9d16863c61c07eed.webp",
+    "https://v8.farhaan.info/uploads/1793878481855-735a1c10e3807a92.webp",
+    "https://v8.farhaan.info/uploads/1793878482028-54fba93b8936f310.webp"
+   ],
+   "thumbs": [
+    "stock/2011-kia-sportage-285-0-480.webp",
+    "stock/2011-kia-sportage-285-1-480.webp",
+    "stock/2011-kia-sportage-285-2-480.webp",
+    "stock/2011-kia-sportage-285-3-480.webp",
+    "stock/2011-kia-sportage-285-4-480.webp",
+    "stock/2011-kia-sportage-285-5-480.webp"
+   ]
+  },
+  {
+   "id": "2009-toyota-corolla-284",
+   "apiId": 284,
+   "make": "Toyota",
+   "model": "Corolla",
+   "year": 2009,
+   "price": 325000,
+   "km": null,
+   "fuel": "Petrol",
+   "gearbox": "Manual",
+   "body": "Sedan",
+   "engineCc": 1600,
+   "engine": "1.6 L",
+   "colour": "Grey",
+   "seats": 5,
+   "doors": 4,
+   "description": "The Toyota Corolla is a reliable and comfortable sedan offering smooth performance, excellent fuel efficiency and a spacious interior. Ideal for everyday use.",
+   "options": null,
+   "deal": false,
+   "added": "2026-11-05T10:44:38.084Z",
+   "photos": [
+    "https://v8.farhaan.info/uploads/1793875477024-b588438bbb32b299.webp",
+    "https://v8.farhaan.info/uploads/1793875477324-e6e091124950c72b.webp",
+    "https://v8.farhaan.info/uploads/1793875477510-0a2647e213e3cb49.webp",
+    "https://v8.farhaan.info/uploads/1793875477698-243b7413d596afeb.webp",
+    "https://v8.farhaan.info/uploads/1793875478009-2a76902a7cbfbf91.webp"
+   ],
+   "thumbs": [
+    "stock/2009-toyota-corolla-284-0-480.webp",
+    "stock/2009-toyota-corolla-284-1-480.webp",
+    "stock/2009-toyota-corolla-284-2-480.webp",
+    "stock/2009-toyota-corolla-284-3-480.webp",
+    "stock/2009-toyota-corolla-284-4-480.webp"
+   ]
+  },
   {
    "id": "2019-hyundai-i20-283",
    "apiId": 283,

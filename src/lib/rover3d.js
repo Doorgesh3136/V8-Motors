@@ -1,55 +1,213 @@
 /**
- * The Range Rover, live in 3D (public/model/range-rover.glb). This module is the only place three.js is used, and the
- * home page loads it on its own, so no other page pays for it.
+ * The Range Rover, live in 3D (public/model/range-rover.glb), in a night hall rendered in Blender
+ * (public/hero/hall.webp). This module is the only place three.js is used, and the home page loads it on its own,
+ * so no other page pays for it.
  *
- * It keeps no timeline of its own. The home page animates one plain object of numbers (`s`, see DARK and HERO below)
- * with GSAP, on the engine recording's clock, and every frame this file draws whatever those numbers say. That is why
- * the picture can follow the audio exactly, and why scrolling can drive the same scene.
+ * It keeps no timeline of its own. The home page animates one plain object of numbers (`s`, see rover-shots.js) with
+ * GSAP, on the engine recording's clock, and every frame this file draws whatever those numbers say. That is why the
+ * picture can follow the audio exactly, and why scrolling can drive the same scene.
  *
- * Everything that would normally need a heavy effect is faked cheaply, because this has to run on a phone:
- *   reflection   the car is drawn a second time upside down, under a slightly see-through floor
- *   headlights   the pools of light are painted by the floor's shader; the beams are additive cones
- *   studio       the reflections in the paint come from softboxes built in code, so there is no HDRI to download
+ * Expensive effects are faked cheaply, because this has to run on a phone:
+ *   reflection   the car is drawn a second time upside down, under a floor that is see-through where it is wet
+ *   the hall     one equirectangular image: the sky dome, the floor's reflections and the paint's all read from it
+ *   headlights   the LEDs are real emissive parts of the model; the pools of light are painted by the floor's shader
+ *                and the beams in the air are additive cones
+ *
+ * Two rules keep the picture steady in motion. Anything small and bright is real geometry, never part of the hall
+ * image, so it gets proper edge smoothing. And the picture is tone-mapped BEFORE it is antialiased: it goes straight
+ * to the canvas, and the glow is a separate, blurred pass added on top. (Bloom through a high-dynamic-range buffer
+ * antialiases first, so a half-covered pixel of a very bright lamp still comes out white, and fine bright detail
+ * crawls and sparkles as the camera moves.)
  */
 import {
-  AdditiveBlending, BackSide, CanvasTexture, CircleGeometry, Color, ConeGeometry, DirectionalLight, DoubleSide, Group, Mesh,
-  MeshBasicMaterial, MeshPhysicalMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Scene, ShaderMaterial,
-  SphereGeometry, Sprite, SpriteMaterial, SRGBColorSpace, Vector3, WebGLRenderer, ACESFilmicToneMapping,
+  AdditiveBlending, BackSide, Box3, BoxGeometry, BufferAttribute, BufferGeometry, CanvasTexture, CircleGeometry, Color, ConeGeometry, DirectionalLight,
+  DoubleSide, Group, HalfFloatType, InstancedBufferAttribute, InstancedMesh, LinearFilter, LinearMipmapLinearFilter, Matrix4, Mesh, MeshBasicMaterial, MeshPhysicalMaterial,
+  PerspectiveCamera, Plane, PlaneGeometry, PMREMGenerator, Points, PointsMaterial, Raycaster, RepeatWrapping, Scene, ShaderChunk, ShaderMaterial, SphereGeometry,
+  Sprite, SpriteMaterial, SRGBColorSpace, TextureLoader, Vector2, Vector3, WebGLRenderer, WebGLRenderTarget, ACESFilmicToneMapping,
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { buildEngine, ENGINE_SIZE, MARK_AT, MARK_SIZE } from './rover-engine.js';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
-const WHEEL_R = 0.405; // metres, so the wheels roll at exactly the speed the car moves
-const LAMP = { x: 0.7, y: 0.99, z: 2.16 }; // headlamp, from the middle of the car
-const TAIL = { x: 0.76, y: 1.09, z: -2.5 };
+const SIGN_LONG = 10.87; // and where each of its eight letters starts and ends, along its length
+const SIGN_LETTERS = [[0, 0.109], [0.123, 0.212], [0.289, 0.412], [0.428, 0.542], [0.552, 0.651], [0.661, 0.774], [0.791, 0.892], [0.903, 1]];
+const SIGN_SCALE = 0.42, SIGNS = [[-13.5, 2.45], [0.5, 3.75]]; // [along the left wall, height]: one for the hero's angle, one for the side-on run
+const WHEEL_R = 0.404; // metres, so the wheels roll at exactly the speed the car moves
+// where the car pivots in a donut: its inside front wheel, as a real one does
+const PIVOT = { x: -0.86, z: 1.5 };
+const REAR = { x: 0.854, z: -1.495 };
+const TAIL = { x: 0.74, y: 1.14, z: -2.46 };
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+const asset = (p) => new URL(p, document.baseURI).href;
 
-/** Softboxes for the paint to reflect: a long one overhead, strips down each side, cold rim, a little dawn low down. */
-function buildStudio(renderer) {
+/** Reads the Blender hall by direction. The lights come on in a wave from the far, open end towards the camera. */
+const HALL = /* glsl */ `
+  #define PI 3.14159265
+  uniform sampler2D uTex;
+  uniform float uHall, uSun;
+  vec3 hall(vec3 d, float lod) {
+    d = normalize(d);
+    vec2 uv = vec2(atan(d.x, -d.z) / (2. * PI) + .5, asin(clamp(d.y, -1., 1.)) / PI + .5);
+    vec3 c = textureLod(uTex, uv, lod).rgb;
+    // the open far end was rendered to pure white: give it its sunrise back, amber at the ridge, blue higher up
+    float sun = smoothstep(.72, .96, min(min(c.r, c.g), c.b));
+    c = mix(c, mix(vec3(2.2, 1.15, .5), vec3(.7, .85, 1.25), smoothstep(.0, .1, d.y)), sun * uSun);
+    float wave = smoothstep(0., .3, uHall * 1.32 - (d.z * .5 + .5));
+    return c * .42 * wave * (.25 + .75 * smoothstep(.9, 1., uHall + .08));
+  }`;
+
+function buildSky(tex) {
+  const mat = new ShaderMaterial({
+    side: BackSide, depthWrite: false,
+    uniforms: { uTex: { value: tex }, uHall: { value: 0 }, uSun: { value: 1 } },
+    vertexShader: 'varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
+    fragmentShader: `varying vec3 vD; ${HALL}
+      void main(){
+        gl_FragColor = vec4(hall(vD, 0.), 1.);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  return new Mesh(new SphereGeometry(70, 32, 16), mat);
+}
+
+/**
+ * The hall's lights: strips across the ceiling, blades on the columns and the red line along the walls, at exactly
+ * the places they lit the Blender render. They come on in a wave from the far end, as the hall image does.
+ */
+function buildHallLights() {
+  const uniforms = { uHall: { value: 0 }, uGain: { value: 1 } };
+  const mat = new ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      attribute vec3 aCol;
+      varying vec3 vC; varying float vZ;
+      void main(){
+        vC = aCol;
+        vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.);
+        vZ = w.z;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }`,
+    fragmentShader: `
+      varying vec3 vC; varying float vZ;
+      uniform float uHall, uGain;
+      void main(){
+        float on = smoothstep(0., .1, uHall * 1.2 - (vZ + 78.) / 156.);
+        gl_FragColor = vec4(mix(vC * .025, vC, on) * uGain, 1.);
+      }`,
+  });
+  const items = [];
+  const WARM = [1, 0.97, 0.92], RED = [1, 0.08, 0.1];
+  for (let y = -87; y < 82; y += 7) {
+    for (const x of [-6.2, 0, 6.2]) items.push([[0.34, 0.07, 5.6], [x, 7.08, -(y + 3.2)], WARM]);
+    for (const s of [-1, 1]) if (s > 0 || !SIGNS.some(([z]) => Math.abs(z + y) < 7)) items.push([[0.09, 5.2, 0.2], [s * 9.88, 3.6, -y], WARM]);
+  }
+  for (const s of [-1, 1]) items.push([[0.05, 0.07, 180], [s * 10.97, 0.5, 0], RED]);
+  const geo = new BoxGeometry(1, 1, 1);
+  const cols = new Float32Array(items.length * 3);
+  const mesh = new InstancedMesh(geo, mat, items.length);
+  const m = new Matrix4();
+  items.forEach(([size, pos, col], i) => {
+    m.makeScale(...size).setPosition(...pos);
+    mesh.setMatrixAt(i, m);
+    cols.set(col, i * 3);
+  });
+  geo.setAttribute('aCol', new InstancedBufferAttribute(cols, 3));
+  mesh.frustumCulled = false;
+  const mirror = new InstancedMesh(geo, mat, items.length);
+  mirror.instanceMatrix = mesh.instanceMatrix;
+  mirror.scale.y = -1;
+  mirror.frustumCulled = false;
+  mirror.renderOrder = -1;
+  return { mesh, mirror, uniforms };
+}
+
+/** The V8 MOTORS sign: channel letters on the wall, lit faces and dark metal sides, with light spilling onto the wall.
+ *  The faces know how far along the sign they are, so light can run across the letters and one letter can catch alone. */
+function buildSigns(sign, glowMap) {
+  const face = {
+    uWave: { value: -1 }, uWaveAmp: { value: 0 }, // a band of light running along the sign
+    uDropA: { value: 0 }, uDropB: { value: 0 }, uDrop: { value: 0 }, // one letter, dimmed
+  };
+  const wire = (m) => {
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, face);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying float vAlong;')
+        .replace('#include <project_vertex>', `#include <project_vertex>
+          float wz = (modelMatrix * vec4(transformed, 1.)).z;
+          float mid = wz < ${((SIGNS[0][0] + SIGNS[1][0]) / 2).toFixed(2)} ? ${SIGNS[0][0].toFixed(2)} : ${SIGNS[1][0].toFixed(2)};
+          vAlong = .5 - (wz - mid) / ${(SIGN_LONG).toFixed(3)};`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+          varying float vAlong;
+          uniform float uWave, uWaveAmp, uDropA, uDropB, uDrop;`)
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float band = (vAlong - uWave) * 6.5;
+          diffuseColor.rgb *= 1. + uWaveAmp * exp(-band * band);
+          diffuseColor.rgb *= 1. - uDrop * step(uDropA, vAlong) * step(vAlong, uDropB);`);
+    };
+    return m;
+  };
+  const ivory = wire(new MeshBasicMaterial({ color: 0xfff4e4, toneMapped: false })); // lit faces: they give out light, so the film look doesn't grey them
+  const red = wire(new MeshBasicMaterial({ color: 0xff1e28, toneMapped: false }));
+  const side = new MeshPhysicalMaterial({ color: 0x17181a, metalness: 0.9, roughness: 0.4 });
+  sign.traverse((o) => {
+    if (!o.isMesh) return;
+    o.material = /Red/.test(o.material.name) ? red : /Ivory/.test(o.material.name) ? ivory : side;
+  });
+  const spill = new MeshBasicMaterial({ map: glowMap, color: 0xffe2c4, blending: AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 });
+  const group = new Group(), mirrors = [], far = new Group();
+  const put = ([z, SIGN_Y], i) => {
+    const g = sign.clone(true);
+    g.scale.setScalar(SIGN_SCALE);
+    g.rotation.y = Math.PI / 2;
+    g.position.set(-9.72, SIGN_Y, z);
+    const m = g.clone(true);
+    m.position.y = -SIGN_Y;
+    m.scale.y = -SIGN_SCALE;
+    m.traverse((o) => { o.renderOrder = -1; });
+    const wash = new Mesh(new PlaneGeometry(17, 6), spill);
+    wash.rotation.y = Math.PI / 2;
+    wash.position.set(-9.9, SIGN_Y, z);
+    wash.renderOrder = 1;
+    (i ? far : group).add(g, wash, m);
+    mirrors.push(m, wash);
+  };
+  SIGNS.forEach(put);
+  group.add(far);
+  return { group, far, mirrors, ivory, red, spill, face };
+}
+
+/** What the paint reflects: the hall itself, with softboxes over the car to draw long clean lines along the body. */
+function buildStudio(renderer, tex) {
   const room = new Scene();
-  room.background = new Color(0x08161f);
+  const sky = buildSky(tex);
+  sky.material.uniforms.uHall.value = 1;
+  sky.material.uniforms.uSun.value = 0; // the paint stays white from every side: no orange cast from the far end
+  room.add(sky);
   const box = (w, h, [x, y, z], hex, power) => {
     const m = new Mesh(new PlaneGeometry(w, h), new MeshBasicMaterial({ color: new Color(hex).multiplyScalar(power), side: DoubleSide }));
     m.position.set(x, y, z);
     m.lookAt(0, 0.6, 0);
     room.add(m);
   };
-  box(16, 3.2, [0, 9, 0.5], 0xf2f7ff, 9);
-  box(16, 0.8, [-10, 3.2, 0], 0xdfeeff, 9);
-  box(16, 0.8, [10, 3.2, 0], 0xdfeeff, 9);
-  box(5, 1.4, [7, 4, 9], 0xffffff, 5);
-  box(14, 1.2, [0, 2.5, -13], 0x5fb6e6, 3.2);
-  box(18, 0.5, [0, 0.8, 13], 0xffb27a, 1.1);
+  box(16, 2.6, [0, 9, 0.5], 0xf2f7ff, 5);
+  box(16, 0.7, [-10, 3.2, 0], 0xdfeeff, 5.5);
+  box(16, 0.7, [10, 3.2, 0], 0xdfeeff, 5.5);
+  box(5, 1.2, [7, 4, 9], 0xffffff, 2.5);
+  box(14, 2.4, [0, 4.5, -12], 0xffffff, 3.2);
   const pm = new PMREMGenerator(renderer);
-  const tex = pm.fromScene(room, 0.025).texture;
+  const out = pm.fromScene(room, 0.02).texture;
   pm.dispose();
-  return tex;
+  return out;
 }
 
-/** Soft lamp glow with a thin lens streak, drawn once. */
-function glowTexture() {
+/** Soft lamp glow, drawn once. */
+function glowTexture(streak) {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const g = c.getContext('2d');
@@ -60,83 +218,98 @@ function glowTexture() {
   r.addColorStop(0.55, 'rgba(255,255,255,.045)');
   r.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = r;
+  if (streak) { g.setTransform(1, 0, 0, 0.05, 0, 121.6); }
   g.fillRect(0, 0, 256, 256);
-  const s = g.createLinearGradient(0, 0, 256, 0);
-  s.addColorStop(0, 'rgba(255,255,255,0)');
-  s.addColorStop(0.5, 'rgba(255,255,255,.9)');
-  s.addColorStop(1, 'rgba(255,255,255,0)');
-  g.fillStyle = s;
-  g.fillRect(0, 126, 256, 4);
   const t = new CanvasTexture(c);
   t.colorSpace = SRGBColorSpace;
   return t;
 }
 
-function buildSky() {
+function buildFloor(tex, surface, lamp) {
   const mat = new ShaderMaterial({
-    side: BackSide, depthWrite: false, toneMapped: false,
-    uniforms: { uSky: { value: 0 } },
-    vertexShader: 'varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
-    fragmentShader: `
-      varying vec3 vD; uniform float uSky;
-      void main(){
-        float h = normalize(vD).y;
-        vec3 c = mix(vec3(.098,.235,.325), vec3(.035,.102,.15), smoothstep(0., .42, h));
-        c += vec3(.06,.12,.16) * exp(-abs(h) * 9.);
-        gl_FragColor = vec4(c * uSky, 1.);
-      }`,
-  });
-  return { mesh: new Mesh(new SphereGeometry(70, 32, 16), mat), uniforms: mat.uniforms };
-}
-
-function buildFloor() {
-  const mat = new ShaderMaterial({
-    transparent: true, depthWrite: false, toneMapped: false,
+    transparent: true, depthWrite: false,
     uniforms: {
-      uSky: { value: 0 }, uBeam: { value: 0 }, uHigh: { value: 0 }, uRed: { value: 0 }, uRoad: { value: 0 }, uRoadGlow: { value: 0 },
-      uCarZ: { value: 0 }, uYaw: { value: 0 },
+      uTex: { value: tex }, uSurface: { value: surface }, uHall: { value: 0 }, uSun: { value: 1 }, uBeam: { value: 0 }, uHigh: { value: 0 }, uRed: { value: 0 },
+      uRoad: { value: 0 }, uRoadGlow: { value: 0 }, uCarX: { value: 0 }, uCarZ: { value: 0 }, uYaw: { value: 0 }, uLampX: { value: lamp.x }, uRing: { value: 0 }, uSkid: { value: 0 }, uTurn: { value: 0 },
     },
     vertexShader: 'varying vec3 vP; void main(){ vP = (modelMatrix * vec4(position, 1.)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.); }',
     fragmentShader: `
       varying vec3 vP;
-      uniform float uSky, uBeam, uHigh, uRed, uRoad, uRoadGlow, uCarZ, uYaw;
+      ${HALL}
+      uniform sampler2D uSurface;
+      uniform float uRing, uBeam, uHigh, uRed, uRoad, uRoadGlow, uCarX, uCarZ, uYaw, uLampX, uSkid, uTurn;
+      float skid(vec2 q, float r, float a0, float n){ float e = fwidth(length(q)) + .02; float w = smoothstep(.15 + e, .15 - e, abs(length(q) - r)); float a = mod(atan(q.x, q.y) - a0, 6.2832); return w * step(a, uTurn) * (.72 + .28 * n); }
       float rbox(vec2 p, vec2 b, float r){ vec2 q = abs(p) - b + r; return length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r; }
       void main(){
         float d = length(vP.xz);
-        vec3 near = vec3(.02,.058,.085), far = vec3(.098,.235,.325) + vec3(.06,.12,.16);
-        vec3 c = mix(near, far, smoothstep(5., 44., d)) * uSky;
+
+        // the concrete: surface normal in R and G, how worn and dry it is in B
+        vec3 s = texture2D(uSurface, vP.xz / 3.4).rgb;
+        vec3 s2 = texture2D(uSurface, vP.xz / 13.).rgb;
+        float dry = smoothstep(.66, .84, s.b * .5 + s2.b * .5);
+        float near = smoothstep(26., 5., d);
+        vec3 n = normalize(vec3((s.r - .5) * (.03 + dry * .22) * near, 1., (s.g - .5) * (.03 + dry * .22) * near));
+
+        // polished wet concrete: it mirrors the hall, sharply where wet, blurred where dry
+        vec3 V = normalize(cameraPosition - vP);
+        vec3 R = reflect(-V, n);
+        float fres = .05 + .95 * pow(1. - max(dot(n, V), 0.), 5.);
+        vec3 refl = hall(R, 2.6 + dry * 3.);
+        refl = mix(vec3(dot(refl, vec3(.3, .6, .1))), refl, .25); // the red line reflects sharply on its own; no stain
+        float ambient = uHall * uHall;
+        vec3 c = vec3(.006, .011, .016) * (.7 + dry) * ambient + refl * fres * mix(1., .4, dry);
 
         // floor position in the car's own space, so the light and the shadow turn with it
-        vec2 p = vP.xz - vec2(0., uCarZ);
+        vec2 p = vP.xz - vec2(uCarX, uCarZ);
         float cs = cos(uYaw), sn = sin(uYaw);
         p = vec2(cs * p.x - sn * p.y, sn * p.x + cs * p.y);
 
-        // the pool thrown by the headlamps
+        // the pools thrown by the two headlamps, meeting further out
         float zf = p.y - 2.45;
         if (zf > 0.) {
-          float w = 1. + zf * .27;
-          float beam = exp(-(p.x * p.x) / (w * w) * 1.5) * exp(-zf * (.2 - .11 * uHigh)) * smoothstep(0., .9, zf);
-          c += vec3(.72,.86,1.) * beam * (uBeam * .62 + uHigh * .75);
+          float w = .55 + zf * .22, fall = exp(-zf * (.32 - .18 * uHigh)) * smoothstep(0., 1.1, zf);
+          float a = (p.x - uLampX) / w, b = (p.x + uLampX) / w;
+          vec3 lit = vec3(.7, .85, 1.) * (exp(-a * a) + exp(-b * b)) * fall * (uBeam * .34 + uHigh * .8);
+          c += lit * (.7 + .3 * s2.b);
+        }
+        // rubber left by a donut: two arcs traced by the rear tyres, laid down as the car comes round
+        if (uSkid > .001) {
+          vec2 q = vP.xz - vec2(${PIVOT.x.toFixed(3)}, ${PIVOT.z.toFixed(3)});
+          float m = max(skid(q, ${Math.hypot(REAR.x - PIVOT.x, REAR.z - PIVOT.z).toFixed(4)}, ${Math.atan2(REAR.x - PIVOT.x, REAR.z - PIVOT.z).toFixed(4)}, s.b),
+                        skid(q, ${Math.hypot(-REAR.x - PIVOT.x, REAR.z - PIVOT.z).toFixed(4)}, ${Math.atan2(-REAR.x - PIVOT.x, REAR.z - PIVOT.z).toFixed(4)}, s.b));
+          c *= 1. - m * uSkid * .86;
+        }
+        // the turntable the car stands on, inlaid in the floor
+        if (uRing > .001) {
+          float rr = length(p), raa = fwidth(rr) * 1.2;
+          float ring = smoothstep(.024 + raa, .024 - raa, abs(rr - 3.7)) + smoothstep(.012 + raa, .012 - raa, abs(rr - 3.86)) * .5;
+          float halo = (rr - 3.7) / .4;
+          c += vec3(1., .94, .84) * (ring * .85 + exp(-halo * halo) * .045) * uRing;
         }
         // and the tail lights behind
         float zr = -p.y - 2.5;
-        if (zr > 0.) c += vec3(.9,.03,.05) * exp(-(p.x * p.x) / 1.6) * exp(-zr * 1.1) * uRed * .3 * smoothstep(0., .4, zr);
+        if (zr > 0.) c += vec3(1., .015, .03) * exp(-(p.x * p.x) / 1.7) * exp(-zr * .8) * uRed * .55 * smoothstep(0., .5, zr);
 
         // road markings: only there while you are driving, and lit by the beams
         if (uRoadGlow > .001) {
-          float dash = step(fract((vP.z + uRoad) / 5.), .5);
-          float side = max(smoothstep(.09, .06, abs(abs(vP.x) - 2.05)) * dash, smoothstep(.07, .05, abs(abs(vP.x) - 3.1)));
-          c += vec3(.92,.96,1.) * side * uRoadGlow * smoothstep(40., 8., d) * .75;
+          float aa = max(fwidth(vP.x), fwidth(vP.z) * .25) * 1.2;
+          float dz = fwidth(vP.z) / 11. + .004, fz = fract((vP.z + uRoad) / 11.);
+          float dash = smoothstep(0., dz, fz) * smoothstep(.6, .6 - dz, fz);
+          float side = max(smoothstep(.05 + aa, .05 - aa, abs(abs(vP.x) - 2.05)) * dash, smoothstep(.035 + aa, .035 - aa, abs(abs(vP.x) - 3.3)));
+          side *= min(1., .1 / (aa + .03));
+          c += vec3(.85, .92, 1.) * side * uRoadGlow * smoothstep(40., 8., d) * .32;
         }
 
         // the car sits on the ground
         float sd = rbox(p, vec2(.92, 2.34), .4);
         float sh = 1. - smoothstep(-.42, .62, sd);
-        c *= 1. - .94 * sh;
+        c *= 1. - .95 * sh;
 
-        // see-through near the car, for the reflection under it; solid further out, and solid under the car
-        float a = mix(.8, 1., smoothstep(2.6, 8., d));
-        gl_FragColor = vec4(c, max(a, sh * .96));
+        // see-through where wet, for the car's reflection; solid under the car; melting into the hall far away
+        float a = mix(.6, .9, dry);
+        gl_FragColor = vec4(c, max(a, sh * .97) * smoothstep(68., 44., d));
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
       }`,
   });
   const mesh = new Mesh(new CircleGeometry(68, 64), mat);
@@ -147,11 +320,11 @@ function buildFloor() {
 
 function buildBeam() {
   const h = 15;
-  const geo = new ConeGeometry(2.6, h, 28, 1, true);
+  const geo = new ConeGeometry(2.4, h, 28, 1, true);
   geo.rotateX(-Math.PI / 2);
   geo.translate(0, 0, h / 2);
   const mat = new ShaderMaterial({
-    transparent: true, depthWrite: false, side: DoubleSide, blending: AdditiveBlending, toneMapped: false,
+    transparent: true, depthWrite: false, side: DoubleSide, blending: AdditiveBlending,
     uniforms: { uOn: { value: 0 } },
     vertexShader: `
       varying float vL; varying vec3 vN, vV;
@@ -164,9 +337,10 @@ function buildBeam() {
     fragmentShader: `
       varying float vL; varying vec3 vN, vV; uniform float uOn;
       void main(){
-        float f = pow(abs(dot(normalize(vN), normalize(vV))), 2.4);
-        float a = pow(1. - vL, 2.1) * smoothstep(0., .03, vL) * f * uOn;
-        gl_FragColor = vec4(vec3(.7,.85,1.) * a, a);
+        float f = pow(abs(dot(normalize(vN), normalize(vV))), 2.2);
+        float a = pow(1. - vL, 2.1) * smoothstep(0., .04, vL) * f * uOn;
+        gl_FragColor = vec4(vec3(.62, .8, 1.) * a, a);
+        #include <colorspace_fragment>
       }`,
   });
   return { geo, mat };
@@ -177,28 +351,47 @@ function dress(car) {
   const physical = (src, o) => {
     const m = new MeshPhysicalMaterial({ color: src.color, metalness: src.metalness, roughness: src.roughness, ...o });
     m.name = src.name;
+    if (!m.transparent) m.side = DoubleSide;
     return m;
   };
-  const made = new Map(), lamps = { drl: [], red: [] };
+  const made = new Map(), lamps = { drl: [], pod: [], red: [] };
   car.traverse((o) => {
     if (!o.isMesh) return;
-    const name = o.material.name.replace('web_', '');
+    const raw = o.material.name.replace('web_', '');
+    const name = raw === 'Seam' ? 'Paint' : raw; // the door shuts are simply body colour
     if (!made.has(name)) {
       const src = o.material;
       let m = src;
-      if (name === 'Paint') m = physical(src, { color: 0xf1ece1, metalness: 0, roughness: 0.34, clearcoat: 1, clearcoatRoughness: 0.14 });
-      else if (name === 'Glass') m = physical(src, { color: 0x05090c, metalness: 0, roughness: 0.03, transparent: true, opacity: 0.8, depthWrite: false });
+      if (!src.transparent) src.side = DoubleSide;
+      if (name === 'Hull') m = new MeshBasicMaterial({ color: 0x030304, side: DoubleSide }); // the dark shell behind the panel gaps
+      else if (name === 'Paint') m = physical(src, { color: 0xecebe6, metalness: 0, roughness: 0.36, clearcoat: 0.9, clearcoatRoughness: 0.1 });
+      // the windows are privacy glass: opaque, black, and a mirror for the hall. The cabin behind them is gone
+      else if (name === 'Glass') m = physical(src, { color: 0x010203, metalness: 0, roughness: 0.22, specularIntensity: 0.35 });
+      else if (name === 'LampLens') m = physical(src, { color: 0xffffff, metalness: 0, roughness: 0.02, transparent: true, opacity: 0.14, depthWrite: false });
+      else if (name === 'Lettering') m = physical(src, { color: 0x08090a, metalness: 0.2, roughness: 0.3 });
       else if (name === 'Black') m = physical(src, { color: 0x0a0a0b, metalness: 0, roughness: 0.62 });
       else if (name === 'Badge Green') m = physical(src, { color: 0x0a7a44, metalness: 0.2, roughness: 0.2, clearcoat: 1, side: DoubleSide });
-      else if (name === 'Chrome' || name === 'Badge Silver') m = physical(src, { color: 0xe6e8ea, metalness: 1, roughness: 0.14, side: DoubleSide });
+      else if (name === 'Chrome' || name === 'Badge Silver') m = physical(src, { color: 0xe6e8ea, metalness: 1, roughness: 0.26, side: DoubleSide });
       else if (name === 'Red Ribbon') m = physical(src, { color: 0xb60d17, metalness: 0, roughness: 0.42, sheen: 0.4, sheenColor: 0xff5a5a, sheenRoughness: 0.5 });
       else if (name === 'PlateText') m = physical(src, { color: 0x070708, metalness: 0, roughness: 0.4 });
       else if (name === 'Plate White') m = physical(src, { color: 0xe8e9ea, metalness: 0, roughness: 0.3, clearcoat: 0.6 });
       else if (name === 'Tyre') m = physical(src, { color: 0x101010, metalness: 0, roughness: 0.82, specularIntensity: 0.3 });
-      else if (name === 'Rim') m = physical(src, { color: 0x24272b, metalness: 0.95, roughness: 0.3 });
+      else if (name === 'Rim') m = physical(src, { color: 0x8f949b, metalness: 1, roughness: 0.3 });
+      else if (name === 'Calliper') m = physical(src, { color: 0xc00f1a, metalness: 0.15, roughness: 0.35, clearcoat: 0.6 });
+      else if (name === 'DarkTrim') m = physical(src, { color: 0x0b0c0d, metalness: 0.55, roughness: 0.5, side: DoubleSide });
+      else if (name === 'SatinTrim') m = physical(src, { color: 0x101112, metalness: 0.55, roughness: 0.5, side: DoubleSide });
+      else if (name === 'Rotor') m = physical(src, { color: 0x9a9da1, metalness: 0.85, roughness: 0.42 });
       else if (name === 'DRL') { m = physical(src, { color: 0xffffff, emissive: 0xdcefff, emissiveIntensity: 0 }); lamps.drl.push(m); }
-      else if (/^Tail(Red|Dark)$|^Reflector$/.test(name)) { m = physical(src, { color: src.color, emissive: 0xff0a14, emissiveIntensity: 0 }); lamps.red.push(m); }
-      else if (name === 'TailGlass') m = physical(src, { color: 0x520006, transparent: true, opacity: 0.45, depthWrite: false, roughness: 0.08 });
+      else if (name === 'LampPod') { m = physical(src, { color: 0xcfd6dc, metalness: 0.9, roughness: 0.2, emissive: 0xe6f3ff, emissiveIntensity: 0 }); lamps.pod.push(m); }
+      else if (/^Tail(Red|Dark)$|^Reflector$/.test(name)) { m = physical(src, { color: src.color, emissive: 0xff0008, emissiveIntensity: 0 }); lamps.red.push(m); }
+      else if (name === 'TailGlass') m = physical(src, { color: 0x3a0004, transparent: true, opacity: 0.62, depthWrite: false, roughness: 0.08 });
+      // many of the model's panels are wound backwards, so the browser would light them from the inside: always use the
+      // normal the panel was modelled with
+      if (name === 'Paint') {
+        m.onBeforeCompile = (sh) => {
+          sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', ShaderChunk.normal_fragment_begin.replace('gl_FrontFacing ? 1.0 : - 1.0', '1.0'));
+        };
+      }
       made.set(name, m);
     }
     o.material = made.get(name);
@@ -207,48 +400,110 @@ function dress(car) {
   return lamps;
 }
 
+/** Lets a lamp light up across its width instead of all at once, like a real car's welcome sequence. */
+function sweepable(m, uniform) {
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uSweep = uniform;
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vSweepX;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvSweepX = abs((modelMatrix * vec4(transformed, 1.)).x);');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vSweepX; uniform float uSweep;')
+      .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance *= 1. - smoothstep(uSweep - .07, uSweep, vSweepX);');
+  };
+}
+
+/** The real middle of the headlamp: the average of the LED pods on one side of the car. */
+function findLamp(car) {
+  const v = new Vector3(), sum = new Vector3();
+  let n = 0;
+  car.updateMatrixWorld(true);
+  car.traverse((o) => {
+    if (!o.isMesh || o.material.name !== 'web_LampPod') return;
+    const p = o.geometry.attributes.position;
+    for (let i = 0; i < p.count; i += 3) {
+      v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld);
+      if (v.x > 0) { sum.add(v); n++; }
+    }
+  });
+  return n ? sum.divideScalar(n) : new Vector3(0.7, 0.99, 2.16);
+}
+
 /**
  * @param canvas      the <canvas> to draw on
  * @param s           the numbers the page animates (start from DARK or HERO)
  * @param input       the element that takes drags and taps (null for none)
- * @param onProgress  0..1, the model download
+ * @param onProgress  0..1, the downloads
  * @param onTap       a tap on the car
+ * @param onSign      a tap on the wall sign
+ * @param onTooSlow   this device can't run it even at the lowest setting
+ * @param withEngine  also load the V8 for the intro
  */
-export async function createStage({ canvas, s, input, onProgress = () => {}, onTap = () => {} }) {
+export async function createStage({ canvas, s, input, onProgress = () => {}, onTap = () => {}, onSign = () => {}, onTooSlow = () => {}, withEngine = false }) {
   const phone = matchMedia('(pointer: coarse)').matches;
   const modest = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
-  const renderer = new WebGLRenderer({ canvas, antialias: !modest, alpha: false, powerPreference: 'high-performance', stencil: false });
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false });
+  // drawn by the processor rather than a graphics chip (remote desktop, a blocked driver): don't even try
+  const info = renderer.getContext().getExtension('WEBGL_debug_renderer_info');
+  const chip = info ? renderer.getContext().getParameter(info.UNMASKED_RENDERER_WEBGL) : '';
+  if (import.meta.env.MODE !== 'dbg' && /swiftshader|llvmpipe|software|basic render/i.test(chip)) { renderer.dispose(); throw new Error('no graphics chip'); }
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  renderer.setClearColor(0x040c12, 1);
-  let dpr = Math.min(devicePixelRatio || 1, modest ? 1 : phone ? 1.5 : 1.75);
+  renderer.setClearColor(0x000000, 1);
+  // how sharp: a little extra on an ordinary screen, but never past a fixed number of pixels, so a 4K monitor costs the
+  // graphics card the same as a 1080p one instead of four times as much
+  const MAX_PIXELS = 4.2e6;
+  let dpr = modest ? 1 : phone ? Math.min(devicePixelRatio || 1, 1.5) : Math.min(Math.max(devicePixelRatio || 1, 1.5), 2);
   renderer.setPixelRatio(dpr);
 
-  const scene = new Scene();
-  scene.environment = buildStudio(renderer);
-  const camera = new PerspectiveCamera(28, 1, 0.1, 160);
+  // ---- downloads
+  let doneModel = 0, doneTex = 0;
+  const report = () => onProgress(doneModel * 0.78 + Math.min(1, doneTex) * 0.22);
+  const load = (file, setup) => new Promise((ok, bad) => new TextureLoader().load(asset(file), (t) => { setup(t); doneTex += 0.5; report(); ok(t); }, undefined, bad));
+  const [gltf, signGltf, hallTex, surfaceTex, engineGltf] = await Promise.all([
+    new Promise((ok, bad) => {
+      new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/range-rover.glb'), ok,
+        (e) => { if (e.total) { doneModel = e.loaded / e.total; report(); } }, bad);
+    }),
+    new Promise((ok, bad) => { new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/sign.glb'), ok, undefined, bad); }),
+    load('hero/hall.webp', (t) => {
+      t.colorSpace = SRGBColorSpace;
+      t.wrapS = RepeatWrapping;
+      t.minFilter = LinearMipmapLinearFilter;
+      t.magFilter = LinearFilter;
+      t.generateMipmaps = true;
+    }),
+    load('hero/floor.webp', (t) => {
+      t.wrapS = t.wrapT = RepeatWrapping;
+      t.anisotropy = 8;
+    }),
+    withEngine ? new Promise((ok) => { new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/engine.glb'), ok, undefined, () => ok(null)); }) : null,
+  ]);
+  onProgress(1);
 
-  const sky = buildSky();
-  const floor = buildFloor();
-  scene.add(sky.mesh, floor.mesh);
+  const scene = new Scene();
+  scene.environment = buildStudio(renderer, hallTex);
+  const camera = new PerspectiveCamera(28, 1, 0.25, 160);
+
+  const car = gltf.scene;
+  const lamps = dress(car);
+  const LAMP = findLamp(car);
+
+  const sky = buildSky(hallTex);
+  const floor = buildFloor(hallTex, surfaceTex, LAMP);
+  const hallLights = buildHallLights();
+  scene.add(sky, floor.mesh, hallLights.mesh, hallLights.mirror);
+  const sweepHead = { value: 2 }, sweepTail = { value: 2 };
+  [...lamps.drl, ...lamps.pod].forEach((m) => sweepable(m, sweepHead));
+  lamps.red.forEach((m) => sweepable(m, sweepTail));
 
   const key = new DirectionalLight(0xe4f0ff, 0);
   key.position.set(5, 7, 6);
-  const rim = new DirectionalLight(0x8fd2f5, 0);
-  rim.position.set(-6, 3, -7);
+  const rim = new DirectionalLight(0xfff1e2, 0); // from the open end of the hall
+  rim.position.set(-3, 2.2, -9);
   scene.add(key, rim);
 
-  // ---- the car
-  const gltf = await new Promise((ok, bad) => {
-    new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(
-      new URL('model/range-rover.glb', document.baseURI).href, ok,
-      (e) => { if (e.total) onProgress(e.loaded / e.total); }, bad,
-    );
-  });
-  onProgress(1);
-  const car = gltf.scene;
-  const lamps = dress(car);
+  const signs = buildSigns(signGltf.scene, glowTexture(false));
+  scene.add(signs.group);
 
   const rig = new Group(); // moves and turns the whole car; the floor light follows it
   rig.add(car);
@@ -262,67 +517,203 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     rig.add(mirror);
   }
   const bodies = [car.getObjectByName('Body'), mirror?.getObjectByName('Body')].filter(Boolean);
+  const bonnets = [car.getObjectByName('Bonnet'), mirror?.getObjectByName('Bonnet')].filter(Boolean);
+  let engine = engineGltf ? buildEngine(engineGltf.scene, 0, 1.5) : null;
+  if (engine) rig.add(engine.group);
   const wheels = ['FL', 'FR', 'RL', 'RR'].map((k) => {
     const nodes = [car.getObjectByName(`Wheel_${k}`), mirror?.getObjectByName(`Wheel_${k}`)].filter(Boolean);
     nodes.forEach((n) => { n.rotation.order = 'YXZ'; });
-    return { nodes, front: k[0] === 'F' };
+    const calipers = [car.getObjectByName(`Caliper_${k}`), mirror?.getObjectByName(`Caliper_${k}`)].filter(Boolean);
+    calipers.forEach((n) => { n.rotation.order = 'YXZ'; });
+    return { nodes, calipers, front: k[0] === 'F' };
   });
 
-  // ---- light you can see
+  // ---- light you can see, all of it hung on the real lamps
   const beam = buildBeam();
-  const beams = [-1, 1].map((side) => {
+  const beamMeshes = [-1, 1].map((side) => {
     const m = new Mesh(beam.geo, beam.mat);
-    m.position.set(side * LAMP.x, LAMP.y, LAMP.z);
-    m.rotation.x = 0.035;
+    m.position.set(side * LAMP.x, LAMP.y, LAMP.z + 0.1);
+    m.rotation.set(0.03, side * 0.04, 0);
     m.renderOrder = 3;
     rig.add(m);
     return m;
   });
-  const glow = glowTexture();
-  const sprite = (hex, x, y, z) => {
-    const m = new SpriteMaterial({ map: glow, color: hex, blending: AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, opacity: 0, toneMapped: false });
+  const glow = glowTexture(false), streak = glowTexture(true);
+  const sprite = (map, hex, x, y, z, depthTest = true) => {
+    const m = new SpriteMaterial({ map, color: hex, blending: AdditiveBlending, depthWrite: false, depthTest, transparent: true, opacity: 0, toneMapped: false });
     const sp = new Sprite(m);
     sp.position.set(x, y, z);
     sp.renderOrder = 4;
     rig.add(sp);
     return sp;
   };
-  const heads = [sprite(0xdff0ff, -LAMP.x, LAMP.y, LAMP.z), sprite(0xdff0ff, LAMP.x, LAMP.y, LAMP.z)];
-  const tails = [sprite(0xff2a30, -TAIL.x, TAIL.y, TAIL.z), sprite(0xff2a30, TAIL.x, TAIL.y, TAIL.z)];
+  const front = LAMP.z + 0.2;
+  const heads = [-1, 1].map((k) => ({ glow: sprite(glow, 0xdff0ff, k * LAMP.x, LAMP.y, front), streak: sprite(streak, 0xbcdcff, k * LAMP.x, LAMP.y, front) }));
+  const tails = [sprite(glow, 0xff2a30, -TAIL.x, TAIL.y, TAIL.z), sprite(glow, 0xff2a30, TAIL.x, TAIL.y, TAIL.z)];
+  const bayLight = sprite(glow, 0xffc48a, 0, 1.15, 1.55); // the engine bay, glowing as the bonnet lifts
+  bayLight.scale.set(3.4, 2.2, 1);
+
+  // dust hanging in the air, only visible where the light catches it
+  const DUST = modest ? 0 : 110;
+  const dustPos = new Float32Array(DUST * 3);
+  for (let i = 0; i < DUST; i++) {
+    dustPos[i * 3] = (Math.random() - 0.5) * 7;
+    dustPos[i * 3 + 1] = Math.random() * 2.6;
+    dustPos[i * 3 + 2] = 2.6 + Math.random() * 11;
+  }
+  const dustGeo = new BufferGeometry();
+  dustGeo.setAttribute('position', new BufferAttribute(dustPos, 3));
+  const dustMat = new PointsMaterial({ map: glow, color: 0xcfe4ff, size: 0.1, transparent: true, opacity: 0, blending: AdditiveBlending, depthWrite: false });
+  const dust = new Points(dustGeo, dustMat);
+  rig.add(dust);
+
+  // tyre smoke off the rear wheels as it launches
+  const puffs = Array.from({ length: modest ? 0 : 22 }, (_, i) => {
+    const m = new SpriteMaterial({ map: glow, color: 0xb7c7d4, transparent: true, opacity: 0, depthWrite: false, toneMapped: false });
+    const sp = new Sprite(m);
+    sp.renderOrder = 3;
+    scene.add(sp);
+    return { sp, side: i % 2 ? 1 : -1, seed: Math.random(), at: i / 22, life: i / 22, x: 0, z: 0, burning: false };
+  });
+
+  // ---- the glow: only the lights, on their own, with the car in black so it hides them where it should. Blurred small
+  // and added over the finished picture, so it can't disturb the edges underneath
+  const glowOn = !modest;
+  const black = new MeshBasicMaterial({ color: 0x000000 });
+  const lit = new Set([...lamps.drl, ...lamps.pod, ...lamps.red]);
+  const solid = [];
+  car.traverse((o) => { if (o.isMesh) solid.push({ o, mat: o.material, glows: lit.has(o.material), see: o.material.transparent }); });
+  const rtOpts = { type: HalfFloatType, depthBuffer: true };
+  let glowA = null, glowB = null, glowC = null;
+  const blur = new ShaderMaterial({
+    depthTest: false, depthWrite: false,
+    uniforms: { uT: { value: null }, uD: { value: new Vector3() } },
+    vertexShader: 'varying vec2 vU; void main(){ vU = uv; gl_Position = vec4(position.xy, 0., 1.); }',
+    fragmentShader: `
+      varying vec2 vU; uniform sampler2D uT; uniform vec3 uD;
+      void main(){
+        vec2 d = uD.xy;
+        vec3 c = texture2D(uT, vU).rgb * .227;
+        c += (texture2D(uT, vU + d * 1.385).rgb + texture2D(uT, vU - d * 1.385).rgb) * .316;
+        c += (texture2D(uT, vU + d * 3.231).rgb + texture2D(uT, vU - d * 3.231).rgb) * .07;
+        gl_FragColor = vec4(c, 1.);
+      }`,
+  });
+  const add = new ShaderMaterial({
+    transparent: true, depthTest: false, depthWrite: false, blending: AdditiveBlending,
+    uniforms: { uT: { value: null }, uS: { value: 1 } },
+    vertexShader: 'varying vec2 vU; void main(){ vU = uv; gl_Position = vec4(position.xy, 0., 1.); }',
+    fragmentShader: `
+      varying vec2 vU; uniform sampler2D uT; uniform float uS;
+      void main(){
+        vec3 c = texture2D(uT, vU).rgb * uS;
+        gl_FragColor = vec4(1. - exp(-c), 1.);
+      }`,
+  });
+  const quad = new FullScreenQuad(blur);
+  const sizeGlow = () => {
+    if (!glowOn) return;
+    [glowA, glowB, glowC].forEach((r) => r?.dispose());
+    const w = Math.max(2, W >> 2), h = Math.max(2, H >> 2);
+    glowA = new WebGLRenderTarget(w, h, rtOpts);
+    glowB = new WebGLRenderTarget(w >> 1, h >> 1, { type: HalfFloatType, depthBuffer: false });
+    glowC = new WebGLRenderTarget(w >> 1, h >> 1, { type: HalfFloatType, depthBuffer: false });
+  };
+  const blurPass = (from, to, dx, dy) => {
+    renderer.setRenderTarget(to);
+    blur.uniforms.uT.value = from.texture;
+    blur.uniforms.uD.value.set(dx / to.width, dy / to.height, 0);
+    quad.material = blur;
+    quad.render(renderer);
+  };
+  const hide = [];
+  function drawGlow() {
+    // the lights alone, everything else black
+    for (const m of solid) {
+      if (m.see) m.o.visible = false;
+      else if (!m.glows) m.o.material = black;
+    }
+    const others = [sky, floor.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : []), ...puffs.map((p) => p.sp)];
+    hide.length = 0;
+    for (const o of others) { hide.push(o.visible); o.visible = false; }
+    const env = scene.environmentIntensity;
+    scene.environmentIntensity = 0;
+    hallLights.uniforms.uGain.value = 3;
+    renderer.setRenderTarget(glowA);
+    renderer.clear();
+    renderer.render(scene, camera);
+    hallLights.uniforms.uGain.value = 1;
+    scene.environmentIntensity = env;
+    others.forEach((o, i) => { o.visible = hide[i]; });
+    for (const m of solid) { m.o.visible = true; m.o.material = m.mat; }
+    // blur it small, twice, and add it on top
+    blurPass(glowA, glowB, 1, 0);
+    blurPass(glowB, glowC, 0, 1);
+    blurPass(glowC, glowB, 2, 0);
+    blurPass(glowB, glowC, 0, 2);
+    renderer.setRenderTarget(null);
+    renderer.autoClear = false;
+    add.uniforms.uT.value = glowC.texture;
+    add.uniforms.uS.value = 0.5;
+    quad.material = add;
+    quad.render(renderer);
+    renderer.autoClear = true;
+  }
 
   // ---- framing: where the car sits at each screen shape
-  let W = 1, H = 1, base = { dist: 14, sx: 0, sy: 0 };
+  let W = 1, H = 1, base = { dist: 14, sx: 0, sy: 0 }, farAway = false;
+  const sharpen = () => renderer.setDrawingBufferSize(W, H, Math.min(dpr, Math.sqrt(MAX_PIXELS / (W * H))));
   const resize = () => {
     const box = canvas.parentElement.getBoundingClientRect();
     W = Math.max(1, Math.round(box.width));
     H = Math.max(1, Math.round(box.height));
-    renderer.setSize(W, H, false);
+    sharpen();
+    sizeGlow();
     const aspect = W / H, portrait = aspect < 0.8;
     camera.aspect = aspect;
-    const v = Math.tan((camera.fov * Math.PI) / 360), h = v * aspect;
-    const short = H < 520 && !portrait; // a landscape phone: the headline fills the left, so the car goes right
+    const v = Math.tan((14 * Math.PI) / 180), h = v * aspect; // the hero is always shot at 28 degrees
+    const short = H < 760 && aspect >= 1.3; // a short laptop or a landscape phone: not enough height to stack the car over the headline, so they sit side by side
+    farAway = short || aspect < 1.3; // the sign further down the hall would sit behind the menu at these shapes
     const needW = portrait ? 3.1 : 3.3, needH = portrait ? 3.4 : short ? 3.5 : 2.75;
     base = {
       dist: Math.max(needW / h, needH / v),
-      sx: portrait ? 0 : short ? 0.31 : aspect > 1.3 ? 0.12 : 0.05, // pushes the car away from the headline
-      sy: portrait ? -0.25 : short ? -0.05 : -0.135,
+      sx: portrait ? 0 : short ? (aspect < 1.6 ? 0.36 : aspect > 2.6 ? 0.2 : 0.31) : aspect > 1.3 ? 0.12 : 0.05, // pushes the car away from the headline
+      sy: portrait ? -0.25 : short ? -0.05 : aspect < 1.3 ? -0.05 : -0.135,
     };
   };
-  const ro = new ResizeObserver(resize);
-  ro.observe(canvas.parentElement);
+  let ready = false;
+  new ResizeObserver(() => { resize(); if (ready) draw(true); }).observe(canvas.parentElement);
   resize();
+
+  // ---- is the pointer on the wall sign? The wall is flat, so the ray only has to reach it, and the car in front wins
+  let hoverSign = false;
+  const ndc = new Vector2(), ray = new Raycaster(), onWall = new Vector3(), wall = new Plane(new Vector3(1, 0, 0), 9.72), carBox = new Box3();
+  const overSign = (x, y) => {
+    const box = canvas.getBoundingClientRect();
+    ray.setFromCamera(ndc.set(((x - box.left) / box.width) * 2 - 1, -((y - box.top) / box.height) * 2 + 1), camera);
+    if (!ray.ray.intersectPlane(wall, onWall)) return false;
+    const seen = SIGNS.some(([z, y0]) => Math.abs(onWall.z - z) < SIGN_LONG / 2 + 0.3 && Math.abs(onWall.y - y0) < 1.5);
+    return seen && !ray.ray.intersectsBox(carBox.setFromObject(car));
+  };
 
   // ---- drag to turn the car, and the front wheels look at your pointer
   let spin = 0, spinV = 0, steer = 0, steerTo = 0, lookX = 0, lookY = 0, lookXTo = 0, lookYTo = 0, dragging = false, turned = false;
   if (input) {
     const ignore = (t) => t.closest?.('a, button, input, select, label, .gate');
     let x0 = 0, xs = 0, moved = 0, id = null, last = 0;
+    input.addEventListener('dragstart', (e) => e.preventDefault());
     input.addEventListener('pointerdown', (e) => {
-      if (ignore(e.target) || e.button) return;
+      if (ignore(e.target) || e.button || scrollY > 40 || document.documentElement.classList.contains('play-intro')) return;
+      if (e.pointerType === 'mouse') e.preventDefault(); // no text selection, so nothing for the browser to start dragging
       dragging = true; id = e.pointerId; x0 = xs = e.clientX; moved = 0; spinV = 0; last = performance.now();
     });
     addEventListener('pointermove', (e) => {
-      if (e.pointerType === 'mouse') { lookXTo = (e.clientX / innerWidth - 0.5) * 2; lookYTo = (e.clientY / innerHeight - 0.5) * 2; steerTo = -lookXTo * 0.5; }
+      if (e.pointerType === 'mouse') {
+        lookXTo = (e.clientX / innerWidth - 0.5) * 2; lookYTo = (e.clientY / innerHeight - 0.5) * 2; steerTo = -lookXTo * 0.5;
+        const was = hoverSign;
+        hoverSign = ready && !dragging && scrollY < 40 && !e.target.closest?.('a, button, input, select, label, .gate') && !document.documentElement.classList.contains('play-intro') && overSign(e.clientX, e.clientY);
+        if (was !== hoverSign) input.style.cursor = hoverSign ? 'pointer' : '';
+      }
       if (!dragging || e.pointerId !== id) return;
       const dx = e.clientX - x0, now = performance.now();
       moved += Math.abs(dx);
@@ -336,7 +727,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     const end = (e) => {
       if (!dragging || e.pointerId !== id) return;
       dragging = false;
-      if (moved < 8 && e.type === 'pointerup') onTap();
+      if (moved < 8 && e.type === 'pointerup') { if (overSign(e.clientX, e.clientY)) onSign(); else onTap(); }
     };
     addEventListener('pointerup', end);
     addEventListener('pointercancel', end);
@@ -346,20 +737,45 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   let onScreen = true;
   new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; }, { threshold: 0.01 }).observe(canvas.parentElement);
 
+  let hoverGlow = 0, nextCatch = 6, catchAt = -9, clock = 0;
   const t0 = performance.now();
   const forward = new Vector3(), toCam = new Vector3(), lampPos = new Vector3();
-  let lastT = t0, slow = 0, lastDraw = 0;
+  let contextLost = false, tooSlow = false, lastT = t0, spanAt = 0, spanFrames = 0, spanBroken = false, lowSpans = 0, lastDraw = 0, lastDist = s.carZ + s.road, wheelV = 0, wheelA = 0, burnA = 0;
 
   function draw(force) {
     const now = performance.now();
-    if (!force && (!onScreen || document.hidden)) { lastT = now; return; }
+    if (contextLost || tooSlow || (!force && (!onScreen || document.hidden || s.off))) { lastT = now; return; }
     if (!force && modest && now - lastDraw < 30) return; // 30 fps on modest phones
     lastDraw = now;
-    const dt = Math.min(0.05, (now - lastT) / 1000), t = (now - t0) / 1000;
+    const dt = Math.min(0.05, (now - lastT) / 1000);
+    clock += dt; // only runs while frames are drawn, so nothing leaps forward after a hidden tab
+    const t = clock;
 
-    // if this device can't keep up, trade sharpness for smoothness once
-    if (dt > 0.03) slow++; else slow = Math.max(0, slow - 0.5);
-    if (slow > 40 && dpr > 1) { dpr = 1; renderer.setPixelRatio(1); renderer.setSize(W, H, false); slow = 0; }
+    // if this device can't keep up, trade sharpness for smoothness, and if even the lowest setting crawls, hand over to
+    // the photo of the car so the site stays usable. Judged on two seconds at a time and only twice running, so a stall
+    // while something loads is never mistaken for a slow machine. A gap over 1.5 seconds is a hidden tab
+    const gap = now - lastT;
+    if (!spanAt) spanAt = now;
+    spanFrames++;
+    if (gap > 1500) spanBroken = true;
+    if (now - spanAt > 2000) {
+      const fps = (spanFrames * 1000) / (now - spanAt), broken = spanBroken;
+      spanAt = now; spanFrames = 0; spanBroken = false;
+      lowSpans = !broken && fps < 24 ? lowSpans + 1 : 0;
+      if (lowSpans >= 2) {
+        lowSpans = 0;
+        const floor = phone ? 1 : 0.7;
+        if (renderer.getPixelRatio() > floor + 0.01) {
+          dpr = fps < 10 ? floor : Math.max(floor, renderer.getPixelRatio() * 0.8);
+          sharpen();
+        } else if (fps < 10) {
+          tooSlow = true;
+          canvas.classList.remove('is-live');
+          onTooSlow();
+          return;
+        }
+      }
+    }
     lastT = now;
 
     const f = s.frame;
@@ -368,51 +784,129 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
       spin += spinV;
       spinV *= 0.94;
       if (Math.abs(spinV) < 0.0002) spinV = 0;
+      if (Math.abs(spin) > Math.PI) spin -= Math.PI * 2 * Math.round(spin / (Math.PI * 2));
+      if (scrollY > 6) { spinV = 0; spin *= Math.pow(0.002, dt); }
     }
     const k = 1 - Math.pow(0.002, dt);
     steer += (steerTo - steer) * k;
     lookX += (lookXTo - lookX) * k;
     lookY += (lookYTo - lookY) * k;
 
-    const yaw = spin * f + Math.sin(t * 0.13) * 0.035 * f;
+    // a donut turns the car about its inside front wheel, not about its middle
+    const turn = s.spin || 0, ct = Math.cos(turn), st = Math.sin(turn);
+    const yaw = spin + turn;
     rig.rotation.y = yaw;
-    rig.position.z = s.carZ;
+    rig.position.set(PIVOT.x - (PIVOT.x * ct + PIVOT.z * st), s.air || 0, s.carZ + PIVOT.z - (-PIVOT.x * st + PIVOT.z * ct));
+    if (mirror) mirror.position.y = -2 * (s.air || 0); // its reflection drops as the car leaves the ground
 
     // ---- the engine: the body rocks on its springs while the wheels stay on the ground
-    const e = s.rev, shake = e * e * 0.0034 + 0.00032;
-    const roll = e * 0.014 + s.jolt * 0.016 + Math.sin(t * 95) * shake * 0.7;
-    const pitch = -e * 0.007 - s.jolt * 0.01 + Math.sin(t * 71) * shake * 0.5;
-    const bob = Math.sin(t * 118) * shake + e * 0.012;
-    for (const b of bodies) { b.rotation.z = roll; b.rotation.x = pitch; }
-    bodies[0].position.y = bob;
-    if (bodies[1]) bodies[1].position.y = bob;
+    const e = s.rev;
+    const roll = e * 0.014 + s.jolt * 0.016 + Math.sin(t * 9) * e * 0.0026 + (s.lean || 0) * 0.07;
+    const pitch = -e * 0.007 - s.jolt * 0.01 + s.dive * 0.04 + Math.sin(t * 7.3) * e * 0.0018 + (s.nod || 0) * 0.08;
+    const bob = e * 0.01 + Math.sin(t * 11) * e * 0.0012 - Math.abs(s.dive) * 0.012 + (s.hop || 0);
+    for (const b of bodies) { b.rotation.z = roll; b.rotation.x = pitch; b.position.y = bob; }
+    for (const b of bonnets) b.rotation.x = -(s.bonnet || 0) * 1.03;
+    bayLight.material.opacity = (s.bayGlow || 0) * 0.55;
+    engine?.update(s, t);
 
-    // ---- wheels roll as far as the car travels
-    const rollAngle = (s.carZ + s.road) / WHEEL_R;
-    for (const w of wheels) for (const n of w.nodes) { n.rotation.x = rollAngle; if (w.front) n.rotation.y = steer * f; }
+    // ---- wheels: they follow the car's speed, but never spin fast enough to strobe. Past about 13 radians a second a
+    // spoked wheel on a 60 Hz screen stops reading as turning and starts to flicker
+    const moved = s.carZ + s.road - lastDist;
+    lastDist = s.carZ + s.road;
+    const want = dt > 0 ? clamp(moved / dt / WHEEL_R, -13, 13) : 0;
+    wheelV += (want - wheelV) * (1 - Math.pow(0.0005, dt));
+    wheelA += wheelV * dt;
+    burnA += (s.burn || 0) * 13 * dt; // the driven wheels spin up against the floor
+    const aim = steer * f + (s.lock || 0);
+    for (const w of wheels) {
+      for (const n of w.nodes) { n.rotation.x = w.front ? wheelA : wheelA + burnA; if (w.front) n.rotation.y = aim; }
+      if (w.front) for (const n of w.calipers) n.rotation.y = aim; // the brakes steer with the wheel but never spin
+    }
 
     // ---- lights
     scene.environmentIntensity = s.env;
-    scene.environmentRotation.y = t * 0.05;
-    key.intensity = s.key * 1.5;
-    rim.intensity = s.key * 1.1;
-    for (const m of lamps.drl) m.emissiveIntensity = s.drl * 5 + s.high * 9;
-    for (const m of lamps.red) m.emissiveIntensity = s.red * 4.5;
-    sky.uniforms.uSky.value = s.sky;
+    key.intensity = s.key * 0.85;
+    rim.intensity = s.key * 0.22;
+    sweepHead.value = s.sweep;
+    sweepTail.value = s.sweepR;
+    for (const m of lamps.drl) m.emissiveIntensity = s.drl * 7 + s.high * 8;
+    for (const m of lamps.pod) m.emissiveIntensity = s.pod * 3.5 + s.high * 11;
+    for (const m of lamps.red) m.emissiveIntensity = s.red * 3.2;
+    sky.material.uniforms.uHall.value = s.hall;
+    hallLights.uniforms.uHall.value = s.hall;
+    // ---- the sign. It strikes up as the hall comes on, a letter catches now and then, it answers the engine and your
+    // pointer, and the car's tricks can take it over through the numbers in s
+    const hall = smooth(0.5, 0.8, s.hall);
+    const striking = hall > 0.02 && hall < 0.995 ? (Math.sin(t * 61) * Math.sin(t * 37) > 0.25 ? 0.25 : 1) : 1;
+    const on = Math.max(hall * striking, s.sign || 0);
+    hoverGlow += ((hoverSign ? 1 : 0) - hoverGlow) * (1 - Math.pow(0.0004, dt));
+    const lift = 1 + e * 0.6 + hoverGlow * 0.55 + (s.signFlash || 0) * 1.4;
+    if (t > nextCatch && hall > 0.99) { // a letter catches, like a real sign does: two quick dips, then steady
+      nextCatch = t + 7 + Math.random() * 8;
+      catchAt = t;
+      [signs.face.uDropA.value, signs.face.uDropB.value] = SIGN_LETTERS[Math.floor(Math.random() * SIGN_LETTERS.length)];
+    }
+    const c = t - catchAt;
+    signs.face.uDrop.value = (c < 0.07 || (c > 0.14 && c < 0.2) || (c > 0.34 && c < 0.38)) && hall > 0.99 ? 0.82 : 0;
+    signs.far.visible = !(farAway && scrollY < 20 && f > 0.98);
+    signs.face.uWave.value = s.wave ?? -1;
+    signs.face.uWaveAmp.value = s.waveAmp || 0;
+    const white = on * lift * Math.max(0, 1 + (s.signWhite || 0)), redLit = on * lift * Math.max(0, 1 + (s.signRed || 0));
+    signs.ivory.color.setRGB(0.012 + white * 0.9, 0.011 + white * 0.82, 0.01 + white * 0.7);
+    signs.red.color.setRGB(0.012 + redLit * 0.95, 0.004 + redLit * 0.03, 0.004 + redLit * 0.05);
+    signs.spill.opacity = Math.min(0.8, on * (0.18 + (lift - 1) * 0.5 + (s.waveAmp || 0) * 0.08)); // the wall around it lights up when it reacts
     const u = floor.uniforms;
-    u.uSky.value = s.sky; u.uBeam.value = s.beam; u.uHigh.value = s.high; u.uRed.value = s.red;
-    u.uRoad.value = s.road; u.uRoadGlow.value = s.roadGlow; u.uCarZ.value = s.carZ; u.uYaw.value = yaw;
-    beam.mat.uniforms.uOn.value = s.beam * 0.34 + s.high * 0.6;
+    u.uHall.value = s.hall; u.uBeam.value = s.beam; u.uHigh.value = s.high; u.uRed.value = s.red;
+    u.uRing.value = (1 - s.roadGlow) * smooth(0.75, 1, s.hall);
+    u.uRoad.value = s.road; u.uRoadGlow.value = s.roadGlow; u.uCarX.value = rig.position.x; u.uCarZ.value = rig.position.z; u.uYaw.value = yaw;
+    u.uSkid.value = s.skid || 0; u.uTurn.value = turn;
+    beam.mat.uniforms.uOn.value = s.beam * 0.3 + s.high * 0.5;
+
+    // dust just hangs in the light, drifting
+    dustMat.opacity = s.dust * (0.18 + s.beam * 0.55 + s.high * 0.5);
+    dust.position.set(Math.sin(t * 0.07) * 0.5, Math.sin(t * 0.11) * 0.18, Math.sin(t * 0.05) * 0.6);
+
+    // tyre smoke: each puff is born behind a rear wheel, then swells, rises and thins
+    const burn = s.burn || 0;
+    for (const p of puffs) {
+      if (burn > 0.01 || p.burning) {
+        // smoke from the tyres themselves: each puff is let go at the wheel, stays where it was released, then swells and thins
+        p.life += dt * (0.5 + p.seed * 0.5);
+        if (p.life >= 1 || !p.burning) {
+          p.life %= 1;
+          if (burn <= 0.01) { p.burning = false; p.sp.visible = false; continue; }
+          p.burning = true;
+          const wx = p.side * REAR.x, wz = REAR.z, c = Math.cos(yaw), sn = Math.sin(yaw);
+          p.x = rig.position.x + wx * c + wz * sn;
+          p.z = rig.position.z - wx * sn + wz * c;
+        }
+        const l = p.life;
+        p.sp.visible = true;
+        p.sp.position.set(p.x + (p.seed - 0.5) * l * 1.4, 0.2 + l * (0.9 + p.seed), p.z + (p.seed - 0.5) * l * 1.4);
+        const sz = 1.1 + l * 4.2;
+        p.sp.scale.set(sz, sz * 0.8, 1);
+        p.sp.material.opacity = 0.44 * Math.sin(l * Math.PI);
+        continue;
+      }
+      const life = clamp((s.smoke * 1.5 - p.at * 0.5), 0, 1);
+      const on = s.smoke > 0.001 && life > 0;
+      p.sp.visible = on;
+      if (!on) continue;
+      p.sp.position.set(p.side * (0.92 + life * (0.5 + p.seed)), 0.22 + life * (0.5 + p.seed * 0.6), -1.6 - life * (1.2 + p.seed * 2.4) + Math.min(s.carZ, 0) * (1 - p.at));
+      const size = 1 + life * 4.4;
+      p.sp.scale.set(size, size * 0.8, 1);
+      p.sp.material.opacity = 0.34 * Math.sin(Math.min(1, life * 1.06) * Math.PI) * (1 - s.smoke * 0.2);
+    }
 
     // ---- the camera
     const b = base;
-    const d = lerp(s.near, b.dist, f);
+    camera.fov = lerp(s.lens, 28, f);
+    const d = lerp(s.near, b.dist, f) * (1 + (s.pull || 0));
     const az = s.az + lookX * 0.05 * f, el = s.el + lookY * 0.016 * f;
     const cx = s.tx + Math.sin(az) * Math.cos(el) * d;
     const cz = s.tz + Math.cos(az) * Math.cos(el) * d;
-    const cy = Math.max(0.16, s.ty + Math.sin(el) * d);
-    const jit = e * e * 0.004;
-    camera.position.set(cx + (Math.random() - 0.5) * jit, cy + (Math.random() - 0.5) * jit, cz);
+    const cy = Math.max(0.14, s.ty + Math.sin(el) * d);
+    camera.position.set(cx + Math.sin(t * 13) * e * e * 0.007, cy + Math.sin(t * 17.3) * e * e * 0.005, cz);
     camera.up.set(Math.sin(s.roll), Math.cos(s.roll), 0);
     camera.lookAt(s.tx, s.ty, s.tz);
     camera.setViewOffset(W, H, -b.sx * f * W, -b.sy * f * H, W, H);
@@ -424,29 +918,66 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     lampPos.set(0, 1, s.carZ);
     toCam.copy(camera.position).sub(lampPos).normalize();
     const facing = forward.dot(toCam);
-    const front = smooth(0.05, 0.75, facing), back = smooth(0.05, 0.75, -facing);
-    const hot = s.drl * 0.2 + s.beam * 0.34 + s.high;
-    heads.forEach((sp) => {
-      sp.material.opacity = clamp(hot, 0, 1) * front;
-      const size = 0.5 + s.high * 2.6 + e * 0.4;
-      sp.scale.set(size, size, 1);
-    });
-    tails.forEach((sp) => { sp.material.opacity = s.red * 0.5 * back; sp.scale.set(0.8, 0.8, 1); });
+    const lit = smooth(0.1, 0.8, facing), back = smooth(0.05, 0.75, -facing);
+    const hot = clamp(s.high + s.pod * 0.16 + e * 0.12, 0, 1) * lit;
+    for (const h of heads) {
+      const size = 0.34 + s.high * 3.6 + e * 0.34;
+      h.glow.material.opacity = hot;
+      h.glow.scale.set(size, size, 1);
+      h.streak.material.opacity = hot * 0.85;
+      h.streak.scale.set(size * 2.6, size * 2.6, 1);
+    }
+    tails.forEach((sp) => { sp.material.opacity = s.red * 0.2 * back; sp.scale.set(0.5, 0.5, 1); });
 
+    renderer.setRenderTarget(null);
     renderer.render(scene, camera);
+    if (glowOn) drawGlow();
   }
 
+  if (import.meta.env.MODE === 'dbg') window.__dbg = { THREE: { Color, MeshBasicMaterial, DoubleSide }, scene, car, rig, s, renderer, camera, draw, hide: [sky, floor.mesh, hallLights.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : [])] };
   renderer.compile(scene, camera);
+  // hand the engine to the graphics card now, shrunk to nothing, so it doesn't stall the film the moment it first appears
+  if (engine) {
+    engine.group.visible = true;
+    engine.group.scale.setScalar(1e-4);
+    renderer.setRenderTarget(null);
+    renderer.render(scene, camera);
+    if (glowOn) drawGlow(); // the glow pass draws it too, with shaders of its own
+    engine.group.scale.setScalar(ENGINE_SIZE);
+    engine.group.visible = false;
+  }
+  ready = true;
   draw(true);
   canvas.classList.add('is-live');
+  // a browser may drop the graphics of a background tab. Everything comes back by itself except what was drawn into a
+  // texture, so the reflections are rebuilt. The stage waits dark for that; the still only steps in if it never comes back
+  let lostTimer = 0;
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    canvas.classList.remove('is-live');
+    contextLost = true;
+    lostTimer = setTimeout(() => document.documentElement.classList.remove('has-3d'), 4000);
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    clearTimeout(lostTimer);
+    contextLost = false;
+    scene.environment = buildStudio(renderer, hallTex);
+    sizeGlow();
+    draw(true);
+    document.documentElement.classList.add('has-3d');
+    canvas.classList.add('is-live');
+  });
 
   return {
     draw,
-    /** Where the headlamps are on screen, as a height in pixels, for the lens streak drawn in the page. */
-    lampY() {
-      lampPos.set(0, LAMP.y, s.carZ + LAMP.z).project(camera);
-      return (1 - lampPos.y) * 0.5 * H;
+    /** Where the logo forms on screen, so the badge can take over from the pieces exactly there. */
+    markOnScreen() {
+      const box = canvas.getBoundingClientRect();
+      const at = (x) => { const v = new Vector3(x, MARK_AT.y, MARK_AT.z + rig.position.z).project(camera); return [box.left + ((v.x + 1) / 2) * box.width, box.top + ((1 - v.y) / 2) * box.height]; };
+      const [l, y] = at(-MARK_SIZE / 2), [r] = at(MARK_SIZE / 2);
+      return { x: (l + r) / 2, y, w: r - l };
     },
+    dropEngine() { engine?.dispose(); engine = null; },
     get turned() { return turned; },
   };
 }

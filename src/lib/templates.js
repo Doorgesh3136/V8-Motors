@@ -1,14 +1,15 @@
 // Pure HTML templates (no DOM access). Used at build time to pre-render pages,
 // and in the browser where content has to be redrawn.
-import { CARS, DEALER, BODY_TYPES, rs, km, monthly, carName, thumb } from '../data.js';
+import { CARS, DEALER, BODY_TYPES, rs, km, monthly, carName, thumb, large } from '../data.js';
 
-export const SITE = 'https://doorgesh3136.github.io/V8-Motors/';
+export const SITE = 'https://webluxe.github.io/V8-Motors/';
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 export const carUrl = (c, P = '') => `${P}cars/${c.id}.html`;
 
 /* ------------------------------------------------------------------ icons */
 const svg = (d, extra = '') => `<svg viewBox="0 0 24 24" aria-hidden="true" ${extra}>${d}</svg>`;
 export const ICON = {
+  play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>',
   heart: svg('<path d="M12 20.5s-7.5-4.6-7.5-10.1A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1Z"/>'),
   scales: svg('<path d="M4 7h16M7 7l-3 7a3 3 0 0 0 6 0L7 7Zm10 0-3 7a3 3 0 0 0 6 0l-3-7ZM12 4v16M8 20h8"/>'),
   share: svg('<path d="M12 3v12M7 8l5-5 5 5M5 13v6h14v-6"/>'),
@@ -69,6 +70,11 @@ const statusClass = (s) => (s === 'Just arrived' ? ' car-status--new' : s === 'S
 const statusBadge = (c, extra = '') => (c.status === 'In stock' ? '' : `<span class="car-status${extra}${statusClass(c.status)}">${c.status}</span>`);
 
 /* ------------------------------------------------------------------ car card */
+// how a salesperson would say it: "2019 silver hatchback", "1.2 L petrol, manual"
+const soft = (w) => (w === w.toUpperCase() ? w : w.toLowerCase());
+const carLine = (c) => [c.year, c.colour && soft(c.colour), c.body && soft(c.body)].filter(Boolean).join(' ');
+const specLine = (c) => [[c.engine, soft(c.fuel)].filter(Boolean).join(' '), soft(c.gearbox), c.km != null ? km(c.km) : ''].filter(Boolean).join(', ');
+
 export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px) 30vw, (min-width: 640px) 45vw, 92vw' } = {}) {
   const n = c.thumbs.length;
   return `<li class="car" data-id="${c.id}" data-flip-id="${c.id}">
@@ -81,16 +87,14 @@ export function carCard(c, P = '', { eager = false, sizes = '(min-width: 1000px)
       <button type="button" class="save" data-save="${c.id}" aria-pressed="false" aria-label="Save the ${esc(carName(c))}">${ICON.heart}</button>
     </div>
     <div class="car-info">
-      <p class="car-kicker tabular-nums">${[c.year, c.body, c.colour].filter(Boolean).join(' · ')}</p>
+      <div class="car-tag">
+        <p class="car-price car-plate${c.status === 'Saturday deal' ? ' car-plate--deal' : ''} tabular-nums">${rs(c.price)}</p>
+      </div>
       <h3 class="car-title"><a href="${carUrl(c, P)}" data-car-link>${esc(c.make)} ${esc(c.model)}</a></h3>
-      <ul class="car-specs" aria-label="Key specs">
-        <li>${ICON.fuel}<span>${c.engine ? `${c.engine} ` : ''}${esc(c.fuel)}</span></li>
-        <li>${ICON.gear}<span>${esc(c.gearbox)}</span></li>
-        ${c.km != null ? `<li>${ICON.gauge}<span class="tabular-nums">${km(c.km)}</span></li>` : ''}
-      </ul>
+      <p class="car-kicker tabular-nums">${esc(carLine(c))}</p>
       <div class="car-foot">
-        <div>
-          <p class="car-price tabular-nums">${rs(c.price)}</p>
+        <div class="car-lines">
+          <p class="car-line tabular-nums">${esc(specLine(c))}</p>
           <p class="car-monthly tabular-nums">or about ${rs(monthly(c.price))} a month</p>
         </div>
         <button type="button" class="save save--plain" data-compare="${c.id}" aria-pressed="false" aria-label="Compare the ${esc(carName(c))}">${ICON.scales}</button>
@@ -232,7 +236,7 @@ export function footerHTML(P = '') {
           <p>© ${new Date().getFullYear()} ${DEALER.legalName}. Leasing subject to approval by ${DEALER.leasing}.</p>
           <p class="footer-legal"><a href="${P}privacy.html">Privacy policy</a><a href="${P}terms.html">Terms of sale</a></p>
         </div>
-        <p class="footer-credits">Stock photos by V8 Motors. Home page 3D car adapted from <a href="https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726">a model by kaleemullah550</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>). Engine sound built from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>
+        <p class="footer-credits">Stock photos by V8 Motors. Home page 3D car adapted from <a href="https://sketchfab.com/models/b477326cf8b041c9b1a89b1c4f4e7bdf" rel="noopener">Range Rover Sport Hybrid PHEV 2023 by victor-arrais</a> (CC BY 4.0), engine in the intro adapted from <a href="https://sketchfab.com/models/f20acef709b847eb98839b89c5ef916c" rel="noopener">V8 Hot Rod Engine by ShotaB</a> (CC BY 4.0).<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>). Engine sound built from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>
       </div>
     </div>
   </footer>`;
@@ -259,8 +263,8 @@ export function dialSvg() {
     <path class="dial-track" d="${arc}"/>
     <path class="dial-fill" d="${arc}" pathLength="100" data-dial-fill/>
     ${ticks}${nums}
-    <g class="dial-needle" data-dial-needle><path d="M196 214 199.2 62h1.6L204 214a4 4 0 0 1-8 0Z"/></g>
-    <circle class="dial-hub" cx="200" cy="200" r="11"/>
+    <g class="gauge-needle" data-dial-needle><path d="M196 214 199.2 62h1.6L204 214a4 4 0 0 1-8 0Z"/></g>
+    <circle class="gauge-hub" cx="200" cy="200" r="11"/>
   </svg>`;
 }
 
@@ -268,7 +272,7 @@ export function dialSvg() {
 export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   const url = SITE + path;
   const img = image || `${SITE}og.jpg`;
-  return `<script>(function(d){try{if(sessionStorage.getItem('v8:curtain')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('curtain-in');
+  return `<script>(function(){try{var n=performance.getEntriesByType('navigation')[0],f=location.pathname.split('/').pop();if(n&&n.type==='reload'&&f&&f!=='index.html'){sessionStorage.setItem('v8:restart','1');location.replace('${P}./')}}catch(e){}})();(function(d){try{if(sessionStorage.getItem('v8:curtain')&&!matchMedia('(prefers-reduced-motion: reduce)').matches)d.classList.add('curtain-in');
     /* if the page script never runs (offline, blocked), don't leave the intro or hidden content in the way */
     setTimeout(function(){if(!window.__v8){d.classList.remove('play-intro','js');}},9000);}catch(e){}})(document.documentElement)</script>
   <script type="speculationrules">{"prefetch":[{"where":{"and":[{"selector_matches":"a[href]"},{"not":{"selector_matches":"[rel~=noopener],[href^='tel:'],[href^='mailto:'],[href*='://']"}}]},"eagerness":"moderate"}]}</script>
@@ -286,7 +290,7 @@ export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   <meta name="twitter:title" content="${esc(title)}" />
   <meta name="twitter:description" content="${esc(desc)}" />
   <meta name="twitter:image" content="${img}" />
-  <meta name="theme-color" content="#244a64" />
+  <meta name="theme-color" content="#41403f" />
   <link rel="icon" href="${P}favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="${P}favicon-32.png" sizes="32x32" type="image/png" />
   <link rel="apple-touch-icon" href="${P}apple-touch-icon.png" />
@@ -360,21 +364,63 @@ export function honeypot() {
   return `<div class="hp" aria-hidden="true"><label>Leave this field empty<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>`;
 }
 
+/* ---- dials and comparisons on the car page. Everything is worked out from the real stock list, nothing is invented */
+function dial(label, value, frac) {
+  const f = Math.max(0, Math.min(1, frac ?? 0));
+  const ticks = Array.from({ length: 19 }, (_, i) => {
+    const a = (-135 + i * 15) * Math.PI / 180, r1 = i % 3 ? 45 : 42;
+    return `<line x1="${(60 + Math.sin(a) * r1).toFixed(1)}" y1="${(60 - Math.cos(a) * r1).toFixed(1)}" x2="${(60 + Math.sin(a) * 49).toFixed(1)}" y2="${(60 - Math.cos(a) * 49).toFixed(1)}"/>`;
+  }).join('');
+  return `<div class="gauge" style="--f:${f.toFixed(3)}">
+    <svg viewBox="0 0 120 120" aria-hidden="true"><g class="gauge-ticks">${ticks}</g><path class="gauge-arc" pathLength="100" d="M21.1 98.9a55 55 0 1 1 77.8 0"/><line class="gauge-needle" x1="60" y1="66" x2="60" y2="20"/><circle class="gauge-hub" cx="60" cy="60" r="5"/></svg>
+    <dd class="gauge-value tabular-nums">${esc(value)}</dd><dt class="gauge-label">${label}</dt></div>`;
+}
+const ordinal = (n) => (n === 1 ? '' : `${n}${['th', 'st', 'nd', 'rd'][(n % 100 > 10 && n % 100 < 14) || n % 10 > 3 ? 0 : n % 10]} `);
+function compareRow(label, list, v, lo, hi, line) {
+  const f = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+  return `<div class="cmp"><p class="cmp-name">${label}</p><p class="cmp-line">${line}</p>
+    <div class="cmp-track" style="--f:${f.toFixed(3)}" aria-hidden="true">${list.map((x) => `<i style="--x:${(hi > lo ? (x - lo) / (hi - lo) : 0.5).toFixed(3)}"></i>`).join('')}<b></b></div></div>`;
+}
+function compareHTML(c) {
+  const rows = [];
+  const peers = CARS.filter((x) => x.body === c.body), prices = peers.map((x) => x.price).sort((a, b) => a - b);
+  const plural = c.body === 'Sedan' || c.body === 'Hatchback' || c.body === 'Pickup' || c.body === 'Van' ? `${c.body.toLowerCase()}s` : `${c.body}s`;
+  if (peers.length >= 3) {
+    const n = prices.filter((p) => p < c.price).length + 1;
+    rows.push(compareRow('Price', prices, c.price, prices[0], prices[prices.length - 1], `${n === 1 ? 'The lowest priced' : `${ordinal(n)}lowest priced`} of ${peers.length} ${plural} here`));
+  }
+  const kms = CARS.map((x) => x.km).filter((x) => x != null).sort((a, b) => a - b);
+  if (c.km != null && kms.length >= 3) {
+    const pct = Math.round((kms.filter((k) => k > c.km).length / kms.length) * 100);
+    rows.push(compareRow('Mileage', kms, c.km, kms[0], kms[kms.length - 1], pct >= 50 ? `Fewer kilometres than ${pct}% of our cars` : `${km(c.km)} on the clock`));
+  }
+  const years = CARS.map((x) => +x.year).sort((a, b) => a - b);
+  const newer = Math.round((years.filter((y) => y < +c.year).length / years.length) * 100);
+  rows.push(compareRow('Age', years, +c.year, years[0], years[years.length - 1], newer >= 50 ? `Newer than ${newer}% of our cars` : `A ${c.year} car, in a stock running from ${years[0]} to ${years[years.length - 1]}`));
+  return rows.join('');
+}
+
 export function carPageHTML(c, P = '../') {
   const name = carName(c);
   const n = c.images.length;
   const waText = encodeURIComponent(`Hi V8 Motors, I'm interested in the ${name} (${rs(c.price)}). Is it still available to view?`);
   const specs = [
     [ICON.gauge, 'Year', c.year],
-    c.km != null && [ICON.gauge, 'Mileage', km(c.km)],
-    c.engine && [ICON.engine, 'Engine', `${c.engine} (${c.engineCc.toLocaleString('en-US')} cc)`],
-    [ICON.fuel, 'Fuel', c.fuel], [ICON.gear, 'Gearbox', c.gearbox], [ICON.car, 'Body', c.body],
+    [ICON.gauge, 'Mileage', km(c.km)],
+    c.engine && [ICON.engine, 'Engine', c.engine],
+    [ICON.gear, 'Gearbox', c.gearbox],
+    [ICON.fuel, 'Fuel', c.fuel],
+    [ICON.car, 'Body', c.body],
     c.colour && [ICON.palette, 'Colour', c.colour],
     c.seats && [ICON.seat, 'Seats', c.seats],
     c.doors && [ICON.wheel, 'Doors', c.doors],
-  ].filter(Boolean);
+  ].filter(Boolean).filter(([, k]) => !['Year', 'Mileage', 'Engine', (c.km == null || !c.engine) && 'Seats'].includes(k));
+  const allYears = CARS.map((x) => +x.year), minY = Math.min(...allYears), maxY = Math.max(...allYears);
+  const yearFrac = maxY > minY ? (+c.year - minY) / (maxY - minY) : 0.5;
+  const maxKm = Math.max(1, ...CARS.map((x) => x.km || 0)), maxCc = Math.max(1, ...CARS.map((x) => x.engineCc || 0));
   return `
   <div class="wrap car-page" data-car="${c.id}">
+    <div class="car-bay" aria-hidden="true"><div class="car-bay-img"></div><div class="car-ambient" style="background-image:url(${P}${c.thumbs[0]})"></div></div>
     <nav class="crumbs" aria-label="Breadcrumb">
       <a href="${P}./">Home</a><span aria-hidden="true">/</span><a href="${P}inventory.html">Cars</a><span aria-hidden="true">/</span>
       <a href="${P}inventory.html?make=${encodeURIComponent(c.make)}">${c.make}</a><span aria-hidden="true">/</span><span aria-current="page">${esc(c.model)}</span>
@@ -382,12 +428,14 @@ export function carPageHTML(c, P = '../') {
 
     <div class="car-top">
       <div class="gallery" data-gallery>
-        <div class="gallery-main">
-          ${photo(c.images[0], { alt: `${name}${c.colour ? ` in ${c.colour.toLowerCase()}` : ''}, photo 1 of ${n}`, eager: true, w: 1591, h: 1200, attrs: `data-gal-img style="background-image:url(${P}${c.thumbs[0]});view-transition-name:car-hero"` })}
+        <img class="gal-reflect" src="${large(c, 0, P)}" alt="" aria-hidden="true" data-gal-reflect>
+        <div class="gallery-main" data-gal-tilt>
+          ${photo(large(c, 0, P), { alt: `${name}${c.colour ? ` in ${c.colour.toLowerCase()}` : ''}, photo 1 of ${n}`, eager: true, w: 1591, h: 1200, attrs: `data-gal-img style="background-image:url(${P}${c.thumbs[0]});view-transition-name:car-hero"` })}
           ${statusBadge(c, ' car-status--lg')}
           ${n > 1 ? `
           <button type="button" class="gal-arrow gal-prev" data-gal-prev aria-label="Previous photo">${ICON.arrowL}</button>
           <button type="button" class="gal-arrow gal-next" data-gal-next aria-label="Next photo">${ICON.arrowR}</button>` : ''}
+          <button type="button" class="gal-video" data-video-open>${ICON.play}<span>Video</span></button>
           <button type="button" class="gal-expand" data-gal-open aria-label="Open photos full screen">${ICON.expand}<span class="tabular-nums" data-gal-count>1 / ${n}</span></button>
         </div>
         ${n > 1 ? `<div class="gallery-thumbs" style="--n:${Math.min(n, 6)}">${c.thumbs.slice(0, 6).map((src, i) =>
@@ -395,23 +443,18 @@ export function carPageHTML(c, P = '../') {
       </div>
 
       <aside class="summary" data-summary>
-        <p class="summary-kicker tabular-nums">${[c.year, c.body, c.colour].filter(Boolean).join(' · ')}</p>
-        <h1 class="summary-title">${esc(c.make)} ${esc(c.model)}</h1>
-        <ul class="car-specs summary-specs" aria-label="Key specs">
-          <li>${ICON.fuel}<span>${c.engine ? `${c.engine} ` : ''}${esc(c.fuel)}</span></li>
-          <li>${ICON.gear}<span>${esc(c.gearbox)}</span></li>
-          ${c.km != null ? `<li>${ICON.gauge}<span class="tabular-nums">${km(c.km)}</span></li>` : ''}
-          ${c.seats ? `<li>${ICON.seat}<span>${c.seats} seats</span></li>` : ''}
-        </ul>
+        <h1 class="summary-title">${esc(c.make)} <em>${esc(c.model)}</em></h1>
+        <p class="summary-kicker tabular-nums">${esc(carLine(c))}</p>
         <div class="summary-price">
-          <p class="summary-amount tabular-nums" data-price>${rs(c.price)}</p>
+          <p class="summary-amount car-plate${c.status === 'Saturday deal' ? ' car-plate--deal' : ''} tabular-nums" data-price>${rs(c.price)}</p>
           <p class="summary-monthly tabular-nums">or about <strong>${rs(monthly(c.price))}</strong> a month on lease, 20% down over 5 years</p>
         </div>
-        <ul class="summary-points">
-          <li>Checked by us: clean and road-ready</li>
-          <li>Part-exchange welcome: bring your current car</li>
-          <li>Leasing through ${DEALER.leasing}</li>
-        </ul>
+        <dl class="gauges" aria-label="Key figures" data-dials>
+          ${dial('Year', c.year, yearFrac)}
+          ${c.km != null ? dial('Mileage', km(c.km), c.km / maxKm) : dial('Seats', c.seats ?? 'Ask us', (c.seats || 0) / 8)}
+          ${c.engine ? dial('Engine', c.engine, (c.engineCc || 0) / maxCc) : dial('Seats', c.seats ?? 'Ask us', (c.seats || 0) / 8)}
+        </dl>
+        <dl class="specs" aria-label="Specifications">${c.km == null ? `<div class="spec">${ICON.gauge}<dt>Mileage</dt><dd>Mileage: ask us</dd></div>` : ''}${specs.map(([icon, k, v]) => `<div class="spec">${icon}<dt>${k}</dt><dd class="tabular-nums">${esc(v)}</dd></div>`).join('')}</dl>
         <div class="summary-actions">
           <a class="btn btn-primary btn-wide" href="#book">Book a viewing</a>
           <div class="summary-contact">
@@ -427,17 +470,27 @@ export function carPageHTML(c, P = '../') {
       </aside>
     </div>
 
-    <section class="car-section" aria-labelledby="specs-h">
-      <h2 class="car-h" id="specs-h">The <em>details</em></h2>
-      <div class="details${c.description || c.options ? ' details--about' : ''}">
-        <dl class="specs">${specs.map(([icon, k, v]) => `<div class="spec">${icon}<dt>${k}</dt><dd class="tabular-nums">${esc(v)}</dd></div>`).join('')}</dl>
-        ${c.description || c.options ? `<div class="about-box">
-          <h3 class="about-h">From the dealer</h3>
-          ${c.description ? `<p class="car-about">${esc(c.description)}</p>` : ''}
-          ${c.options ? `<ul class="about-options">${c.options.split(/\n|,\s*/).map((o) => o.trim()).filter(Boolean).map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
-        </div>` : ''}
-      </div>
+    ${n > 1 ? `<section class="car-section walk-sec" aria-labelledby="walk-h">
+      <div class="walk-head"><h2 class="car-h" id="walk-h">Walk <em>around it</em></h2><p class="car-sub">${n} photos, taken by us at the showroom. Open any one full size.</p></div>
+      <ul class="walk" tabindex="0" aria-label="All photos of this car">${c.thumbs.map((src, i) => `<li><button type="button" class="walk-shot" data-walk="${i}" aria-label="Open photo ${i + 1} of ${n}"><img src="${large(c, i, P)}" width="1280" height="853" alt="" loading="lazy" style="background-image:url(${P}${src})"></button></li>`).join('')}</ul>
+    </section>` : ''}
+
+    <section class="car-section compare-sec" aria-labelledby="cmp-h">
+      <h2 class="car-h" id="cmp-h">How it <em>compares</em></h2>
+      <p class="car-sub">Measured against the ${CARS.length} cars on our forecourt today.</p>
+      <div class="cmp-list">${compareHTML(c)}</div>
     </section>
+
+    ${c.description || c.options ? `<section class="car-section about-sec" aria-labelledby="about-h">
+      <h2 class="car-h" id="about-h">From the <em>dealer</em></h2>
+      ${c.description ? `<p class="car-about">${esc(c.description)}</p>` : ''}
+      <ul class="summary-points">
+        <li>Checked by us: clean and road-ready</li>
+        <li>Part-exchange welcome: bring your current car</li>
+        <li>Leasing through ${DEALER.leasing}</li>
+      </ul>
+      ${c.options ? `<ul class="about-options">${c.options.split(/\n|,\s*/).map((o) => o.trim()).filter(Boolean).map((o) => `<li>${esc(o)}</li>`).join('')}</ul>` : ''}
+    </section>` : ''}
 
     <section class="car-section car-2col fin-mini" aria-labelledby="fin-h">
       <div>
@@ -485,9 +538,15 @@ export function carPageHTML(c, P = '../') {
   <dialog class="lightbox" data-lightbox aria-label="Photos of the ${esc(name)}">
     <img alt="" data-lb-img>
     <p class="lb-count tabular-nums" data-lb-count></p>
+    <button type="button" class="lb-video" data-video-open>${ICON.play}<span>Video</span></button>
     <button type="button" class="lb-close" data-lb-close aria-label="Close photos">${ICON.close}</button>
     ${n > 1 ? `<button type="button" class="lb-arrow lb-prev" data-lb-prev aria-label="Previous photo">${ICON.arrowL}</button>
     <button type="button" class="lb-arrow lb-next" data-lb-next aria-label="Next photo">${ICON.arrowR}</button>` : ''}
+  </dialog>
+  <dialog class="video-box" data-video-box aria-label="Video of the ${esc(name)}">
+    <div class="video-frame" data-video-frame style="--poster:url('${large(c, 0, P)}')"><p class="video-soon" data-video-soon>${ICON.play}<span>Video coming soon</span></p></div>
+    <button type="button" class="video-swap" data-video-swap hidden>Not playing? Watch on YouTube</button>
+    <button type="button" class="lb-close" data-video-close aria-label="Close the video">${ICON.close}</button>
   </dialog>`;
 }
 

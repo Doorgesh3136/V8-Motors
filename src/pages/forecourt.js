@@ -4,6 +4,8 @@
  * Swipe up for the next car (the page's own scroll snap, so it's as smooth as the phone). Tap the sides for the
  * next or previous photo, hold to pause, double-tap to park the car in your garage.
  * Only the car on screen and its neighbours have photos loaded, and only the car on screen moves.
+ * With a mouse it works the same way: the wheel, the arrow keys, the buttons or dragging move one car at a time, and the
+ * arrows at the sides change the photo.
  */
 import gsap from 'gsap';
 import { initLayout, reduced, $, $$, toast, syncStoreUI, bump } from '../lib/layout.js';
@@ -216,8 +218,56 @@ root.addEventListener('click', (e) => {
 // saving and comparing from the rail
 import('../lib/card.js').then(({ wireCardActions }) => wireCardActions());
 
+const to = (i) => slides[Math.max(0, Math.min(slides.length - 1, i))].scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
+
+/* ------------------------------------------------------------------ with a mouse */
+if (matchMedia('(hover: hover) and (pointer: fine)').matches) {
+  $('[data-fc-hint-text]').textContent = 'Scroll or drag for the next car';
+  // one notch or flick, one car: the wheel's own momentum must not skip any
+  let wheelAt = 0, quiet = 0;
+  root.addEventListener('wheel', (e) => {
+    if (e.ctrlKey) return;
+    e.preventDefault();
+    const now = performance.now(), fresh = now - quiet > 140;
+    quiet = now;
+    if (!e.deltaY || now - wheelAt < 650 || (!fresh && now - wheelAt < 1100)) return;
+    wheelAt = now;
+    to(current + Math.sign(e.deltaY));
+  }, { passive: false });
+  $$('[data-fc-go]').forEach((b) => b.addEventListener('click', () => to(current + +b.dataset.fcGo)));
+
+  // grab the car and throw it
+  let grab = null, dragged = false;
+  root.addEventListener('pointerdown', (e) => {
+    if (e.button || e.target.closest('a, .fc-rail, .fc-act')) return;
+    grab = { y: e.clientY, top: root.scrollTop };
+    dragged = false;
+  });
+  addEventListener('pointermove', (e) => {
+    if (!grab) return;
+    const dy = e.clientY - grab.y;
+    if (!dragged && Math.abs(dy) < 8) return;
+    dragged = true;
+    clearTimeout(holdTimer);
+    root.classList.add('is-grabbing');
+    root.style.scrollSnapType = 'none';
+    root.scrollTop = grab.top - dy;
+  }, { passive: true });
+  addEventListener('pointerup', (e) => {
+    if (!grab) return;
+    const dy = e.clientY - grab.y, h = root.clientHeight;
+    const was = grab.top;
+    grab = null;
+    root.classList.remove('is-grabbing');
+    if (!dragged) return;
+    wasHold = true; // this was a drag, so the click that follows must not change the photo
+    const i = Math.round(was / h) + (Math.abs(dy) > 70 ? -Math.sign(dy) : 0);
+    root.scrollTo({ top: Math.max(0, Math.min(slides.length - 1, i)) * h, behavior: reduced ? 'auto' : 'smooth' });
+    setTimeout(() => { root.style.scrollSnapType = ''; }, 650);
+  });
+}
+
 addEventListener('keydown', (e) => {
-  const to = (i) => slides[Math.max(0, Math.min(slides.length - 1, i))].scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
   if (e.key === 'ArrowDown' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); to(current + 1); }
   else if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); to(current - 1); }
   else if (e.key === 'ArrowRight') film?.step(1);

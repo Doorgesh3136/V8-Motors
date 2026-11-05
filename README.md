@@ -5,7 +5,7 @@ Vite, Tailwind CSS v4, GSAP and Lenis, no framework: about 60 KB of JavaScript (
 
 **The idea:** the whole site is one drive. It starts in the dark with the white Range Rover's start button, you drive through its headlights as you scroll, the night slowly lifts on the way down, and every page ends at sunrise behind Le Pouce and Pieter Both. Three things belong to this site and no other: the **budget dial**, the **forecourt** and the **garage**.
 
-Live site: https://doorgesh3136.github.io/V8-Motors/
+Live site: https://webluxe.github.io/V8-Motors/
 
 ```
 npm install
@@ -30,13 +30,13 @@ Only what the dealer publishes is shown. There are no invented inspection scores
 
 ## Design
 
-Petrol, taken from the dealership's own logo (grey V, red 8, cyan lettering), much deeper than before so there's a night to climb out of. `src/site.css` is the base; `src/flagship.css`, loaded after it, is the current design layer and the first place to look.
+Graphite and ivory, with the red of the dealership's logo as the only strong colour, so the cars are the colourful thing on every page. `src/site.css` is the base; `src/flagship.css`, loaded after it, is the current design layer and the first place to look.
 
-- **Colours:** deep petrol surfaces (`#123246`, `#0c2231`), ivory type (`#f6f2ea`, the Range Rover's paint), the logo's red (`#e0262f`) kept for the one main action on a screen and the Saturday band, ice blue (`#9fe3f5`) for small highlights, and a warm dawn only at the very end.
+- **Colours:** graphite surfaces (`#1b1c1e`, `#141517`), ivory type (`#f6f2ea`, the Range Rover's paint), the logo's red (`#e0262f`) kept for the one main action on a screen and the Saturday band, and a warm dawn only at the very end.
 - **Type:** Archivo (self-hosted, variable width and weight), wide and tight for headlines, with one accent word per headline in Bodoni Moda italic: "Drive *smarter.*" Nothing on the site is smaller than 12 px.
 - **Rhythm:** one vertical gap between chapters on every page (`--sec`), one gap from heading to content (`--head-gap`), one spacing scale for everything else.
 - **Numbers:** digits sit on drums and roll like an odometer (`src/lib/odo.js`): the dial, the car counts, the Saturday countdown, the monthly figures.
-- **Background:** a petrol gradient that flows on its own (`src/lib/bg.js`, a tiny WebGL shader) under a fine carbon-fibre texture, with headlight and tail-light trails, soft lights and a slow sweep of light. Nothing in it reacts to touch; the one thing that follows you is the hour, from deep night at the top of a page to first light at the bottom. Drawn at a fifth of the screen's resolution, 30 fps on phones, paused while hidden or under the intro.
+- **Background:** carbon fibre under moving light (`src/lib/bg.js`, a small WebGL shader). The twill weave is lit the way real carbon is: each tow only flashes when a light lines up across its fibres, so a passing lamp throws a shifting cross of light. A warm lamp and a red tail-lamp glow wander over it, a cold sweep crosses every few seconds, faint light trails stream past, and a soft light follows the mouse. The weave moves with the page at a slower speed, in whole pixels so it never shimmers, and a warm dawn comes up towards the bottom of a page. It pauses while the 3D hero covers the screen or the tab is hidden, and with reduced motion or no WebGL a still of dark paint (`public/bg/panel.webp`) stays underneath.
 - **The footer:** the sky is part of the page, so the horizon always sits behind the ridges. The ridgelines are generated with fractal noise on a hand-set profile, with Le Pouce and Pieter Both's summit boulder set by hand; the sun rises behind the boulder as you arrive.
 - **Layout:** no horizontal scrolling and no text overflow at any size from 320 to 1920 px, portrait or landscape; every tap target is at least 44 px.
 
@@ -56,7 +56,17 @@ Hearts park a car in your garage, on this device. The garage page sends the whol
 
 ### Car cards
 
-Every car card (inventory, home page, similar cars) has no box around it: a photo; year, body and colour; make and model; engine, gearbox and mileage where the dealer has entered it; then the price and the monthly figure. The whole card is one link; the heart sits on the photo and compare beside the price. On phones the inventory is two across, or a row per car in list view, so all the stock is a short scroll. Photos fade in once they've arrived. On phones, swipe sideways across a card's photo to flick through all its pictures (with a mouse, move across it).
+Every car card (inventory, home page, similar cars) is a slab of brushed gunmetal rendered in Blender (`public/bg/brushed.webp`), with visible thickness and a photo recessed behind glass. It tilts as it passes through the screen, using a CSS scroll timeline where the browser has one, so the depth shows without pointing at anything. The price sits on a number plate bolted over the bottom edge of the photo, like the plate on the hero car, so it is the first thing you read; a Saturday deal's plate is red. Below it are the make and model and three plain lines: "2019 silver hatchback", "1.2 L petrol, manual" (with the mileage where the dealer has entered it) and the monthly figure. The photo is larger than its window and slides behind it as the card passes, and the plate moves the other way, so the card has real parallax (also sideways along the home page rail). With a mouse the card tilts towards the pointer and its layers move apart, photo back, plate and name forward, and a soft light follows; on touch screens and with reduced motion it just sits. The whole card is one link; the heart sits on the photo and compare beside the last lines. On phones the inventory is two across, or a row per car in list view. On phones, swipe sideways across a card's photo to flick through all its pictures (with a mouse, move across it).
+
+### Page banners
+
+Every inner page opens in the showroom. `public/hero/page-*.webp` are shot from the same 3D scene as the home page, so they stay in step with the car and the hall; a car page takes its ambient light from that car's own photo. Panels and forms share the cards' brushed gunmetal, through `--surface` in `src/flagship.css`.
+
+### Car pages
+
+What a buyer wants comes first, beside the photos: the name, the price on its plate, the monthly figure, then every spec on raised tiles, then Book a viewing, Call and WhatsApp. The dealer's description, the payment calculator and the booking form follow.
+
+The dealer's photo server takes about two seconds per photo, so the gallery never waits on it. `scripts/sync-inventory.mjs` keeps a 1280 px copy of every photo with the site. A car page fetches them all once it has settled, and a switch shows the thumbnail instantly if the big copy hasn't arrived yet. Full screen shows our copy at once and swaps in the dealer's full-size original when it arrives.
 
 ### Navigation
 
@@ -70,9 +80,11 @@ Every car card (inventory, home page, similar cars) has no box around it: a phot
 
 The intro opens on the car's start button in the dark. While the scene loads, the button's outer ring fills with real progress (the photo, the light shapes, the fonts and the engine recording, which is streamed so its bytes can be counted), the percentage counts up beside it, and a few small line icons (a key, a steering wheel, a gauge, a wheel) drift in the dark. When everything has arrived the ring closes with a flash and the hint becomes "Sound on. Press to start." The button works before that too, and visitors can always enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner.
 
-The car is a white Range Rover, live in 3D (`src/lib/rover3d.js`, `public/model/range-rover.glb`): 122,000 triangles, 3.9 MB, one mesh per material for the body plus four separate wheels. The page never talks to three.js directly. It animates one object of plain numbers (`src/lib/rover-shots.js` explains each one) with GSAP on the recording's clock, and every frame `rover3d.js` draws whatever they say, so the picture follows the audio exactly and scrolling can drive the same scene.
+The car is a white Range Rover, live in 3D (`src/lib/rover3d.js`, `public/model/range-rover.glb`): about 5 MB, one mesh per material for the body plus four separate wheels. The windows are opaque privacy glass, so the cabin was removed from the model altogether. The page never talks to three.js directly. It animates one object of plain numbers (`src/lib/rover-shots.js` explains each one) with GSAP on the recording's clock, and every frame `rover3d.js` draws whatever they say, so the picture follows the audio exactly and scrolling can drive the same scene.
 
-Everything expensive is faked so it runs on a phone: the reflection is the car drawn again upside down under a see-through floor, the pools of headlight are painted by the floor's shader, the beams are additive cones, and the studio reflections in the paint come from softboxes built in code, so there is no HDRI to download. Modest devices drop the reflection and run at 30 fps, and any device that can't keep up lowers its resolution once.
+The car sits in a night hall rendered in Blender (`public/hero/hall.webp`, one equirectangular image): ribbed concrete, LED strips, a red line along the walls and the sunrise over Le Pouce through the open far end. That one image is the backdrop, and also what the paint and the wet concrete floor reflect (`public/hero/floor.webp` packs the floor's surface normal and roughness into one texture).
+
+The headlamps are the real parts of the model: the running-light blades and LED pods are emissive and wake from the middle of the car outwards, and the beams, floor pools and lens glow are positioned from the pods' actual geometry at load. Anything small and bright, like the hall's light strips, is real geometry rather than part of the hall image, so it gets proper edge smoothing; the picture is tone-mapped before it is antialiased, and the glow is a separate blurred pass added on top, so fine bright detail doesn't crawl or sparkle in motion. A dark inner shell sits 3 cm inside the bodywork, measured from the model in Blender, so there is always something behind a panel gap; it stops short of both bumpers, whose faces can't be measured that way. Many of the model's panels are wound backwards, so the paint shader always uses the normal each panel was modelled with, never the side the browser thinks is facing. The wide chrome strips in the door shuts take the body's colour. The V8 MOTORS signs on the wall are real channel letters (`public/model/sign.glb`) in Archivo, and the car stands on a ring inlaid in the floor that fades out when it pulls away. Nothing in the film strobes, and nothing moves per frame at random: wheel speed is capped so spokes never flicker, and the camera follows a smooth curve with no cuts. Everything expensive is faked so it runs on a phone: the reflection of the car is the car drawn again upside down under a floor that is see-through where it is wet, the pools of light are painted by the floor's shader, and the beams are additive cones. Modest devices drop the glow, the reflection, dust and smoke and run at 30 fps, and any device that can't keep up lowers its resolution once.
 
 With reduced motion or data saver, three.js is never fetched and `public/hero/range-rover.webp` (a still of the same model) stays on screen. The same still takes over if WebGL is missing or the model fails to load.
 
@@ -80,20 +92,20 @@ The sound is a real V8 recording (`public/intro/engine.mp3`, 10.5 s): a starter 
 
 | Time | What happens |
 | --- | --- |
-| 0.3 s | The starter cranks and the lamps flicker, the camera right up against a headlamp in the dark. |
-| 0.9 s | The engine catches, the body kicks and settles on its springs, and the lights come up. |
-| Idle | The camera drifts across the grille while the body trembles with the engine. |
-| 4.7 s | First rev: the high beams flash and the camera punches in. |
-| 5.9 s | Big rev: the letterbox opens, the car rolls forward with its wheels turning, the camera swings out and the night lifts. |
+| 0.3 s | Black, a headlamp filling the screen, its first LEDs slowly waking with the starter. |
+| 0.9 s | The engine catches: the pods light one by one from the inside out, the body kicks on its springs, and the camera lifts off the lamp in one unbroken flight around the car, along the flank, round the tail lights as they fire, over the roof and across the bow and lettering, back out to the far end of the hall. |
+| 4.7 s | First rev: one flash of the high beams, and the camera pushes in. |
+| 5.9 s | Big rev: the hall's lights run towards you, and the car launches, squatting, tyres smoking. |
 | 6.3 s | The real V8 Motors badge comes up in the light. |
-| 7.2 s | Last rev: it pulses, then flies up into the menu bar as the page appears. |
+| 7.05 s | It brakes right in front of you, nose down, and the camera swings out to the hero. |
+| 7.2 s | Last rev: the badge pulses, then flies up into the menu bar as the page appears. |
 
-Once the home page is showing (after the intro, or on arriving from another page), the Range Rover flashes its high beams at you twice. Drag sideways to turn the car, with a little momentum; a finger moving up or down still scrolls the page. With a mouse, the front wheels steer towards the pointer. A tap flashes the lights again. The intro plays on every fresh visit and every refresh of the home page; arriving from another page on the site uses the page transition instead. If the page script can't load (offline, blocked), a small safety net in the page head clears the intro after nine seconds so the page is never stuck behind it.
+Once the home page is showing (after the intro, or on arriving from another page), the Range Rover gives you a soft flash of its high beams. Drag sideways to turn the car, with a little momentum (it turns itself back the short way as soon as you scroll); a finger moving up or down still scrolls the page. With a mouse, the front wheels steer towards the pointer. A tap flashes the lights again. The intro plays on every fresh visit and every refresh of the home page; arriving from another page on the site uses the page transition instead. If the page script can't load (offline, blocked), a small safety net in the page head clears the intro after nine seconds so the page is never stuck behind it.
 
 ### Home page
 
 - **Hero:** "Drive *smarter.*", where the accent word rolls over every few seconds like an odometer drum, one plain sentence, one primary action, and a readout of real numbers (cars in stock, the lowest price, open or closed right now).
-- **Through the headlights:** the hero holds still as you start to scroll, and your thumb is the throttle. The camera drops in front of the bonnet, the wheels turn at the right speed for the road, the markings rush past, the high beams come on, the screen washes white, and you're through. Short landscape screens and reduced motion skip it.
+- **The drive:** the hero stays on screen for a long stretch of scrolling, one unbroken shot with your thumb on the throttle. With a mouse or trackpad it runs in stops: one flick of the wheel plays the next part and the page holds until it lands. The car pulls off, the camera slides round to its side, it runs flat out along the hall with the wheels turning at the right speed for the road, the camera comes round the bonnet to dead ahead, and the camera keeps easing in while the showroom dissolves into the page and "Just in" fades up through it, with no cut and no flash. Short landscape screens and reduced motion skip it.
 - **Just in:** the newest cars on a rail you swipe.
 - **Budget dial:** above.
 - **Quick pick:** a deck of every car in stock, one at a time. Swipe right to park it in your garage, left to skip (or use the buttons or arrow keys); tapping a card opens the car. Shuffled once a day.
@@ -149,7 +161,9 @@ The viewing, sell/exchange and contact forms validate on the page, then open Wha
 ## Credits
 
 - **Stock photos and logo:** V8 Motors.
-- **Home page 3D car:** adapted from [2023 Land Rover Range Rover Sport by kaleemullah550](https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): refinished, with a red bow, number plate and badges added, reduced for the web and split so the wheels can turn.
+- **Intro engine:** adapted from [V8 Hot Rod Engine by ShotaB](https://sketchfab.com/models/f20acef709b847eb98839b89c5ef916c), CC BY 4.0. Changes: exhausts shortened, reduced for the web, split into parts.
+- **Home page 3D car:** adapted from [Range Rover Sport Hybrid PHEV 2023 by victor-arrais](https://sketchfab.com/models/b477326cf8b041c9b1a89b1c4f4e7bdf), CC BY 4.0. Changes: reduced for the web, roof fins removed, recoloured, red bow and number plates added.
+- **Home page hall and carbon texture:** modelled and rendered in Blender for this site, with [Concrete](https://polyhaven.com/a/concrete) and [Hangar Concrete Floor](https://polyhaven.com/a/hangar_concrete_floor) from Poly Haven (CC0).
 - **Fonts:** Archivo and Bodoni Moda, both under the SIL Open Font License.
 - **Engine sound,** built from CC0 (public domain) recordings on Freesound:
   - [S63 AMG V8 engine revs](https://freesound.org/people/marcelweiss/sounds/505321/) by marcelweiss;
