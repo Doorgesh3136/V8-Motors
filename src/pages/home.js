@@ -90,10 +90,10 @@ runIntro().then(async () => {
    idling smoothly and revving, CC0 recordings from Freesound). The picture runs on the audio clock, and the
    body's roll and the camera shake follow the recording's loudness frame by frame:
      0.3s  crank: black, a headlamp filling the screen, its LED blade slowly waking with the starter
-     0.9s  it catches: the headlamp's pods light one by one from the inside out, the body kicks on its springs, and
-           the camera lifts off the lamp in one
-           unbroken flight around the car: along the flank, round the tail lights as they fire, over the roof, across
-           the bow and the lettering, and back out to the far end of the hall
+     0.9s  it catches: the headlamp's pods light one by one from the inside out and the body kicks on its springs
+     1.6s  cut: low at the front wheel, looking along the flank
+     2.4s  cut: behind it, as the tail lights fire
+     3.2s  cut: the lettering across the nose, then one long pull straight back down the hall
      4.7s  first rev: one flash of the high beams, the camera pushes in
      5.9s  big rev: the hall's lights run towards you, the car launches, tyres smoking
      7.0s  it brakes right in front of you, nose down, and the camera swings out
@@ -208,6 +208,7 @@ async function runIntro() {
   if (choice === 'skip') {
     audio?.ctx.close();
     if (stage) gsap.set(dark, { opacity: 0 });
+    stageReady.then((st) => { st?.dropEngine(); st?.dropBay(); }); // skipped: neither will be seen
     await gsap.timeline()
       .to(s, { ...HERO, duration: 1.1, ease: 'expo.inOut' }, 0)
       .to(dark, { opacity: 0, duration: 0.9, ease: 'power2.inOut' }, 0)
@@ -235,32 +236,17 @@ async function runIntro() {
   };
   placeBadge();
 
-  // ---- the film: one unbroken shot, no cuts. Numbers are metres and radians
+  // ---- the film. Numbers are metres and radians
   const tl = gsap.timeline({ paused: true });
   if (import.meta.env.MODE === 'dbg') window.__tl = tl;
   const Z = DARK.carZ, tall = innerWidth / innerHeight < 0.8, near = (m) => (tall ? m * 1.55 : m); // a tall screen needs more room
   const flash = (at, power) => tl.to(s, { keyframes: [{ high: power, duration: 0.09, ease: 'sine.out' }, { high: 0, duration: 0.85, ease: 'sine.inOut' }] }, at);
 
-  // the flight, as points on a smooth curve (Catmull-Rom), so the camera never changes speed abruptly
+  // the shots: close-ups cut together like a car film, each one a slow slide, while the engine settles into its idle.
+  // shot(az, el, dist, what it looks at, roll, lens)
   const shot = (az, el, dist, tx, ty, tz, roll, lens) => ({ az, el, near: dist, tx, ty, tz, roll, lens });
-  const path = [
-    shot(DARK.az, DARK.el, DARK.near, DARK.tx, DARK.ty, DARK.tz, DARK.roll, DARK.lens),  // on the headlamp
-    shot(0.95, 0.03, near(2.7), 0.74, 0.86, Z + 1.5, -0.02, 30),                         // lifting off it
-    shot(1.72, 0.04, near(4.3), 0.3, 0.72, Z + 0.3, 0, 32),                              // along the flank
-    shot(2.62, 0.05, near(4.4), tall ? 0.55 : 0.2, 0.86, Z - 1.3, 0.02, 32),             // round the tail lights
-    shot(3.6, 0.16, near(5.3), 0, 0.96, Z - 1, 0.02, 32),                                // behind it, rising
-    shot(4.7, 0.34, near(5.7), -0.2, 1, Z + 0.2, 0, 30),                                 // over the far side
-    shot(5.7, 0.5, near(3.7), 0, 1.12, Z + 1.5, -0.02, 28),                              // down onto the bow
-    shot(Math.PI * 2, 0.36, near(3.5), 0, 1.1, Z + 1.9, 0, 28),                          // the lettering
-    shot(Math.PI * 2, 0.012, near(11.5), 0, 0.92, Z, 0, 26),                             // and back down the hall
-  ];
-  const keys = Object.keys(path[0]), segs = path.length - 1;
-  const flight = { p: 0 };
-  const fly = () => {
-    const x = Math.min(segs - 1e-6, flight.p * segs), i = Math.floor(x), u = x - i;
-    const a = path[Math.max(0, i - 1)], b = path[i], c = path[i + 1], d = path[Math.min(segs, i + 2)];
-    for (const k of keys) s[k] = 0.5 * (2 * b[k] + (c[k] - a[k]) * u + (2 * a[k] - 5 * b[k] + 4 * c[k] - d[k]) * u * u + (3 * b[k] - a[k] - 3 * c[k] + d[k]) * u * u * u);
-  };
+  const take = (at, duration, from, to, ease = 'none') => { tl.set(s, from, at).to(s, { ...to, duration, ease }, at); };
+  const CUTS = { wheel: 1.62, tail: 2.42, nose: 3.22, out: 3.62 };
 
   // crank (0.3 to 0.85s): the blade slowly wakes with the starter
   tl.to(s, { drl: 0.12, sweep: 0.62, duration: 0.55, ease: 'sine.inOut' }, 0.3)
@@ -270,16 +256,24 @@ async function runIntro() {
     .set(s, { drl: 1.35, pod: 1.3 }, 0.9)
     .to(s, { sweep: 1.05, duration: 0.85, ease: 'sine.inOut' }, 0.9)
     .to(s, { drl: 1, pod: 0.6, duration: 0.7, ease: 'sine.inOut' }, 1.75)
-    .to(s, { env: 0.07, key: 0.05, beam: 0.7, dust: 1, duration: 1.2, ease: 'sine.inOut' }, 0.95)
-    // and the camera lifts away
-    .to(flight, { p: 1, duration: 3.66, ease: 'sine.inOut', onUpdate: fly }, 0.94)
-    .set(s, { red: 1.5 }, 2.1)
-    .to(s, { sweepR: 1.1, duration: 0.6, ease: 'sine.inOut' }, 2.1)
-    .to(s, { red: 0.8, duration: 0.8, ease: 'sine.inOut' }, 2.8)
-    .to(s, { env: 0.2, key: 0.18, duration: 0.9, ease: 'sine.inOut' }, 2.9)
+    .to(s, { beam: 0.7, dust: 1, duration: 1.2, ease: 'sine.inOut' }, 0.95)
+    .to(s, { env: 0.07, key: 0.05, duration: 0.35, ease: 'sine.inOut' }, 0.95)
+    // the tail lamps fire on camera
+    .set(s, { red: 1.5 }, CUTS.tail + 0.1)
+    .to(s, { sweepR: 1.1, duration: 0.5, ease: 'sine.inOut' }, CUTS.tail + 0.1)
+    .to(s, { red: 0.8, duration: 0.8, ease: 'sine.inOut' }, CUTS.tail + 0.65)
+    .to(s, { env: 0.2, key: 0.18, duration: 0.5, ease: 'sine.inOut' }, CUTS.wheel - 0.3)
     .to(s, { env: 0.06, key: 0.03, beam: 1, duration: 0.8, ease: 'sine.inOut' }, 3.9);
+  // the headlamp, drifting along its blade as the pods light
+  take(0, CUTS.wheel, DARK, { az: 0.74, el: 0.03, near: near(1.2), tx: 0.6, ty: 1, tz: Z + 2.2, roll: -0.015, lens: 28 }, 'sine.out');
+  // down at the front wheel, looking along the flank
+  take(CUTS.wheel, CUTS.tail - CUTS.wheel, shot(0.66, 0.01, near(2.5), 0.86, 0.52, Z + 1.0, 0.03, 26), { near: near(2.05), tz: Z + 0.72, ty: 0.48 });
+  // behind it, as the tail lamps come on
+  take(CUTS.tail, CUTS.nose - CUTS.tail, shot(2.58, 0.05, near(3.1), 0.42, 1.04, Z - 2.1, 0.02, 30), { az: 2.74, near: near(2.7), tx: 0.2 });
+  // the lettering across the nose, then straight back down the hall in one long pull, arriving on the first rev
+  take(CUTS.nose, CUTS.out - CUTS.nose, shot(0, 0.2, near(2.5), 0, 1.02, Z + 2.25, 0, 28), { near: near(2.3) });
+  tl.to(s, { el: 0.012, near: near(11.5), ty: 0.92, tz: Z, lens: 26, duration: 4.64 - CUTS.out, ease: 'power2.inOut' }, CUTS.out);
   // 4.7s: first rev. One flash of the high beams, and the far end of the hall stirs
-  tl.set(s, { az: 0 }, 4.61);
   flash(4.66, 0.9);
   tl.to(s, { keyframes: [{ hall: 0.16, duration: 0.3, ease: 'sine.out' }, { hall: 0.05, duration: 0.7, ease: 'sine.inOut' }] }, 4.68)
     .to(s, { near: near(10.8), duration: 1, ease: 'sine.out' }, 4.66)
@@ -302,14 +296,14 @@ async function runIntro() {
   // into the logo, which goes up into the menu bar. Without the 3D car, the badge simply comes up in the light
   const E = 7.8, hero = stage ? E + 4.75 : 7.2, gone = stage ? E + 5.1 : 7.95;
   if (stage) {
-    tl.to(s, { near: tall ? near(6.4) : 6.9, el: 0.05, ty: 1.62, tz: 1, lens: 30, duration: 1.6, ease: 'sine.inOut' }, E - 0.55)
+    tl.to(s, { near: tall ? near(6.4) : 6.9, el: 0.13, ty: 1.62, tz: 1, lens: 30, duration: 1.6, ease: 'sine.inOut' }, E - 0.55)
       .to(s, { keyframes: [{ bonnet: 0.05, duration: 0.09, ease: 'power2.out' }, { bonnet: 0.035, duration: 0.14, ease: 'sine.in' }] }, E)
       .to(s, { keyframes: [{ jolt: 0.4, duration: 0.06, ease: 'power2.out' }, { jolt: 0, duration: 0.5, ease: 'sine.out' }] }, E)
-      .to(s, { bonnet: 1, duration: 0.95, ease: 'power2.inOut' }, E + 0.28)
+      .to(s, { bonnet: 1, duration: 0.8, ease: 'power2.inOut' }, E + 0.28)
       .to(s, { bayGlow: 1, duration: 0.8, ease: 'sine.in' }, E + 0.3)
       .to(s, { hall: 0.62, beam: 0.3, duration: 0.8, ease: 'sine.inOut' }, E + 0.4)
-      .to(s, { eRise: 1, duration: 1.15, ease: 'power3.out' }, E + 0.85)
-      .to(s, { keyframes: [{ dive: -0.7, duration: 0.25, ease: 'power2.out' }, { dive: 0, duration: 0.9, ease: 'elastic.out(1, 0.4)' }] }, E + 0.85)
+      .to(s, { eRise: 1, duration: 1, ease: 'power2.inOut' }, E + 1.05) // only once the bonnet is fully up
+      .to(s, { keyframes: [{ dive: -0.7, duration: 0.25, ease: 'power2.out' }, { dive: 0, duration: 0.9, ease: 'elastic.out(1, 0.4)' }] }, E + 1.05)
       .to(s, { bayGlow: 0.5, duration: 1, ease: 'sine.inOut' }, E + 1.1)
       // it revs up there, and shakes itself to pieces
       .to(s, { eShake: 1, duration: 0.4, ease: 'power2.in' }, E + 1.85);
@@ -417,6 +411,7 @@ async function runIntro() {
   gsap.to(controls, { opacity: 0, duration: 0.3, onComplete: () => controls.remove() });
   if (withSound) audio.ctx.close().catch(() => {});
   stage?.dropEngine();
+  stage?.dropBay();
   finishIntro();
 }
 

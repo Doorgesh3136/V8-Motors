@@ -22,7 +22,8 @@ export function initDial(root = $('[data-dial]'), { onRev } = {}) {
   const word = $('[data-dial-word]', root);
   const rail = $('[data-dial-rail]'), all = $('[data-dial-all]'), walk = $('[data-dial-walk]');
   gsap.set(needle, { svgOrigin: '200 200', rotation: angleOf(min) });
-  const turn = reduced ? (a) => gsap.set(needle, { rotation: a }) : gsap.quickTo(needle, 'rotation', { duration: 0.55, ease: 'back.out(1.5)' });
+  // a fresh tween each time: the self-test below clears the needle's tweens, which would silently kill a shared quickTo
+  const turn = reduced ? (a) => gsap.set(needle, { rotation: a }) : (a) => gsap.to(needle, { rotation: a, duration: 0.55, ease: 'back.out(1.5)', overwrite: true });
   const arc = { p: 0 };
 
   let value = start, shown = '', timer = 0;
@@ -87,10 +88,8 @@ export function initDial(root = $('[data-dial]'), { onRev } = {}) {
     if (!drag.moved) {
       // a finger going up or down is scrolling the page, not turning the dial
       const dx = Math.abs(e.clientX - drag.x), dy = Math.abs(e.clientY - drag.y);
-      if (e.pointerType !== 'mouse') {
-        if (Math.hypot(dx, dy) < 6) return;
-        if (dy > dx) { drag = null; root.classList.remove('is-held'); return; }
-      }
+      if (Math.hypot(dx, dy) < 6) return; // a little wobble is still a tap on the scale
+      if (e.pointerType !== 'mouse' && dy > dx) { drag = null; root.classList.remove('is-held'); return; }
       drag.moved = true;
       face.setPointerCapture(e.pointerId);
     }

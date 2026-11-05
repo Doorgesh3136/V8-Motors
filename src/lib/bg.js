@@ -7,7 +7,7 @@
  * - a soft light follows the mouse;
  * - faint headlight and tail-light trails stream across, like a long exposure of a road at night;
  * - the weave moves with the page, at a slower speed, in whole pixels so it never shimmers;
- * - the one thing that follows the visitor is the hour: a warm dawn comes up towards the bottom of a page.
+ * - the one thing that follows the visitor is the hour: a warm dawn comes up towards the bottom of a page, as strong as the real sky allows.
  * It pauses while hidden or while the 3D hero covers the screen, runs at 30 fps on phones, and with reduced motion, no
  * WebGL or a failed shader the still of dark paint (public/bg/panel.webp) stays underneath.
  */
@@ -18,6 +18,7 @@ uniform vec2 r;      // canvas size
 uniform vec2 m;      // the pointer, in the same units as q
 uniform float t;     // time, seconds
 uniform float d;     // how far down the page: 0 night, 1 sunrise
+uniform float w;     // how warm the real sky is right now
 uniform float sc;    // how far the weave has moved, device pixels
 uniform float k;     // device pixels per CSS pixel
 const float PI = 3.14159265;
@@ -87,13 +88,20 @@ void main() {
 
   // ---- sunrise, low on the screen
   float dawn = smoothstep(0.62, 1.0, d), hz = 1.0 - smoothstep(0.0, 0.92, q.y);
-  col += mix(vec3(0.78, 0.38, 0.38), vec3(1.0, 0.69, 0.42), hz) * hz * hz * dawn * 0.13;
+  col += mix(vec3(0.78, 0.38, 0.38), vec3(1.0, 0.69, 0.42), hz) * hz * hz * dawn * 0.13 * w;
 
   // edges stay deep, and a fixed dither keeps the soft gradients from banding
   vec2 uv = gl_FragCoord.xy / r;
   col *= 1.0 - 0.3 * dot(uv - 0.5, uv - 0.5) * 2.0;
   gl_FragColor = vec4(col + (h(gl_FragCoord.xy) - 0.5) / 255.0, 1.0);
 }`;
+
+let warmth = 1;
+/** How much of the warm glow the real sky calls for: set by src/lib/sky.js. */
+export const setDawn = (v) => {
+  warmth = v;
+  document.documentElement.style.setProperty('--dawn-k', v.toFixed(3));
+};
 
 export function initBackground() {
   const html = document.documentElement;
@@ -147,7 +155,7 @@ export function initBackground() {
   const loc = gl.getAttribLocation(prog, 'p');
   gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  const u = Object.fromEntries(['r', 'm', 't', 'd', 'sc', 'k'].map((n) => [n, gl.getUniformLocation(prog, n)]));
+  const u = Object.fromEntries(['r', 'm', 't', 'd', 'w', 'sc', 'k'].map((n) => [n, gl.getUniformLocation(prog, n)]));
 
   plate.after(canvas);
 
@@ -190,6 +198,7 @@ export function initBackground() {
     my += (ty - my) * 0.09;
     gl.uniform1f(u.t, clock);
     gl.uniform1f(u.d, hour);
+    gl.uniform1f(u.w, warmth);
     gl.uniform2f(u.m, mx, my);
     gl.uniform1f(u.sc, Math.round(scrollY * 0.3 * K));
     gl.drawArrays(gl.TRIANGLES, 0, 3);

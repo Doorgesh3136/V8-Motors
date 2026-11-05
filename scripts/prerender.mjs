@@ -75,7 +75,7 @@ writeFileSync('public/llms.txt', `# V8 Motors
 ## Pages
 
 - [Cars for sale](${SITE}inventory.html): every car in stock, filterable by make, body, price, year, fuel and gearbox
-- [Sell or exchange](${SITE}sell.html): rough guide price and an offer for your car, or put it towards one of ours
+- [Sell](${SITE}sell.html): rough guide price and an offer for your car, or put it towards one of ours
 - [Leasing](${SITE}finance.html): monthly payment calculator; leasing is arranged through Rogers Capital
 - [Visit us](${SITE}contact.html): address, opening hours and contact form
 - [Privacy policy](${SITE}privacy.html)

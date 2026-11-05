@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { store } from './store.js';
 import { initBackground } from './bg.js';
+import { initSky } from './sky.js';
 import { initFx, photosArrive } from './fx.js';
 import { renderStatus } from './hours.js';
 
@@ -90,7 +91,7 @@ const html = document.documentElement;
    closed (a class set in <head> before first paint), then the layers open outwards. */
 export const viaCurtain = html.classList.contains('curtain-in');
 const ROUTES = {
-  'index.html': 'Home', 'inventory.html': 'Cars for sale', 'forecourt.html': 'The forecourt', 'sell.html': 'Sell or exchange', 'finance.html': 'Leasing',
+  'index.html': 'Home', 'inventory.html': 'Cars for sale', 'forecourt.html': 'The forecourt', 'sell.html': 'Sell', 'finance.html': 'Leasing',
   'contact.html': 'Visit us', 'compare.html': 'Compare', 'privacy.html': 'Privacy policy', 'terms.html': 'Terms of sale',
 };
 const fileOf = (url) => new URL(url, location.href).pathname.split('/').pop() || 'index.html';
@@ -386,13 +387,6 @@ export function validateFields(fields) {
 }
 export const phoneOk = (v) => v.replace(/\D/g, '').length >= 7;
 
-/* ------------------------------------------------------------------ the sun comes up as you reach the footer */
-function sunrise() {
-  const box = $('[data-horizon]'), sun = $('[data-sun]');
-  if (!box || !sun || reduced) return;
-  gsap.fromTo(sun, { yPercent: 62 }, { yPercent: 0, ease: 'none', scrollTrigger: { trigger: box, start: 'top bottom', end: 'bottom 72%', scrub: true } });
-}
-
 /* ------------------------------------------------------------------ boot */
 export function initLayout({ home = false, immersive = false } = {}) {
   if ('scrollRestoration' in history) history.scrollRestoration = home ? 'manual' : 'auto';
@@ -410,7 +404,7 @@ export function initLayout({ home = false, immersive = false } = {}) {
   else if (!immersive) setTimeout(privacyNotice, home ? 2500 : 900);
   $$('form').forEach(armForm);
   wirePhotoScrub();
-  if (!immersive) { initBackground(); sunrise(); }
+  if (!immersive) { initBackground(); initSky({ reduced }); }
   // on the home page, the effects (reveals, count-ups) start once the intro has handed over
   if (home && html.classList.contains('play-intro')) addEventListener('v8:intro-done', () => initFx(), { once: true });
   else initFx();

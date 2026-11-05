@@ -354,11 +354,28 @@
   /* ---------------------------------------------------------------- home: body tiles */
   .body-tiles { margin-top: var(--s6); display: grid; gap: 1px; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--line); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
   @media (min-width: 760px) { .body-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  @media (max-width: 559px) { .body-tile { min-height: 9.5rem; padding: var(--s4); } .body-tile .shape { left: var(--s4); top: var(--s4); width: 6rem; } .body-tile-name { font-size: 1.15rem; font-variation-settings: "wdth" 100; } }
+  @media (max-width: 559px) { .body-tile { min-height: 9.5rem; padding: var(--s4); } .body-tile .shape { left: var(--s4); top: var(--s4); width: 8.5rem; } .body-tile-name { font-size: 1.15rem; font-variation-settings: "wdth" 100; } }
   .body-tile { position: relative; display: grid; gap: var(--s1); padding: var(--s5); background: var(--ink); min-height: 12rem; align-content: end; overflow: hidden; transition: background-color .35s; }
-  .body-tile .shape { position: absolute; left: var(--s5); top: var(--s5); width: 8.5rem; height: 3.2rem; fill: none; stroke: var(--fog); stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; transition: transform .9s var(--ease), stroke .3s; }
+  .body-tile .shape { position: absolute; left: var(--s5); top: var(--s5); width: 8.5rem; height: auto; transition: transform .9s var(--ease); }
+  .shape-defs { position: absolute; }
+  .shape .s-body { fill: url(#shape-paint); }
+  .shape .s-glass { fill: url(#shape-glass); stroke: rgb(255 255 255 / .12); stroke-width: .5; }
+  .shape .s-line { fill: none; stroke: rgb(255 255 255 / .34); stroke-width: .8; }
+  .shape .s-gap { fill: none; stroke: rgb(255 255 255 / .1); stroke-width: .6; }
+  .shape .s-rail { fill: none; stroke: rgb(255 255 255 / .28); stroke-width: 1.3; stroke-linecap: round; }
+  .shape .s-handle { fill: none; stroke: rgb(255 255 255 / .3); stroke-width: 1.1; stroke-linecap: round; }
+  .shape .s-rim { fill: none; stroke: url(#shape-rim); stroke-width: 1.15; stroke-linecap: round; transition: stroke .3s; }
+  .shape .s-head { fill: #fff; }
+  .shape .s-tail { fill: #ff2a35; }
+  .shape .s-floor { fill: #e0262f; opacity: .22; transition: opacity .3s; }
+  .shape .s-tyre { fill: #050506; stroke: rgb(255 255 255 / .16); stroke-width: .6; }
+  .shape .s-hub { fill: #141517; }
+  .shape .s-spokes { fill: #b9bcc2; }
+  .shape .s-ring { fill: none; stroke: rgb(255 255 255 / .45); stroke-width: .7; }
   .body-tile:hover { background: var(--panel); }
-  .body-tile:hover .shape { transform: translateX(calc(100% + 1rem)); stroke: var(--accent); }
+  .body-tile:hover .shape { transform: translateX(45%); }
+  .body-tile:hover .shape .s-rim { stroke: #ff5a60; }
+  .body-tile:hover .shape .s-floor { opacity: .6; }
   .body-tile-name { font-weight: 800; font-size: 1.5rem; font-variation-settings: "wdth" 115; }
   .body-tile-meta { font-size: .875rem; color: var(--fog); }
 
@@ -424,7 +441,13 @@
   .fgroup > :not(legend) { clear: both; }
   .body-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
   .body-opt > span { display: grid; gap: 2px; min-height: var(--tap); padding: var(--s2) var(--s3); border-radius: var(--r-sm); border: 1px solid var(--line); cursor: pointer; transition: background-color .2s, color .2s, border-color .2s; }
-  .body-opt .shape { width: 3rem; height: 1.15rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+  .body-opt .shape { width: 3.25rem; height: auto; }
+  .body-opt .shape .s-body { fill: currentColor; opacity: .82; }
+  .body-opt .shape .s-glass { fill: var(--ink); stroke: none; }
+  .body-opt .shape .s-rim, .body-opt .shape .s-line, .body-opt .shape .s-gap, .body-opt .shape .s-rail, .body-opt .shape .s-handle, .body-opt .shape .s-floor, .body-opt .shape .s-spokes, .body-opt .shape .s-ring, .body-opt .shape .s-head, .body-opt .shape .s-tail { display: none; }
+  .body-opt .shape .s-tyre { fill: var(--ink); stroke: currentColor; stroke-width: 2.4; }
+  .body-opt .shape .s-hub { fill: currentColor; }
+  .body-opt input:checked + span .shape .s-glass, .body-opt input:checked + span .shape .s-tyre { fill: var(--ivory); }
   .body-opt-name { font-weight: 650; font-size: .875rem; }
   .body-opt-n { font-size: .75rem; color: var(--fog); }
   .body-opt:hover > span { border-color: var(--fog); }

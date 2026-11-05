@@ -31,9 +31,9 @@ export const META = {
   },
   'sell.html': {
     path: 'sell.html',
-    title: 'Sell or exchange your car in Mauritius | V8 Motors',
+    title: 'Sell your car in Mauritius | V8 Motors',
     desc: 'Tell us about your car in three short steps for a rough guide price, then an offer from V8 Motors. Sell it outright or put it towards one of our cars.',
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Sell or exchange', 'sell.html']])],
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Sell', 'sell.html']])],
   },
   'finance.html': {
     path: 'finance.html',

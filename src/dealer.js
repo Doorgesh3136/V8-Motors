@@ -18,6 +18,7 @@ export const DEALER = {
   address: '59B Royal Road, Coromandel, Mauritius',
   mapsQuery: 'V8 Motors 59B Royal Road Coromandel Mauritius',
   timeZone: 'Indian/Mauritius',
+  position: { lat: -20.18, lon: 57.47 }, // two decimals: the forecast is only for the area
   // index 0 = Sunday … 6 = Saturday; null = closed
   hours: [null, ['09:00', '17:00'], ['09:00', '17:00'], ['09:00', '17:00'], ['09:00', '17:00'], ['09:00', '17:00'], ['09:00', '16:00']],
   // an example rate for the calculators only; the leasing company sets the real one

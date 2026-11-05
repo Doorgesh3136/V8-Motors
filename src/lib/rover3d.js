@@ -27,7 +27,7 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { buildEngine, ENGINE_SIZE, MARK_AT, MARK_SIZE } from './rover-engine.js';
+import { buildBay, buildEngine, ENGINE_SIZE, MARK_AT, MARK_SIZE } from './rover-engine.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
 const SIGN_LONG = 10.87; // and where each of its eight letters starts and ends, along its length
@@ -437,6 +437,8 @@ function findLamp(car) {
  * @param onTooSlow   this device can't run it even at the lowest setting
  * @param withEngine  also load the V8 for the intro
  */
+const BONNET_OPEN = 1.43; // radians. Nearly upright, so it stands clear behind the engine and frames it
+
 export async function createStage({ canvas, s, input, onProgress = () => {}, onTap = () => {}, onSign = () => {}, onTooSlow = () => {}, withEngine = false }) {
   const phone = matchMedia('(pointer: coarse)').matches;
   const modest = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
@@ -459,7 +461,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   let doneModel = 0, doneTex = 0;
   const report = () => onProgress(doneModel * 0.78 + Math.min(1, doneTex) * 0.22);
   const load = (file, setup) => new Promise((ok, bad) => new TextureLoader().load(asset(file), (t) => { setup(t); doneTex += 0.5; report(); ok(t); }, undefined, bad));
-  const [gltf, signGltf, hallTex, surfaceTex, engineGltf] = await Promise.all([
+  const [gltf, signGltf, hallTex, surfaceTex, engineGltf, bayGltf] = await Promise.all([
     new Promise((ok, bad) => {
       new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/range-rover.glb'), ok,
         (e) => { if (e.total) { doneModel = e.loaded / e.total; report(); } }, bad);
@@ -477,6 +479,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
       t.anisotropy = 8;
     }),
     withEngine ? new Promise((ok) => { new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/engine.glb'), ok, undefined, () => ok(null)); }) : null,
+    withEngine ? new Promise((ok) => { new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/bay.glb'), ok, undefined, () => ok(null)); }) : null,
   ]);
   onProgress(1);
 
@@ -520,6 +523,9 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   const bonnets = [car.getObjectByName('Bonnet'), mirror?.getObjectByName('Bonnet')].filter(Boolean);
   let engine = engineGltf ? buildEngine(engineGltf.scene, 0, 1.5) : null;
   if (engine) rig.add(engine.group);
+  const plainBay = car.getObjectByName('Bay'); // the dark pit that stays for the rest of the visit
+  let bay = bayGltf ? buildBay(bayGltf.scene, car.getObjectByName('Body')) : null;
+  if (bay && plainBay) plainBay.visible = false;
   const wheels = ['FL', 'FR', 'RL', 'RR'].map((k) => {
     const nodes = [car.getObjectByName(`Wheel_${k}`), mirror?.getObjectByName(`Wheel_${k}`)].filter(Boolean);
     nodes.forEach((n) => { n.rotation.order = 'YXZ'; });
@@ -805,8 +811,9 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     const pitch = -e * 0.007 - s.jolt * 0.01 + s.dive * 0.04 + Math.sin(t * 7.3) * e * 0.0018 + (s.nod || 0) * 0.08;
     const bob = e * 0.01 + Math.sin(t * 11) * e * 0.0012 - Math.abs(s.dive) * 0.012 + (s.hop || 0);
     for (const b of bodies) { b.rotation.z = roll; b.rotation.x = pitch; b.position.y = bob; }
-    for (const b of bonnets) b.rotation.x = -(s.bonnet || 0) * 1.03;
-    bayLight.material.opacity = (s.bayGlow || 0) * 0.55;
+    for (const b of bonnets) b.rotation.x = -(s.bonnet || 0) * BONNET_OPEN;
+    bayLight.material.opacity = (s.bayGlow || 0) * 0.12;
+    bay?.update(s.bonnet || 0, 0.25 + (s.bayGlow || 0) * 0.75);
     engine?.update(s, t);
 
     // ---- wheels: they follow the car's speed, but never spin fast enough to strobe. Past about 13 radians a second a
@@ -936,6 +943,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
 
   if (import.meta.env.MODE === 'dbg') window.__dbg = { THREE: { Color, MeshBasicMaterial, DoubleSide }, scene, car, rig, s, renderer, camera, draw, hide: [sky, floor.mesh, hallLights.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : [])] };
   renderer.compile(scene, camera);
+  if (bay?.map) renderer.initTexture(bay.map); // its one picture goes to the graphics card now, not mid-film
   // hand the engine to the graphics card now, shrunk to nothing, so it doesn't stall the film the moment it first appears
   if (engine) {
     engine.group.visible = true;
@@ -978,6 +986,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
       return { x: (l + r) / 2, y, w: r - l };
     },
     dropEngine() { engine?.dispose(); engine = null; },
+    dropBay() { bay?.dispose(); bay = null; if (plainBay) plainBay.visible = true; },
     get turned() { return turned; },
   };
 }

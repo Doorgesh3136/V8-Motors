@@ -98,6 +98,10 @@
   :is(.page-inventory, .page-sell, .page-finance, .page-contact, .page-compare) .crumbs { margin-bottom: var(--s1); }
   :is(.page-inventory, .page-sell, .page-finance, .page-contact, .page-compare) .open-status { margin-top: var(--s2); }
   .compare-diff { margin-top: var(--s2); }
+  /* this banner's car sits far to the right, so its picture starts late: the fade has to start with it, or its edge shows */
+  @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
+    .page-sell .page-head::before { --from: calc(74vw - var(--car-x) * var(--bh) * 2.4); -webkit-mask-image: linear-gradient(90deg, transparent var(--from), #000 calc(var(--from) + 15rem)), linear-gradient(180deg, #000 72%, transparent); mask-image: linear-gradient(90deg, transparent var(--from), #000 calc(var(--from) + 15rem)), linear-gradient(180deg, #000 72%, transparent); }
+  }
   /* phones and narrow windows: the car on top, the words under it */
   @media (max-width: 899px), (max-aspect-ratio: 1/1) {
     :is(.page-inventory, .page-sell, .page-finance, .page-contact, .page-compare) .page-head { height: auto; padding-top: calc(var(--nav-h) + 9.5rem); }
@@ -369,7 +373,7 @@
   /* ---------------------------------------------------------------- shapes */
   .body-tiles { margin-top: 0; gap: 1px; background: var(--hair); border: 0; border-radius: var(--r-lg); box-shadow: inset 0 0 0 1px var(--hair); }
   .body-tile { background: rgb(22 22 21 / .72); min-height: clamp(10rem, 18vw, 15rem); padding: clamp(1rem, 2vw, 1.75rem); }
-  .body-tile .shape { width: clamp(6.5rem, 12vw, 10rem); height: auto; left: clamp(1rem, 2vw, 1.75rem); top: clamp(1rem, 2vw, 1.75rem); stroke: var(--soft); stroke-width: 1; }
+  .body-tile .shape { width: clamp(8.5rem, 17vw, 15rem); height: auto; left: clamp(1rem, 2vw, 1.75rem); top: clamp(.75rem, 1.5vw, 1.25rem); }
   .body-tile:hover { background: rgb(36 35 34 / .8); }
   .body-tile-name { font-size: clamp(1.25rem, 2.2vw, 1.75rem); font-weight: 700; letter-spacing: -.02em; font-variation-settings: "wdth" 114; }
   .body-tile-meta { color: var(--fog); }
@@ -412,19 +416,45 @@
   /* ---------------------------------------------------------------- the footer: sunrise */
   .footer { border: 0; padding: 0; color: var(--soft); --em: #ffe3cc; overflow-x: clip; }
   /* the sky is part of the page, so the horizon always sits exactly behind the ridges */
-  .footer-sky { --hz: calc(max(100vw, 56rem) * .1875); padding-top: var(--sec);
-    background: linear-gradient(0deg, #ffd9a0 0, #ffc27f calc(var(--hz) * .42), #ec8f6e calc(var(--hz) * .8), #ad6a7c calc(var(--hz) * 1.3), #5f5579 calc(var(--hz) * 1.95 + 5rem), rgb(60 59 58 / .55) calc(var(--hz) * 2.6 + 11rem), rgb(36 36 35 / 0) calc(var(--hz) * 3.1 + 17rem)); }
+  .footer-sky { position: relative; overflow: clip; --hz: calc(max(100vw, 56rem) * .1875); padding-top: var(--sec);
+    background: linear-gradient(0deg, var(--sky-0, #ffd9a0) 0, var(--sky-1, #ffc27f) calc(var(--hz) * .42), var(--sky-2, #ec8f6e) calc(var(--hz) * .8), var(--sky-3, #ad6a7c) calc(var(--hz) * 1.3), var(--sky-4, #5f5579) calc(var(--hz) * 1.95 + 5rem), rgb(60 59 58 / .55) calc(var(--hz) * 2.6 + 11rem), rgb(36 36 35 / 0) calc(var(--hz) * 3.1 + 17rem)); }
+  .footer-sky > .wrap { position: relative; z-index: 1; }
   .footer-cta { border: 0; padding-bottom: var(--s6); margin-bottom: 0; }
+  .sky-now { margin-top: var(--s1); font-size: .9375rem; font-weight: 600; color: var(--ivory); }
   .footer-cta .eyebrow { color: var(--ivory); }
   .footer-cta .open-status { color: var(--ivory); }
   .footer-ways .btn-line { border-color: rgb(255 255 255 / .7); background: rgb(29 29 28 / .22); }
   .horizon { position: relative; height: var(--hz); }
   .horizon svg { position: absolute; left: 50%; bottom: -1px; width: max(100%, 56rem); height: calc(var(--hz) + 1px); translate: -50% 0; overflow: visible; }
-  /* the sun comes up right behind Pieter Both's boulder */
-  .horizon-sun { --s: clamp(11rem, 25vw, 26rem); position: absolute; left: calc(50% + max(100vw, 56rem) * .1668); top: calc(var(--hz) * .14 - var(--s) / 2); width: var(--s); height: var(--s); margin-left: calc(var(--s) / -2); border-radius: 50%;
-    background: radial-gradient(circle, #fffbee 0, #fff1cf 15%, #ffdf9e 25%, rgb(255 200 130 / .6) 38%, rgb(255 170 110 / .2) 54%, rgb(255 150 90 / 0) 70%); will-change: transform; }
-  .ridge-3 { fill: #a0607a; }
-  .ridge-2 { fill: #40305a; }
+  /* the sun comes up right behind Pieter Both's boulder and sets behind Le Pouce: src/lib/sky.js sets --x, --lift and --k */
+  .horizon-sun, .horizon-moon { --x: .1668; --lift: 0px; --k: 1; position: absolute; left: calc(50% + max(100vw, 56rem) * var(--x)); will-change: transform; pointer-events: none; }
+  .horizon-sun { --hot: 0; --s: calc(clamp(11rem, 25vw, 26rem) * var(--k)); top: calc(var(--hz) * .14 - var(--s) / 2 - var(--lift)); width: var(--s); height: var(--s); margin-left: calc(var(--s) / -2); border-radius: 50%;
+    background: radial-gradient(circle, #fffbee 0, #fff1cf 15%, #ffdf9e 25%, rgb(255 200 130 / .6) 38%, rgb(255 170 110 / .2) 54%, rgb(255 150 90 / 0) 70%); }
+  .horizon-sun::after { content: ""; position: absolute; inset: 0; border-radius: 50%; opacity: var(--hot); background: radial-gradient(circle, #fff 0, #fff 17%, rgb(255 255 245 / .85) 22%, rgb(255 255 240 / .34) 36%, rgb(255 255 240 / .1) 52%, rgb(255 255 255 / 0) 70%); }
+  .horizon-moon { --m: clamp(4.25rem, 7.5vw, 7.5rem); top: calc(var(--hz) * .14 - var(--m) / 2 - var(--lift)); width: var(--m); height: var(--m); margin-left: calc(var(--m) / -2); }
+  .horizon-moon::before { content: ""; position: absolute; inset: -110%; border-radius: 50%; background: radial-gradient(circle, rgb(190 208 255 / .3) 0, rgb(170 190 245 / .12) 34%, rgb(160 180 240 / 0) 68%); }
+  .horizon-moon [data-moon-face], .horizon-moon svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; left: 0; bottom: auto; translate: none; }
+  .moon-dark { fill: #1e2740; }
+  .moon-lit { fill: #f4f1e6; }
+  .moon-seas circle { fill: #a9adb8; opacity: .3; }
+  .sky-stars { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--hz) * 3.1 + 17rem); opacity: 0; pointer-events: none; -webkit-mask-image: linear-gradient(0deg, #000 62%, transparent); mask-image: linear-gradient(0deg, #000 62%, transparent); }
+  .sky-stars svg { position: absolute; inset: 0; left: 0; bottom: 0; width: 100%; height: 100%; translate: none; fill: #fff; }
+  /* cloud: one soft shape, painted the colour of the moment, and it drifts. Sits in front of the sun, behind the ridges */
+  .sky-clouds { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--hz) * 1.9 + 3rem); overflow: hidden; pointer-events: none; -webkit-mask-image: linear-gradient(0deg, #000 48%, transparent 97%); mask-image: linear-gradient(0deg, #000 48%, transparent 97%); }
+  .sky-clouds span { position: absolute; left: 0; top: 0; width: 200%; height: 100%; background: var(--cloud-c, #fff); -webkit-mask: url("/bg/clouds.webp") 0 0 / 50% 100% repeat-x; mask: url("/bg/clouds.webp") 0 0 / 50% 100% repeat-x; animation: cloud-drift 260s linear infinite; }
+  .sky-cloud-a { opacity: var(--cloud-a, 0); }
+  .sky-cloud-b { opacity: var(--cloud-b, 0); top: -22%; height: 130%; -webkit-mask-position: 37% 0; mask-position: 37% 0; animation-duration: 170s; }
+  @keyframes cloud-drift { to { transform: translateX(-50%); } }
+  .sky-rain { position: absolute; left: 0; right: 0; bottom: 0; height: calc(var(--hz) * 2.2 + 6rem); opacity: calc(var(--rain, 0) * .55); pointer-events: none; overflow: hidden; -webkit-mask-image: linear-gradient(0deg, #000 60%, transparent); mask-image: linear-gradient(0deg, #000 60%, transparent); }
+  .sky-rain::before { content: ""; position: absolute; inset: -40% -10% 0; background: repeating-linear-gradient(101deg, transparent 0 13px, rgb(255 255 255 / .32) 13px 14px, transparent 14px 31px, rgb(255 255 255 / .16) 31px 32px, transparent 32px 53px); -webkit-mask: linear-gradient(0deg, #000, #000) 0 0; animation: rain-fall .5s linear infinite; }
+  @keyframes rain-fall { to { transform: translate(-22px, 110px); } }
+  .is-storm .sky-rain::after { content: ""; position: absolute; inset: 0; background: #dfe6ff; opacity: 0; animation: storm-flash 9s linear infinite; }
+  @keyframes storm-flash { 0%, 91%, 93%, 95%, 100% { opacity: 0; } 92% { opacity: .5; } 94% { opacity: .28; } }
+  .is-still .sky-clouds span, .is-still .sky-rain::before, .is-still .sky-rain::after { animation: none; }
+  .horizon { z-index: 0; }
+  .horizon > svg { z-index: 1; }
+  .ridge-3 { fill: var(--ridge-far, #a0607a); }
+  .ridge-2 { fill: var(--ridge-near, #40305a); }
   .ridge-1 { fill: #1a1a19; }
   .footer-ground { position: relative; background: #1a1a19; padding-top: var(--s6); padding-bottom: calc(var(--s6) + var(--tab-h)); margin-bottom: calc(var(--tab-h) * -1); }
   .footer-grid { padding-bottom: var(--s6); gap: var(--s6) var(--s7); }
@@ -488,6 +518,7 @@
   /* ---------------------------------------------------------------- the inventory, the garage */
   /* the gap before the footer is the footer's own, on every page: content never adds a second one */
   .inv-layout, .wizard-wrap, .compare, .car-page, .contact-grid, .prose { padding-bottom: 0; }
+  main > .wizard-wrap:last-child:not(.sellband) { padding-top: var(--s5); padding-bottom: var(--s8); }
   main > :last-child:not(.sellband) { padding-bottom: 0; }
   .inv-count strong { font-weight: 720; font-variation-settings: "wdth" 112; font-size: 2rem; }
   .chip { background: rgb(255 255 255 / .09); }
@@ -779,12 +810,13 @@
     .section { padding-block: var(--s6); }
     .section-sub { margin-top: var(--s2); }
     .wizard { gap: var(--s3); padding: var(--s4); }
-    .finance-grid, .wizard-wrap, .inv-layout, .compare { padding-top: var(--s3); }
+    .finance-grid, .inv-layout, .compare { padding-top: var(--s3); }
+    main > .wizard-wrap:last-child:not(.sellband) { padding-top: var(--s4); padding-bottom: var(--s6); }
     .car-page { padding-top: var(--s2); }
     .finance-intro .section-title { font-size: 2.25rem; }
     .section-title { font-size: clamp(2rem, 7vh, 3rem); }
     .body-tile { min-height: 7.5rem; }
-    .body-tile .shape { top: var(--s3); width: 6.5rem; height: 2.5rem; }
+    .body-tile .shape { top: var(--s3); width: 8.5rem; height: auto; }
     .rail { grid-auto-columns: min(78vw, 25rem, 46vh); }
     .rail-foot { margin-top: var(--s3); }
     .dial-face { width: min(100%, 27rem, 58vh); }
