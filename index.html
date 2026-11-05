@@ -19,10 +19,7 @@
       }
     } catch (e) {}
   </script>
-  <link rel="preconnect" href="https://images.unsplash.com" />
-  <link rel="preload" as="image" fetchpriority="high"
-    imagesrcset="https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=2200&q=70 2200w"
-    imagesizes="100vw" />
+  <link rel="preload" as="image" href="hero/range-rover.webp" fetchpriority="high" />
   <script type="module" src="/src/pages/home.js" blocking="render"></script>
 </head>
 <body class="page-home">
@@ -34,25 +31,18 @@
     <!-- the hero holds still while you scroll: the car comes at you, its lights come on, and you drive through them -->
     <div class="hero-pin" data-hero-pin>
     <section class="hero" aria-labelledby="hero-title" data-chapter="Welcome">
-      <!-- Intro: one continuous shot. Darkness, the headlights wake up, the camera pulls back and the white Range Rover appears on its driveway.
-           Photo, darkness and lamps share one wrapper so the pull-back scales them together. -->
+      <!-- Intro: one continuous shot, drawn live in 3D (src/lib/rover3d.js). The still is the same car, for reduced motion,
+           data saver, no WebGL, or while the model loads. -->
       <div class="hero-media" data-hero-media>
-      <img class="hero-img" data-hero-img
-        src="https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=1400&q=70"
-        srcset="https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=800&q=70 800w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=1400&q=70 1400w, https://images.unsplash.com/photo-1767274592417-c986b7619c8c?auto=format&fit=crop&w=2200&q=70 2200w"
-        sizes="100vw" width="2200" height="1511" fetchpriority="high" decoding="async"
-        alt="A white Range Rover with its headlights on, on a driveway lined with tropical plants" />
+        <img class="hero-img" data-hero-img src="hero/range-rover.webp" width="1600" height="1280" fetchpriority="high" decoding="async"
+          alt="A white Range Rover with a red bow on its bonnet and its headlights on, at night" />
+        <canvas class="hero-canvas" data-hero-canvas aria-hidden="true"></canvas>
         <div class="hero-dark" data-hero-dark aria-hidden="true"></div>
-        <span class="haze" data-haze aria-hidden="true"></span>
-        <span class="spill" data-spill aria-hidden="true"></span>
-        <span class="bloom" data-bloom aria-hidden="true"></span>
-        <!-- the Range Rover's light signature (drawn by scripts/make-intro-lights.mjs) and its soft glow, aligned to the photo exactly -->
-        <img class="hero-img hero-glow" data-glow src="intro/glow.webp" width="1100" height="756" alt="" aria-hidden="true" decoding="async" />
-        <img class="hero-img hero-lights" data-lights src="intro/lights.webp" width="2200" height="1511" alt="" aria-hidden="true" decoding="async" />
         <span class="flare" data-flare aria-hidden="true"></span>
         <span class="hero-flash" aria-hidden="true"></span>
       </div>
       <div class="hero-shade" aria-hidden="true"></div>
+      <p class="hero-hint" data-hero-hint hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c2.5-3 5.6-4.5 9-4.5s6.500 1.500 9 4.500M21 12l-3.200-.6M21 12l.6-3.200M3 12c2.500 3 5.600 4.500 9 4.500"/></svg>Drag to turn it. Tap to flash the lights.</p>
       <!-- intro only: letterbox, the V8 badge that flies into the menu bar, and controls while it plays -->
       <div class="bars" data-bars aria-hidden="true"><span></span><span></span></div>
       <div class="intro-badge" data-badge aria-hidden="true"><img src="brand/v8-mark.png" width="364" height="343" alt="" /></div>
@@ -63,7 +53,7 @@
         <!-- small line icons drifting in the dark while the scene loads -->
         <div class="gate-float" data-float aria-hidden="true"></div>
         <button type="button" class="ignition" data-ignite aria-label="Start the engine and enter the site with sound">
-          <!-- real loading progress: the photo, the light shapes and the engine recording -->
+          <!-- real loading progress: the 3D car and the engine recording -->
           <svg class="ignition-load" viewBox="0 0 120 120" aria-hidden="true"><circle class="il-track" cx="60" cy="60" r="56"/><circle class="il-bar" cx="60" cy="60" r="56" pathLength="100" data-load-bar/></svg>
           <span class="ignition-ring" aria-hidden="true"></span>
           <span class="ignition-face" aria-hidden="true"><span>Engine</span><strong>Start</strong><span>Stop</span></span>

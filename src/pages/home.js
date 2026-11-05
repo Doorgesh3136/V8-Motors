@@ -9,8 +9,8 @@ import { initDial } from '../lib/dial.js';
 import { initRevs } from '../lib/revs.js';
 import { odo } from '../lib/odo.js';
 import { byId, rs, monthly, thumb, carName } from '../data.js';
+import { DARK, HERO } from '../lib/rover-shots.js';
 
-const LAMPS = [[0.33, 0.5153], [0.6675, 0.511]]; // headlight centres as fractions of the photo (white Range Rover, Unsplash wrRhFFTySnc)
 const ENGINE = new URL('intro/engine.mp3', document.baseURI).href;
 const NAVS = ['[data-nav]', '.tabbar'];
 const GAIN = 0.8; // playback level (the recording itself is mastered quietly)
@@ -27,10 +27,9 @@ const FLOAT_ICONS = [
 const FLOAT_SPOTS = [[9, 16], [88, 12], [6, 46], [93, 42], [16, 78], [82, 74], [48, 7], [70, 28], [28, 30]];
 
 const media = $('[data-hero-media]');
-const img = $('[data-hero-img]');
-const lights = $('[data-lights]');
-const glow = $('[data-glow]');
+const canvas = $('[data-hero-canvas]');
 const flare = $('[data-flare]');
+const dark = $('[data-hero-dark]');
 
 const { lenis } = initLayout({ home: true });
 wireCardActions();
@@ -49,13 +48,38 @@ if (playIntro) {
   lenis?.stop();
 }
 
+/* ================================================================== the car
+   The Range Rover is drawn live by src/lib/rover3d.js, which brings three.js with it, so it is loaded on its own and
+   never holds up the page. Everything here animates one object of numbers, `s`; that file draws what they say.
+   With reduced motion, data saver, no WebGL or a failed download, the still of the same car stays on screen. */
+const s = { ...(playIntro ? DARK : HERO) };
+let stage = null, modelDone = 0, onModel = () => {};
+const wantStage = !reduced && !navigator.connection?.saveData;
+const stageReady = !wantStage ? Promise.resolve(null) : import('../lib/rover3d.js')
+  .then(({ createStage }) => createStage({
+    canvas, s, input: $('.hero'),
+    onProgress: (v) => { modelDone = v; onModel(v); },
+    onTap: () => flashLights(0),
+  }))
+  .then((st) => {
+    stage = st;
+    gsap.ticker.add(() => {
+      st.draw();
+      if (parseFloat(flare.style.opacity) > 0.001) flare.style.top = `${st.lampY()}px`;
+    });
+    return st;
+  })
+  .catch((e) => { console.warn('3D car unavailable, showing the still', e); modelDone = 1; onModel(1); return null; });
+if (!wantStage) modelDone = 1;
+media.style.setProperty('--u', `${(innerWidth * 1.3) / 100}px`);
+
 runIntro().then(async () => {
   document.documentElement.classList.remove('play-intro');
-  addEventListener('resize', layoutScene);
   lenis?.start();
   if (!heroStarted) { await curtainOpen; heroIn(); }
   flashLights();
   heroScrub();
+  showHint();
   setupSwap();
   initChapters();
   setTimeout(startRotor, reduced ? 0 : 2600);
@@ -66,40 +90,15 @@ runIntro().then(async () => {
    Browsers only allow sound after a tap, so the intro opens on the car's start button in the dark.
    Pressing it plays a real, healthy V8 (public/intro/engine.mp3: a starter crank, then a V8 catching,
    idling smoothly and revving, CC0 recordings from Freesound). The picture runs on the audio clock, and the
-   headlight bloom and camera shake follow the recording's loudness frame by frame:
-     0.3s  crank: the lamps flicker with the starter
-     0.9s  it catches: jolt, the light signature sweeps on from the grille outwards
-     idle  the camera creeps in, the light breathes with the engine
+   body's roll and the camera shake follow the recording's loudness frame by frame:
+     0.3s  crank: the lamps flicker with the starter, the camera right up against a headlamp in the dark
+     0.9s  it catches: the body kicks on its springs, the running lights and beams come up
+     idle  the camera drifts across the grille, the body trembles with the engine
      4.7s  first rev: high beams flash, the camera punches in
-     5.9s  big rev: flash, the letterbox opens, the camera pulls back and the driveway lights up
+     5.9s  big rev: flash, the letterbox opens, the car rolls forward as the camera swings out and the night lifts
      6.3s  the V8 Motors badge comes up in the light
      7.2s  last rev: a shine runs across the badge, then it flies up into the menu bar */
 
-
-/** Where the headlights sit on screen (the photo is object-fit: cover). */
-function layoutScene() {
-  const W = img.offsetWidth, H = img.offsetHeight, bx = img.offsetLeft, by = img.offsetTop;
-  const nw = img.naturalWidth || 2200, nh = img.naturalHeight || 1511;
-  const k = Math.max(W / nw, H / nh);
-  const w = nw * k, h = nh * k;
-  const ox = bx + (W - w) * 0.5, oy = by + (H - h) * 0.6;
-  const pts = LAMPS.map(([x, y]) => [ox + x * w, oy + y * h]);
-  const mx = (pts[0][0] + pts[1][0]) / 2, my = pts[0][1];
-  media.style.setProperty('--u', `${w / 100}px`);
-  media.style.transformOrigin = `${mx}px ${my}px`;
-  flare.style.top = `${my}px`;
-  const spill = $('[data-spill]'), haze = $('[data-haze]'), bloom = $('[data-bloom]');
-  spill.style.left = haze.style.left = bloom.style.left = `${mx}px`;
-  spill.style.top = `${my + h * 0.05}px`;
-  haze.style.top = bloom.style.top = `${my}px`;
-  return { W: media.clientWidth, sep: pts[1][0] - pts[0][0], mx: mx - bx, iw: W, top: by, h: H };
-}
-
-function waitForPhoto() {
-  const loaded = img.complete && img.naturalWidth ? Promise.resolve() : new Promise((r) => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }); });
-  const decoded = loaded.then(() => img.decode?.().catch(() => {}));
-  return Promise.race([Promise.all([decoded, document.fonts.ready]), new Promise((r) => setTimeout(r, 5000))]);
-}
 
 /** Fetch and decode the engine recording while the visitor looks at the start button. It is read as a
     stream, so the loader can show how much has arrived. */
@@ -128,8 +127,8 @@ function prepareSound(onProgress = () => {}) {
 }
 
 /* ------------------------------------------------------------------ the loader
-   While the scene loads, the start button's outer ring fills with real progress (the photo, the light
-   shapes, the fonts and the engine recording, which is streamed), the percentage counts up beside it,
+   While the scene loads, the start button's outer ring fills with real progress (the 3D car, the fonts
+   and the engine recording, which is streamed), the percentage counts up beside it,
    and a few small line icons drift in the dark. When everything has arrived the ring closes with a
    flash and the hint becomes "Press to start". You can press it, enter without sound or skip at any time. */
 
@@ -137,15 +136,11 @@ function startLoader(gate) {
   const bar = $('[data-load-bar]', gate), pct = $('[data-load-pct]', gate), text = $('[data-load-text]', gate);
   const float = $('[data-float]', gate);
   // weights: what you'd wait longest for weighs most
-  const parts = { photo: [0, 0.34], lights: [0, 0.1], glow: [0, 0.06], fonts: [0, 0.05], audio: [0, 0.45] };
+  const parts = { model: [0, 0.7], fonts: [0, 0.05], audio: [0, 0.25] };
   let target = 0, shown = 0, raf = 0, ready = false;
   const set = (k, v) => { parts[k][0] = Math.max(parts[k][0], Math.min(1, v)); target = Object.values(parts).reduce((a, [x, w]) => a + x * w, 0); };
-  const watch = (el, k) => {
-    if (!el || (el.complete && el.naturalWidth)) return set(k, 1);
-    el.addEventListener('load', () => set(k, 1), { once: true });
-    el.addEventListener('error', () => set(k, 1), { once: true });
-  };
-  watch(img, 'photo'); watch(lights, 'lights'); watch(glow, 'glow');
+  set('model', modelDone);
+  onModel = (v) => set('model', v);
   (document.fonts?.ready || Promise.resolve()).then(() => set('fonts', 1));
 
   if (float && !reduced) {
@@ -206,22 +201,13 @@ function waitForChoice(gate) {
 
 async function runIntro() {
   if (!playIntro) return;
-  const dark = $('[data-hero-dark]');
-  const spill = $('[data-spill]'), haze = $('[data-haze]'), bloom = $('[data-bloom]');
   const gate = $('[data-gate]'), bars = $$('[data-bars] > span'), badge = $('[data-badge]');
   const controls = $('[data-intro-controls]');
   const loader = startLoader(gate);
   const audio = prepareSound(loader.audio);
-
-  let geo = layoutScene();
-  img.addEventListener('load', () => (geo = layoutScene()), { once: true });
   const phone = innerWidth < 700;
-  const zoom = gsap.utils.clamp(1.25, phone ? 1.9 : 2.4, (0.62 * geo.W) / geo.sep);
-  gsap.set(media, { scale: zoom, rotation: -1.4 });
-  gsap.set([lights, glow, bloom], { opacity: 0 });
+
   gsap.set(flare, { opacity: 0, scaleX: 0.05 });
-  gsap.set(spill, { opacity: 0, scaleY: 0.4, transformOrigin: '50% 0%' });
-  gsap.set(haze, { opacity: 0.3 }); // a little atmosphere while you decide
   gsap.set(badge, { opacity: 0 });
   gsap.from(gate.children, { opacity: 0, y: 16, duration: 0.9, stagger: 0.1, ease: 'expo.out', delay: 0.2 });
   gsap.from(bars, { scaleY: 0, duration: 1.2, ease: 'expo.out' });
@@ -235,10 +221,10 @@ async function runIntro() {
 
   if (choice === 'skip') {
     audio?.ctx.close();
+    if (stage) gsap.set(dark, { opacity: 0 });
     await gsap.timeline()
-      .to(media, { scale: 1, rotation: 0, duration: 1.1, ease: 'expo.inOut' }, 0)
+      .to(s, { ...HERO, duration: 1.1, ease: 'expo.inOut' }, 0)
       .to(dark, { opacity: 0, duration: 0.9, ease: 'power2.inOut' }, 0)
-      .to(haze, { opacity: 0, duration: 0.6 }, 0)
       .to(bars, { scaleY: 0, duration: 0.8, ease: 'expo.inOut' }, 0)
       .to(NAVS, { opacity: 1, duration: 0.6 }, 0.4)
       .add(heroIn, 0.45);
@@ -246,66 +232,57 @@ async function runIntro() {
     return;
   }
 
-  const [buffer] = await Promise.all([audio ? audio.buffer : null, waitForPhoto()]);
+  // the button works before everything has arrived, but never wait long for the car
+  const [buffer] = await Promise.all([audio ? audio.buffer : null, Promise.race([stageReady, new Promise((r) => setTimeout(r, 6000))]), document.fonts?.ready]);
   const env = envelope(buffer);
   const withSound = choice === 'sound' && buffer;
   if (withSound) dispatchEvent(new Event('v8:sound-on'));
   if (!withSound) audio?.ctx.close();
-  geo = layoutScene();
+  if (stage) gsap.set(dark, { opacity: 0 }); // the 3D scene is its own darkness
 
   // where the badge sits: in the sky above the car, then it flies into the menu bar
   const placeBadge = () => {
     const portrait = innerHeight > innerWidth * 1.25;
     const size = portrait ? Math.min(innerWidth * 0.34, 150) : gsap.utils.clamp(130, 230, innerWidth * 0.14);
-    const cy = portrait ? geo.top + geo.h * 0.24 : innerHeight * 0.27;
+    const cy = portrait ? innerHeight * 0.13 : innerHeight * 0.2;
     gsap.set(badge, { width: size, left: innerWidth / 2 - size / 2, top: cy - size * 0.47 });
   };
   placeBadge();
 
-  // the light signature sweeps on from the grille outwards: an inset clip opening from the centre
-  const sweep = { p: 0 };
-  const clip = () => {
-    const l = geo.mx * (1 - sweep.p), r = (geo.iw - geo.mx) * (1 - sweep.p);
-    lights.style.clipPath = glow.style.clipPath = `inset(0 ${r}px 0 ${l}px)`;
-  };
   const tl = gsap.timeline({ paused: true });
-  const flash = (at, depth, rest = 0.86) => tl
-    .to(dark, { keyframes: [{ opacity: depth, duration: 0.06 }, { opacity: rest, duration: 0.5, ease: 'power2.out' }] }, at)
-    .to(glow, { keyframes: [{ opacity: 1, scale: 1.05, duration: 0.06 }, { opacity: 0.92, scale: 1, duration: 0.5 }] }, at)
-    .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.25, duration: 0.08 }, { opacity: 0.6, scaleX: 1, duration: 0.55 }] }, at);
+  const flash = (at, power) => tl
+    .to(s, { keyframes: [{ high: power, duration: 0.06 }, { high: 0, duration: 0.62, ease: 'power2.out' }] }, at)
+    .to(flare, { keyframes: [{ opacity: 1, scaleX: 1.25, duration: 0.08 }, { opacity: 0.45, scaleX: 1, duration: 0.55 }] }, at);
 
   // crank (0.3 to 0.85s): the lamps dim and brighten with the starter
-  tl.to(glow, { keyframes: [0.05, 0.01, 0.08, 0.02, 0.07].map((o) => ({ opacity: o, duration: 0.11 })) }, 0.3)
-    .to(media, { keyframes: { x: [0, -1, 1, -1, 0], y: [0, 0.8, -0.8, 0.8, 0] }, duration: 0.55, ease: 'none' }, 0.3)
-    // 0.9s: it catches
-    .to(media, { keyframes: { x: [0, -8, 9, -6, 3, -1, 0], y: [0, 6, -4, 2, -1, 1, 0] }, duration: 0.5, ease: 'none' }, 0.88)
-    .set(lights, { opacity: 1 }, 0.9)
-    .add(clip, 0.9)
-    .to(sweep, { p: 1, duration: 0.8, ease: 'power3.out', onUpdate: clip }, 0.9)
-    .to(glow, { opacity: 0.95, duration: 1, ease: 'power2.out' }, 0.93)
-    .to(dark, { opacity: 0.86, duration: 1.5, ease: 'power2.out' }, 0.98)
-    .to(spill, { opacity: 1, scaleY: 1, duration: 1.2, ease: 'expo.out' }, 1.05)
-    .to(haze, { opacity: 1, duration: 1.2, ease: 'power2.out' }, 1.05)
-    .to(flare, { opacity: 0.6, scaleX: 1, duration: 1.4, ease: 'expo.out' }, 0.98)
-    // idle: the camera creeps in
-    .to(media, { scale: zoom * 1.08, rotation: -0.5, duration: 3.2, ease: 'sine.inOut' }, 1.4);
+  tl.to(s, { keyframes: [0.05, 0.01, 0.1, 0.02, 0.08].map((v) => ({ drl: v, duration: 0.11 })) }, 0.3)
+    .to(s, { keyframes: [0.12, -0.1, 0.1, -0.06, 0].map((v) => ({ jolt: v, duration: 0.11 })) }, 0.3)
+    // 0.9s: it catches. The body kicks and settles on its springs, and the lights come up
+    .to(s, { keyframes: [{ jolt: 1, duration: 0.07, ease: 'power2.out' }, { jolt: 0, duration: 1.1, ease: 'elastic.out(1, 0.32)' }] }, 0.88)
+    .to(s, { drl: HERO.drl, duration: 0.8, ease: 'power3.out' }, 0.9)
+    .to(s, { red: 0.45, duration: 0.5 }, 0.95)
+    .to(s, { beam: 0.8, duration: 1.1, ease: 'expo.out' }, 0.98)
+    .to(s, { env: 0.13, key: 0.06, sky: 0.12, duration: 2.4, ease: 'power2.out' }, 1)
+    .to(flare, { opacity: 0.45, scaleX: 1, duration: 1.4, ease: 'expo.out' }, 0.98)
+    // idle: the camera drifts across the grille from one lamp to the other
+    .to(s, { az: -0.4, tx: -0.42, ty: 0.9, near: 3.9, roll: 0.03, duration: 3.45, ease: 'sine.inOut' }, 1.2);
   // 4.7s: first rev, the camera punches in
-  flash(4.66, 0.4);
-  tl.to(media, { keyframes: [{ scale: zoom * 1.16, duration: 0.14, ease: 'power3.out' }, { scale: zoom * 1.1, duration: 0.7, ease: 'power2.out' }] }, 4.66);
-  // 5.9s: the big rev. Flash, the letterbox opens, the camera pulls back hard
-  flash(5.86, 0.22);
-  tl.to(media, { scale: 1, rotation: 0, x: 0, y: 0, duration: 2.3, ease: 'expo.inOut' }, 5.92)
+  flash(4.66, 0.9);
+  tl.to(s, { keyframes: [{ near: 3.15, duration: 0.14, ease: 'power3.out' }, { near: 3.7, duration: 0.7, ease: 'power2.out' }] }, 4.66);
+  // 5.9s: the big rev. Flash, the letterbox opens, the car pulls forward as the camera swings out and the night lifts
+  flash(5.86, 1);
+  tl.to(s, { az: HERO.az, el: HERO.el, tx: HERO.tx, ty: HERO.ty, tz: HERO.tz, roll: 0, frame: 1, duration: 2.35, ease: 'expo.inOut' }, 5.92)
+    .to(s, { carZ: 0, duration: 2, ease: 'power2.inOut' }, 5.95)
+    .to(s, { env: HERO.env, key: HERO.key, sky: HERO.sky, duration: 2.1, ease: 'power2.inOut' }, 6.1)
+    .to(s, { beam: HERO.beam, red: HERO.red, duration: 1.7, ease: 'power2.inOut' }, 6.6)
     .to(bars, { scaleY: 0, duration: 1.3, ease: 'expo.inOut' }, 6.0)
-    .to(dark, { opacity: 0, duration: 2, ease: 'power2.inOut' }, 6.15)
-    .to([spill, haze], { opacity: 0, duration: 1.4, ease: 'power2.inOut' }, 6.8)
+    .to(dark, { opacity: 0, duration: 2, ease: 'power2.inOut' }, 6.15) // only still there when the 3D car isn't
     // 6.3s: the badge comes up in the light (opacity and scale only: an animated blur filter stutters on phones)
     .fromTo(badge, { opacity: 0, scale: 1.35 }, { opacity: 1, scale: 1, duration: 0.9, ease: 'expo.out' }, 6.3)
     // 7.2s: last rev, a pulse on the badge and a last pulse of light
     .to(badge, { keyframes: [{ scale: 1.08, duration: 0.08 }, { scale: 1, duration: 0.6, ease: 'power2.out' }] }, 7.22)
-    .to(glow, { keyframes: [{ opacity: 1, duration: 0.06 }, { opacity: 0.7, duration: 0.6 }] }, 7.22)
+    .to(s, { keyframes: [{ high: 0.55, duration: 0.06 }, { high: 0, duration: 0.7, ease: 'power2.out' }] }, 7.22)
     .to(flare, { keyframes: [{ opacity: 0.9, scaleX: 1.3, duration: 0.08 }, { opacity: 0, scaleX: 1.7, duration: 1.1, ease: 'power2.out' }] }, 7.22)
-    // the cut-out lights fade into the photo's own headlights, so nothing pops at the end
-    .to([lights, glow], { opacity: 0, duration: 1.3, ease: 'power1.inOut' }, 7.6)
     .add(heroIn, 7.7)
     .add(() => flyBadge(), 7.95)
     .to(NAVS, { opacity: 1, duration: 0.8, ease: 'power2.out' }, 8.1)
@@ -322,15 +299,11 @@ async function runIntro() {
     });
   }
 
-  // light and shake that follow the recording's loudness
-  const amp = phone ? 3 : 5;
+  // the body rocks and the camera trembles with the recording's loudness
   const react = (t) => {
-    if (!env || t < 0.85 || t > 8.6) { bloom.style.opacity = 0; media.style.translate = ''; return; }
-    const e = env[Math.min(env.length - 1, Math.floor(t * 60))];
+    if (!env || t < 0.85 || t > 8.6) { s.rev = 0; return; }
     const fadeOut = t > 7.5 ? Math.max(0, 1 - (t - 7.5) / 1.1) : 1;
-    bloom.style.opacity = String((0.15 + e * 0.85) * fadeOut);
-    const k = e * e * amp * fadeOut;
-    media.style.translate = k > 0.2 ? `${(Math.random() - 0.5) * k}px ${(Math.random() - 0.5) * k}px` : '';
+    s.rev = env[Math.min(env.length - 1, Math.floor(t * 60))] * fadeOut * (phone ? 0.8 : 1);
   };
 
   // controls while it plays: sound off, skip
@@ -385,9 +358,6 @@ async function runIntro() {
 }
 
 function finishIntro() {
-  gsap.set(media, { clearProps: 'transform,translate' });
-  media.style.translate = '';
-  gsap.set([lights, glow], { clearProps: 'clipPath' });
   gsap.set(NAVS, { clearProps: 'opacity' }); // never touch the nav's transform: it slides via CSS
   $('[data-badge]')?.remove();
   $('[data-bars]')?.remove();
@@ -396,26 +366,39 @@ function finishIntro() {
 }
 
 /* ================================================================== the Range Rover flashes its lights at you
-   Once the home page is showing (after the intro, or on arriving from another page), the car gives two quick
-   flashes of its high beams, using the real light shapes cut from the photo. Opacity and transform only. */
-async function flashLights() {
-  if (reduced || !lights || !glow) return;
-  if (!(img.complete && img.naturalWidth)) {
-    await Promise.race([new Promise((r) => img.addEventListener('load', r, { once: true })), new Promise((r) => setTimeout(r, 4000))]);
-  }
-  if (!img.naturalWidth || scrollY > innerHeight * 0.6) return; // photo missing, or already scrolled away
-  layoutScene();
-  gsap.set([lights, glow], { clearProps: 'clipPath' });
-  const blink = [
-    { opacity: 1, duration: 0.07, ease: 'power2.out' }, { opacity: 0.08, duration: 0.14, ease: 'power1.in' },
-    { opacity: 1, duration: 0.07, ease: 'power2.out' }, { opacity: 0, duration: 1.1, ease: 'power2.out' },
-  ];
-  gsap.timeline({ delay: 0.7 })
-    .to([lights, glow], { keyframes: blink }, 0)
+   Once the home page is showing (after the intro, or on arriving from another page) the car gives two quick flashes
+   of its high beams. Tap the car and it does it again. */
+let flashing = false;
+async function flashLights(delay = 0.7) {
+  if (reduced) return;
+  await stageReady;
+  if (!stage || flashing || scrollY > 40 || document.documentElement.classList.contains('play-intro')) return;
+  flashing = true;
+  gsap.timeline({ delay, onComplete: () => { flashing = false; } })
+    .to(s, { keyframes: [
+      { high: 0.85, duration: 0.07, ease: 'power2.out' }, { high: 0.04, duration: 0.14, ease: 'power1.in' },
+      { high: 1, duration: 0.07, ease: 'power2.out' }, { high: 0, duration: 1, ease: 'power2.out' },
+    ] }, 0)
     .to(flare, { keyframes: [
-      { opacity: 0.85, scaleX: 1.25, duration: 0.07 }, { opacity: 0.05, scaleX: 1, duration: 0.14 },
-      { opacity: 1, scaleX: 1.45, duration: 0.07 }, { opacity: 0, scaleX: 1.8, duration: 1.1, ease: 'power2.out' },
+      { opacity: 0.5, scaleX: 1.1, duration: 0.07 }, { opacity: 0.03, scaleX: 1, duration: 0.14 },
+      { opacity: 0.6, scaleX: 1.3, duration: 0.07 }, { opacity: 0, scaleX: 1.6, duration: 1, ease: 'power2.out' },
     ] }, 0);
+}
+
+/** A small note that the car can be turned, until someone has. */
+async function showHint() {
+  const hint = $('[data-hero-hint]');
+  if (!hint || !(await stageReady)) return;
+  hint.hidden = false;
+  gsap.fromTo(hint, { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.8, delay: 1.2, ease: 'expo.out' });
+  const hide = () => {
+    if (!stage.turned && scrollY < innerHeight * 0.15) return;
+    removeEventListener('pointerup', hide);
+    removeEventListener('scroll', hide);
+    gsap.to(hint, { opacity: 0, duration: 0.4, onComplete: () => hint.remove() });
+  };
+  addEventListener('pointerup', hide);
+  addEventListener('scroll', hide, { passive: true });
 }
 
 /* ================================================================== hero: headline rises (transform only, no reflow) */
@@ -476,30 +459,29 @@ function startCountdown() {
 }
 
 /* ================================================================== driving through the headlights
-   The hero holds still for a moment as you start to scroll: the headline lifts away, the camera pushes in on the
-   Range Rover, its lights come on and flare, and the screen washes into the page. Scrubbed, so your thumb is
-   driving. Transform and opacity only. Short landscape screens skip it (there's no room to hold still). */
-function heroScrub() {
+   The hero holds still for a moment as you start to scroll, and your thumb is the throttle: the headline lifts away,
+   the camera drops in front of the bonnet, the wheels turn and the road markings rush past, the high beams come on
+   and the screen washes into the page. Short landscape screens skip it (there's no room to hold still). */
+async function heroScrub() {
   const pin = $('[data-hero-pin]');
   if (reduced || !pin || innerHeight < 560) return;
-  layoutScene();
+  const st = await stageReady;
   const portrait = innerHeight > innerWidth;
-  // on a tall screen the car also comes down towards the thumb. The camera zooms about the headlights, so moving
-  // down by exactly as much as the zoom lifts the photo's top edge keeps that edge at the top of the screen
-  const end = portrait ? 2 : 2.1;
-  const drop = portrait ? parseFloat(getComputedStyle(media).transformOrigin.split(' ')[1]) * (end - 1) : 0;
-  gsap.set([lights, glow], { clearProps: 'clipPath' });
-  gsap.set('[data-bloom]', { opacity: 0, scale: 1 });
-  gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: pin, start: 'top top', end: 'bottom bottom', scrub: true, invalidateOnRefresh: false } })
+  const tl = gsap.timeline({ defaults: { ease: 'none' }, scrollTrigger: { trigger: pin, start: 'top top', end: 'bottom bottom', scrub: true, invalidateOnRefresh: false } })
     .to('.hero-inner', { y: portrait ? -40 : -80, opacity: 0, duration: 0.34, ease: 'power1.in' }, 0)
-    .to(media, { scale: end, y: drop, duration: 1, ease: 'power1.in' }, 0)
     .to('.hero-shade', { opacity: 0, duration: 0.2 }, 0.5)
-    .to(lights, { opacity: 1, duration: 0.24, ease: 'power1.out' }, 0.14)
-    .to(glow, { opacity: 1, duration: 0.24, ease: 'power1.out' }, 0.2)
-    .fromTo(flare, { opacity: 0, scaleX: 0.3 }, { opacity: 1, scaleX: 1.7, duration: 0.3 }, 0.34)
-    .to('[data-bloom]', { opacity: 1, scale: 2.6, duration: 0.36, ease: 'power2.in' }, 0.42)
+    .fromTo(flare, { opacity: 0, scaleX: 0.3 }, { opacity: 1, scaleX: 1.7, duration: 0.3, immediateRender: false }, 0.34)
     .to('.hero-flash', { opacity: 1, duration: 0.2, ease: 'power2.in' }, 0.66)
     .to('.hero', { opacity: 0, duration: 0.18, ease: 'power1.inOut' }, 0.82);
+  if (st) {
+    tl.to(s, { frame: 0, near: 3.4, az: 0.1, el: 0.03, tx: 0, ty: 0.86, tz: 2.2, duration: 0.86, ease: 'power2.inOut' }, 0)
+      .to(s, { road: 90, duration: 1, ease: 'power2.in' }, 0)
+      .to(s, { roadGlow: 1, beam: 1, duration: 0.34, ease: 'power1.out' }, 0.12)
+      .to(s, { env: 0.45, key: 0.4, sky: 0.45, duration: 0.4 }, 0.14)
+      .to(s, { high: 1, duration: 0.32, ease: 'power2.in' }, 0.42);
+  } else {
+    tl.to(media, { scale: 2, duration: 1, ease: 'power1.in' }, 0);
+  }
 }
 
 /* ================================================================== the Just in rail: a bar, and arrows with a mouse */

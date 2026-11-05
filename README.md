@@ -1,7 +1,7 @@
 # V8 Motors
 
 Showroom and stock website for V8 Motors, a used car dealer at 59B Royal Road, Coromandel, Mauritius.
-Vite, Tailwind CSS v4, GSAP and Lenis. No framework, no 3D library: about 60 KB of JavaScript (gzipped) shared by every page.
+Vite, Tailwind CSS v4, GSAP and Lenis, no framework: about 60 KB of JavaScript (gzipped) shared by every page. The home page also loads three.js and the 3D Range Rover, on their own, so no other page pays for them.
 
 **The idea:** the whole site is one drive. It starts in the dark with the white Range Rover's start button, you drive through its headlights as you scroll, the night slowly lifts on the way down, and every page ends at sunrise behind Le Pouce and Pieter Both. Three things belong to this site and no other: the **budget dial**, the **forecourt** and the **garage**.
 
@@ -70,26 +70,30 @@ Every car card (inventory, home page, similar cars) has no box around it: a phot
 
 The intro opens on the car's start button in the dark. While the scene loads, the button's outer ring fills with real progress (the photo, the light shapes, the fonts and the engine recording, which is streamed so its bytes can be counted), the percentage counts up beside it, and a few small line icons (a key, a steering wheel, a gauge, a wheel) drift in the dark. When everything has arrived the ring closes with a flash and the hint becomes "Sound on. Press to start." The button works before that too, and visitors can always enter without sound or skip. Once it starts, "Sound off" and "Skip" stay in the corner.
 
-The car is a white Range Rover (Unsplash, photo by Cartist Sarvam), front-on with its LED lights on. Its light signature (the L-shaped daytime light on each headlamp and the strips low on the bumper) is drawn crisply at full resolution by `scripts/make-intro-lights.mjs` from positions measured on the photo, into `public/intro/lights.webp` and a soft bloom in `public/intro/glow.webp`; both share the photo's aspect ratio, so the page lays them exactly over it. On portrait phones the photo sits as a wide band at the top so the whole car (and both headlamps) stays in frame.
+The car is a white Range Rover, live in 3D (`src/lib/rover3d.js`, `public/model/range-rover.glb`): 122,000 triangles, 3.9 MB, one mesh per material for the body plus four separate wheels. The page never talks to three.js directly. It animates one object of plain numbers (`src/lib/rover-shots.js` explains each one) with GSAP on the recording's clock, and every frame `rover3d.js` draws whatever they say, so the picture follows the audio exactly and scrolling can drive the same scene.
+
+Everything expensive is faked so it runs on a phone: the reflection is the car drawn again upside down under a see-through floor, the pools of headlight are painted by the floor's shader, the beams are additive cones, and the studio reflections in the paint come from softboxes built in code, so there is no HDRI to download. Modest devices drop the reflection and run at 30 fps, and any device that can't keep up lowers its resolution once.
+
+With reduced motion or data saver, three.js is never fetched and `public/hero/range-rover.webp` (a still of the same model) stays on screen. The same still takes over if WebGL is missing or the model fails to load.
 
 The sound is a real V8 recording (`public/intro/engine.mp3`, 10.5 s): a starter crank, then the engine catching, idling and revving three times (CC0 recordings, credits below). The picture runs on the audio clock, and the headlight bloom and camera shake follow the recording's loudness frame by frame:
 
 | Time | What happens |
 | --- | --- |
-| 0.3 s | The starter cranks and the lamps flicker. |
-| 0.9 s | The engine catches with a jolt, and the Range Rover's light signature sweeps on from the grille outwards. |
-| Idle | The camera creeps in. |
+| 0.3 s | The starter cranks and the lamps flicker, the camera right up against a headlamp in the dark. |
+| 0.9 s | The engine catches, the body kicks and settles on its springs, and the lights come up. |
+| Idle | The camera drifts across the grille while the body trembles with the engine. |
 | 4.7 s | First rev: the high beams flash and the camera punches in. |
-| 5.9 s | Big rev: the letterbox opens, the camera pulls back and the driveway lights up. |
+| 5.9 s | Big rev: the letterbox opens, the car rolls forward with its wheels turning, the camera swings out and the night lifts. |
 | 6.3 s | The real V8 Motors badge comes up in the light. |
 | 7.2 s | Last rev: it pulses, then flies up into the menu bar as the page appears. |
 
-Once the home page is showing (after the intro, or on arriving from another page), the Range Rover flashes its high beams at you twice. The intro plays on every fresh visit and every refresh of the home page; arriving from another page on the site uses the page transition instead. If the page script can't load (offline, blocked), a small safety net in the page head clears the intro after nine seconds so the page is never stuck behind it.
+Once the home page is showing (after the intro, or on arriving from another page), the Range Rover flashes its high beams at you twice. Drag sideways to turn the car, with a little momentum; a finger moving up or down still scrolls the page. With a mouse, the front wheels steer towards the pointer. A tap flashes the lights again. The intro plays on every fresh visit and every refresh of the home page; arriving from another page on the site uses the page transition instead. If the page script can't load (offline, blocked), a small safety net in the page head clears the intro after nine seconds so the page is never stuck behind it.
 
 ### Home page
 
 - **Hero:** "Drive *smarter.*", where the accent word rolls over every few seconds like an odometer drum, one plain sentence, one primary action, and a readout of real numbers (cars in stock, the lowest price, open or closed right now).
-- **Through the headlights:** the hero holds still as you start to scroll. The camera pushes in on the Range Rover, its lights come on and flare, the screen washes white, and you're through. Your thumb drives it. Short landscape screens and reduced motion skip it.
+- **Through the headlights:** the hero holds still as you start to scroll, and your thumb is the throttle. The camera drops in front of the bonnet, the wheels turn at the right speed for the road, the markings rush past, the high beams come on, the screen washes white, and you're through. Short landscape screens and reduced motion skip it.
 - **Just in:** the newest cars on a rail you swipe.
 - **Budget dial:** above.
 - **Quick pick:** a deck of every car in stock, one at a time. Swipe right to park it in your garage, left to skip (or use the buttons or arrow keys); tapping a card opens the car. Shuffled once a day.
@@ -145,7 +149,7 @@ The viewing, sell/exchange and contact forms validate on the page, then open Wha
 ## Credits
 
 - **Stock photos and logo:** V8 Motors.
-- **Home page photo:** a white Range Rover by [Cartist Sarvam on Unsplash](https://unsplash.com/photos/white-range-rover-parked-on-a-paved-driveway-wrRhFFTySnc).
+- **Home page 3D car:** adapted from [2023 Land Rover Range Rover Sport by kaleemullah550](https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726) ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)): refinished, with a red bow, number plate and badges added, reduced for the web and split so the wheels can turn.
 - **Fonts:** Archivo and Bodoni Moda, both under the SIL Open Font License.
 - **Engine sound,** built from CC0 (public domain) recordings on Freesound:
   - [S63 AMG V8 engine revs](https://freesound.org/people/marcelweiss/sounds/505321/) by marcelweiss;

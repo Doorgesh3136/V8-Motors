@@ -215,8 +215,14 @@
   .hero-dark { position: absolute; inset: 0; background: var(--night); opacity: 0; pointer-events: none; will-change: opacity; }
   html.play-intro .hero-dark { opacity: 1; }
   html.play-intro .hero-inner, html.play-intro .nav, html.play-intro .tabbar { opacity: 0; }
-  /* the headlights' real shapes, cut from the photo (public/intro), aligned to it by sharing .hero-img */
-  .hero-lights, .hero-glow { opacity: 0; pointer-events: none; will-change: opacity, clip-path; }
+  /* the car, live in 3D, over the still of itself */
+  .hero-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity .7s ease; }
+  .hero-canvas.is-live { opacity: 1; }
+  .hero { touch-action: pan-y; }
+  .hero-hint { position: absolute; z-index: 1; top: calc(var(--nav-h) + var(--s4)); right: clamp(1rem, 3vw, 2.5rem); display: inline-flex; align-items: center; gap: .5rem; min-height: 2rem; padding: .25rem .75rem; border: 1px solid rgb(255 255 255 / .16); border-radius: 99px; background: rgb(10 33 48 / .5); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--soft); font-size: .8125rem; pointer-events: none; }
+  .hero-hint svg { width: 1.1rem; height: 1.1rem; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  html.play-intro .hero-hint { display: none; }
+  @media (max-height: 520px) { .hero-hint { display: none; } }
 
   /* intro gate: the car's start button */
   .gate { display: none; }
@@ -236,11 +242,6 @@
   .gate-alt button:hover { color: var(--bone); }
   @media (max-aspect-ratio: 4/5) { html.play-intro .gate { place-content: end center; padding-bottom: calc(var(--s7) + env(safe-area-inset-bottom)); } }
 
-  /* light thrown on the track in front of the car, and the air lit up around it */
-  .spill { position: absolute; left: 0; top: 0; width: calc(var(--u) * 70); height: calc(var(--u) * 22); translate: -50% 0; border-radius: 50%; pointer-events: none; opacity: 0; will-change: transform, opacity;
-    background: radial-gradient(closest-side, rgb(190 222 255 / .32), rgb(150 200 255 / .1) 55%, transparent 100%); }
-  .haze { position: absolute; left: 0; top: 0; width: calc(var(--u) * 120); height: calc(var(--u) * 80); translate: -50% -50%; border-radius: 50%; pointer-events: none; opacity: 0; will-change: opacity;
-    background: radial-gradient(closest-side, rgb(120 170 220 / .22), rgb(80 130 190 / .08) 50%, transparent 100%); }
   /* anamorphic lens streak through both lamps */
   .flare { position: absolute; left: -25%; right: -25%; top: 0; height: calc(var(--u) * .5); translate: 0 -50%; pointer-events: none; opacity: 0; will-change: transform, opacity;
     background: linear-gradient(90deg, transparent 8%, rgb(120 185 255 / .18) 30%, rgb(190 225 255 / .7) 47%, #fff 50%, rgb(190 225 255 / .7) 53%, rgb(120 185 255 / .18) 70%, transparent 92%);
@@ -905,9 +906,6 @@
   .bars span:first-child { top: 0; transform-origin: 50% 0; }
   .bars span:last-child { bottom: 0; transform-origin: 50% 100%; }
   @media (max-aspect-ratio: 4/5) { .bars span { height: 7vh; } }
-  /* light thrown about by the revs: its opacity follows the recording's loudness */
-  .bloom { position: absolute; left: 0; top: 0; width: calc(var(--u) * 64); height: calc(var(--u) * 26); translate: -50% -50%; border-radius: 50%; pointer-events: none; opacity: 0;
-    background: radial-gradient(closest-side, rgb(225 242 255 / .42), rgb(160 210 255 / .12) 55%, transparent 100%); will-change: opacity; }
   html.play-intro .intro-badge { display: block; position: fixed; z-index: 65; width: 8rem; opacity: 0; pointer-events: none; transform-origin: 50% 50%; will-change: transform, opacity;
     }
   .intro-badge img { filter: drop-shadow(0 0 1.5px rgb(255 255 255 / .9)) drop-shadow(0 0 16px rgb(8 23 34 / .85)); }

@@ -232,7 +232,7 @@ export function footerHTML(P = '') {
           <p>© ${new Date().getFullYear()} ${DEALER.legalName}. Leasing subject to approval by ${DEALER.leasing}.</p>
           <p class="footer-legal"><a href="${P}privacy.html">Privacy policy</a><a href="${P}terms.html">Terms of sale</a></p>
         </div>
-        <p class="footer-credits">Stock photos by V8 Motors. Home page photo by Cartist Sarvam on Unsplash. Engine sound built from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>
+        <p class="footer-credits">Stock photos by V8 Motors. Home page 3D car adapted from <a href="https://sketchfab.com/3d-models/2023-land-rover-range-rover-sport-c1105996547b4c4c8a4cfc3523a4c726">a model by kaleemullah550</a> (<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>). Engine sound built from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>
       </div>
     </div>
   </footer>`;
