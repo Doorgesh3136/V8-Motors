@@ -19,7 +19,6 @@ export function photosArrive() {
 }
 
 export function initFx({ revealSelector } = {}) {
-  tiltCards();
   revBar();
   swipePhotos();
   if (reduced) return;
@@ -29,64 +28,6 @@ export function initFx({ revealSelector } = {}) {
 
 /* ------------------------------------------------------------------ reveal on scroll */
 const REVEAL = '.section-head, .grid-cars:not([data-grid]) > li, .body-tiles > li, .makes-grid > li, .swap-copy, .swap-box, .sellband-inner, .footer-grid > *, .reveal';
-/* Cards are objects: pointing at one tilts it towards the pointer, the plate lifts off it, and a soft light follows.
-   Runs only while a card is being pointed at; on touch screens and with reduced motion, the cards just sit. */
-function tiltCards() {
-  if (reduced || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-  let card = null, ev = null, raf = 0;
-  const apply = () => {
-    raf = 0;
-    if (!card || !ev) return;
-    const r = card.getBoundingClientRect();
-    const x = (ev.clientX - r.left) / r.width, y = (ev.clientY - r.top) / r.height;
-    card.style.setProperty('--ry', `${((x - 0.5) * 12).toFixed(2)}deg`);
-    card.style.setProperty('--rx', `${((0.5 - y) * 9).toFixed(2)}deg`);
-    card.style.setProperty('--gx', `${(x * 100).toFixed(1)}%`);
-    card.style.setProperty('--px', ((x - 0.5) * 2).toFixed(3));
-    card.style.setProperty('--py', ((y - 0.5) * 2).toFixed(3));
-    card.style.setProperty('--gy', `${(y * 100).toFixed(1)}%`);
-  };
-  // A card leans as it scrolls past, and a scroll-linked animation can't ease into anything by itself. So at each hand
-  // over the card is held at the angle it has right now, and glides from there, instead of snapping out from under the
-  // pointer.
-  const hold = (c, from) => {
-    c.style.transition = 'none';
-    c.style.transform = from;
-    void c.offsetWidth;
-    c.style.transition = '';
-  };
-  const enter = (c) => {
-    clearTimeout(c._tilt);
-    const from = c.style.transform || getComputedStyle(c).transform;
-    if (!c.style.transform) c._rest = from; // the angle to go back to: a restarted scroll animation can't report one yet
-    c.style.animation = '';
-    c.classList.add('is-tilt');
-    hold(c, from);
-    c.style.transform = '';
-  };
-  const leave = (c) => {
-    const from = getComputedStyle(c).transform;
-    c.classList.remove('is-tilt');
-    c.style.removeProperty('--rx');
-    c.style.removeProperty('--ry');
-    c.style.animation = 'none';
-    hold(c, from);
-    c.style.transform = c._rest;
-    c._tilt = setTimeout(() => { c.style.animation = ''; c.style.transform = ''; }, 260);
-  };
-  document.addEventListener('pointermove', (e) => {
-    const c = e.target.closest?.('[data-grid] .car') || null;
-    if (c !== card) {
-      if (card) leave(card);
-      card = c;
-      if (card) enter(card);
-    }
-    ev = e;
-    if (card && !raf) raf = requestAnimationFrame(apply);
-  }, { passive: true });
-  document.documentElement.addEventListener('pointerleave', () => { if (card) leave(card); card = null; });
-}
-
 function reveal(extra) {
   const els = $$(extra ? `${REVEAL}, ${extra}` : REVEAL);
   // only things below the fold are hidden first; whatever is already on screen stays put

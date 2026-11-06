@@ -67,8 +67,12 @@ export default defineConfig({
   plugins: [prerender(), keepRenderBlocking(), tailwindcss()],
   build: {
     sourcemap: false,
+    target: 'es2021',
+    cssMinify: 'lightningcss',
     rollupOptions: {
       input: Object.fromEntries([...pages, ...cars].map((p) => [p.replace(/\.html$/, '').replace('/', '-'), resolve(root, p)])),
+      // the animation libraries change far less often than the pages, so visitors keep them cached across updates
+      output: { manualChunks: (id) => (/node_modules\/(gsap|lenis)\//.test(id) ? 'motion' : undefined) },
     },
   },
 });

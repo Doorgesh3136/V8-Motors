@@ -1,115 +1,489 @@
 /**
- * Liquid glass. A panel only looks like glass if what's behind it bends, so each one gets a real lens: a small map, drawn here
- * for its exact size and corners, tells the browser how far to shift the page behind every point of it. Around the rim the page
- * is pulled inwards, the way a thick curved edge pulls it, and in the middle it is simply frosted so the words stay easy to read.
+ * The page behind everything, and the liquid glass that stands on it, drawn in one go by the graphics card.
  *
- * Only Chrome and Edge can run an SVG filter behind an element, and only a real computer can do it on this many panels while the
- * page moves behind them. Everywhere else the plain blur in src/glass.css stays. If the machine turns out not to keep up, the
- * lenses are taken off again.
+ * There is one canvas, fixed behind the page, and one small program that paints every point of it: the brushed steel, the cars
+ * racing past, and every glass panel. Because the glass is painted with the steel and the cars, not on top of them, it can really
+ * bend them: through the rim of a panel you see the lines curve and a passing car stretch, and through the middle you see it
+ * frosted. The panels themselves stay ordinary parts of the page. All this file needs from them is where they are, read fresh on
+ * every frame right after the page has scrolled, so the glass never trails behind.
+ *
+ * Touch screens, modest machines and browsers without WebGL 2 never start it: html stays without the class "engine" and
+ * src/glass.css gives them a plain readable panel on still steel. If the graphics card goes away it falls back to the same.
  */
+import gsap from 'gsap';
 import { modest } from './device.js';
+import { SHAPES } from './shapes.js';
 
-const PANELS = '.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .contact-side, .garage, .tray-inner, .spec, .tool, .acc';
+// The compare tray is not here, nor the note on the map: they float over photos and words, and this canvas is behind those
+const PANELS = '.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .contact-side, .garage, .spec, .tool, .acc, .nav';
+const MAX = 24; // the most panels drawn at once, more than a window ever shows
+const TILE = 32; // the window is cut into squares this big (px), and each knows which panels touch it, so most of it asks about none
+const PIXELS = 3.7e6, SHARPEST = 1.5; // never more than this many pixels, and never finer than this on a sharp screen
+const IDLE = 30; // ms between frames when only the steel is drifting, about 30 a second
+const RACERS = ['Coupe', 'Sedan', 'SUV', 'Convertible'];
+const LANES = [0.36, 0.47, 0.58, 0.69]; // how far down the window: below every page's heading, above its footer
+const RACE = { first: [2.5, 6], gap: [6, 14], crossing: 1.55 }; // seconds: until the first group, between groups, and to cross the window
 const html = document.documentElement;
-const NS = 'http://www.w3.org/2000/svg';
+const rand = (a, b) => a + Math.random() * (b - a);
 
-/** One lens map: red and green say how far to shift the page there, blue says how frosted it is (white in the middle). */
-function lensMap(w, h, r, bezel) {
-  const q = w * h > 3e5 ? 0.5 : 1; // the map is smooth, so big panels can use a smaller one
-  const cw = Math.ceil(w * q), ch = Math.ceil(h * q);
-  const canvas = document.createElement('canvas');
-  canvas.width = cw; canvas.height = ch;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  const img = ctx.createImageData(cw, ch), d = img.data;
-  for (let i = 0; i < d.length; i += 4) { d[i] = 128; d[i + 1] = 128; d[i + 2] = 255; d[i + 3] = 255; }
-  const hx = w / 2 - r, hy = h / 2 - r, band = Math.max(bezel, r) + 1;
-  const put = (px, py) => {
-    const x = (px + 0.5) / q - w / 2, y = (py + 0.5) / q - h / 2;
-    const dx = Math.abs(x) - hx, dy = Math.abs(y) - hy;
-    const ox = Math.max(dx, 0), oy = Math.max(dy, 0), out = Math.hypot(ox, oy);
-    const inside = r - out - Math.min(Math.max(dx, dy), 0); // how far in from the edge
-    if (inside < 0 || inside >= bezel) { if (inside < 0) { const k = (py * cw + px) * 4; d[k + 2] = 0; } return; }
-    const t = inside / bezel;
-    let nx, ny; // which way is out
-    if (out > 0) { nx = ox / out; ny = oy / out; } else if (dx > dy) { nx = 1; ny = 0; } else { nx = 0; ny = 1; }
-    nx *= Math.sign(x) || 1; ny *= Math.sign(y) || 1;
-    const pull = (1 - t) ** 2.4; // strongest right at the edge, gone by the end of the curve
-    const k = (py * cw + px) * 4;
-    d[k] = Math.round(127.5 - nx * pull * 127.5);
-    d[k + 1] = Math.round(127.5 - ny * pull * 127.5);
-    d[k + 2] = Math.round(255 * t * t * (3 - 2 * t));
-  };
-  const bandX = Math.ceil(band * q), bandY = Math.ceil(band * q);
-  for (let py = 0; py < ch; py++) {
-    if (py < bandY || py >= ch - bandY) { for (let px = 0; px < cw; px++) put(px, py); continue; }
-    for (let px = 0; px < bandX; px++) put(px, py);
-    for (let px = cw - bandX; px < cw; px++) put(px, py);
-  }
-  ctx.putImageData(img, 0, 0);
-  return canvas.toDataURL('image/png');
+const VERTEX = `#version 300 es
+void main() { vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2); gl_Position = vec4(p * 2. - 1., 0., 1.); }`;
+
+const FRAGMENT = `#version 300 es
+precision highp float;
+precision highp int;
+uniform vec2 uView;           // the window, in page pixels
+uniform float uScale;         // canvas pixels to one page pixel
+uniform float uTime, uScroll;
+uniform vec3 uLight;          // the soft light under the mouse: where, and how much
+uniform vec2 uSun;            // which way the light falls on the rims, a little different as the mouse moves
+uniform vec4 uRect[${MAX}];   // panels: centre x, y, half width, half height
+uniform vec4 uInfo[${MAX}];   // corner radius, width of the lens rim, roundness of that rim, how much of the panel is showing
+uniform vec4 uCar[4];         // cars: x, y, width, heading
+uniform vec4 uCell[4];        // which picture on the sheet, and how sharp a copy of it to use
+uniform int uCars;
+uniform highp sampler2D uTiles;
+uniform sampler2D uBrush, uSheet;
+out vec4 frag;
+
+// ---- the steel. Broad light and dark bands across polished metal, drifting very slowly. It is all smooth, so it can be asked for
+// anywhere for the same small price, and the frosted version needs nothing extra
+float bands(vec2 p) {
+  vec2 v = vec2(p.x, p.y + uScroll) / uView.y;
+  float a = v.x * .94 + v.y * .58;
+  float w = sin(v.y * 1.7 - v.x * .6 + uTime * .043) * .34;
+  float wide = sin(a * 3.4 + w * 2.2 + uTime * .051);
+  float mid = sin(a * 8.3 - w * 3.1 - uTime * .083 + 1.7);
+  float s = .5 + .4 * wide + .17 * mid;
+  // a slow bright reflection wandering across it
+  float g = a - 1.6 - 1.4 * sin(uTime * .037);
+  return clamp(s + .2 * exp(-g * g * 14.), 0., 1.);
+}
+vec3 silver(vec2 p) {
+  float s = bands(p);
+  s = s * s * (3. - 2. * s);
+  vec3 c = mix(vec3(.675, .705, .745), vec3(.815, .835, .86), smoothstep(0., .55, s));
+  c = mix(c, vec3(.945, .952, .962), smoothstep(.5, 1., s));
+  vec2 m = (p - uLight.xy) / 400.;
+  c += uLight.z * .075 * exp(-dot(m, m));
+  vec2 e = p / uView - .5;
+  return c * (1. - .08 * dot(e, e));
+}
+// the very fine lines. Sampled from a sheet of real noise, because rows of random streaks are what makes metal look brushed
+float brushed(vec2 q, float blur) {
+  vec2 uv = vec2(q.x / 2048., (q.y + uScroll * .35) / 512.);
+  return textureLod(uBrush, uv, blur).r - .5 + (textureLod(uBrush, uv * vec2(.5, .19) + .37, blur).r - .5) * .8;
 }
 
+// ---- the cars. One picture per car, or a softer copy of it through the frosted part of a panel, and the streak they leave
+vec4 cars(vec2 q, float frost) {
+  vec4 sum = vec4(0.);
+  for (int i = 0; i < uCars; i++) {
+    vec4 a = uCar[i];
+    vec2 d = q - a.xy;
+    d.x *= a.w;
+    float W = a.z, reach = W * (.14 + frost * .14);
+    if (abs(d.y) > W * .46 + reach || d.x > W * .62 + reach || d.x < -W * 3.7) continue;
+    float s = (-d.x - W * .3) / (W * 3.);
+    if (s > -.06 && s < 1.) {
+      float y = (d.y - W * .075) / (W * (.05 + frost * .07));
+      float k = .46 * exp(-y * y) * pow(1. - clamp(s, 0., 1.), 1.6) * smoothstep(-.06, .03, s);
+      vec3 c = mix(vec3(.16, .175, .2), vec3(1., .1, .0), .85 * pow(clamp(s * 5., 0., 1.), .9) * (1. - clamp((s - .2) * 3.2, 0., 1.)));
+      sum += vec4(c * k, k) * (1. - sum.a);
+    }
+    vec2 uv = d / vec2(W, W * .5) + .5;
+    if (min(uv.x, uv.y) > 0. && max(uv.x, uv.y) < 1.) {
+      vec4 t = textureLod(uSheet, (uv + uCell[i].xy) * .5, uCell[i].z + frost * 3.1);
+      sum = t + sum * (1. - t.a);
+    }
+  }
+  return sum;
+}
+vec3 scene(vec2 q, float frost) {
+  vec3 c = silver(q);
+  if (uCars > 0) { vec4 k = cars(q, frost) * (1. - .42 * frost); c = c * (1. - k.a) + k.rgb; } // glass takes the edge off them, so words on it stay readable
+  return c;
+}
+vec3 bare(vec2 p) { return scene(p, 0.) * (1. + brushed(p, 0.) * .055); }
+
+// ---- the glass. Think of a slab with a wide rounded edge: flat in the middle, curving away all round. Where it curves the light
+// bends, so what you see there comes from further in, more and more towards the very edge. Colours bend by slightly different
+// amounts, which is the faint fringe. The corners curve the most, so they stay the clearest
+vec3 glass(vec2 p, int id, float d) {
+  vec4 box = uRect[id], info = uInfo[id];
+  float bezel = info.y, R = info.z;
+  vec2 rel = p - box.xy;
+  // distance in from a rounder version of the panel, so the curve runs smoothly past each corner without a crease
+  vec2 k = abs(rel) - (box.zw - R), kp = max(k, 0.);
+  float len = length(kp), edge = len + min(max(k.x, k.y), 0.) - R;
+  vec2 n = sign(rel) * (len > .01 ? kp / len : (k.x > k.y ? vec2(1., 0.) : vec2(0., 1.)));
+  float u = clamp(1. + edge / bezel, 0., 1.), u2 = u * u;
+  float frost = smoothstep(bezel * .42, bezel * 1.7, -edge);
+  vec3 c;
+  if (u > 0.) {
+    float push = bezel * .5 * u2; // no steeper than this, or the page would fold over itself and show upside down
+    // the second half bows the page towards the middle of the panel, so lines running along a panel still curve at its ends
+    vec2 q = p - n * push - rel / box.zw * bezel * .7 * u2;
+    vec2 f = n * (.35 + push * .06);
+    float soft = max(frost, u * .8); // where the curve stretches the page most, a car goes soft instead of breaking up
+    c = vec3(scene(q + f, soft).r, scene(q, soft).g, scene(q - f, soft).b);
+    c *= 1. + brushed(q, u * .8) * .11 * (1. - frost);
+  } else {
+    c = scene(p, frost);
+    if (frost < 1.) c *= 1. + brushed(p, 0.) * .11 * (1. - frost);
+  }
+
+  // the frosted middle: just enough white for dark words to read easily, none of it at the rim
+  c = mix(c, vec3(.95, .958, .968), .02 + .38 * frost);
+
+  float a = dot(n, uSun), lit = a * a * a * a * a * a;
+  float inset = -d;
+  // a soft shadow inside the edge, on the side away from the light, and the glow of light gathered on the other
+  c *= 1. - .1 * exp(-inset / (bezel * .3)) * (.5 - .5 * a);
+  c += vec3(.95, .97, 1.) * (.1 * u2 * lit + .07 * u2 * u2 * max(a, 0.));
+  // the bright thin edge, brightest at top left and bottom right, split very slightly into colours
+  vec3 e = (vec3(inset) - vec3(.8, 1.1, 1.4)) / .85;
+  c += exp(-e * e) * (.1 + .85 * lit);
+  return c;
+}
+
+void main() {
+  vec2 p = vec2(gl_FragCoord.x, uView.y * uScale - gl_FragCoord.y) / uScale;
+  vec4 t = texelFetch(uTiles, ivec2(p) / ${TILE}, 0);
+  int hit = -1;
+  float sd = 9e3;
+  for (int i = 0; i < 4; i++) {
+    int id = int(t[i] * 255. + .5) - 1;
+    if (id < 0) break;
+    vec4 b = uRect[id];
+    float r = uInfo[id].x;
+    vec2 q = abs(p - b.xy) - b.zw + r;
+    float d = length(max(q, 0.)) + min(max(q.x, q.y), 0.) - r;
+    if (d < .7) { hit = id; sd = d; } // later panels lie on top
+  }
+  vec3 c;
+  if (hit < 0) c = bare(p);
+  else {
+    float a = smoothstep(.7, -.7, sd) * uInfo[hit].w;
+    c = glass(p, hit, sd);
+    if (a < .998) c = mix(bare(p), c, a);
+  }
+  // a whisper of noise, so the long soft gradients never show steps
+  c += (fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(.06711056, .00583715)))) - .5) / 255.;
+  frag = vec4(c, 1.);
+}`;
+
+/* ------------------------------------------------------------------ pictures, made once */
+
+/** The sheet of cars: a dark, sleek copy of each drawing, leaning forward a touch. With its smaller copies this is also the blur. */
+function carSheet() {
+  const sheet = document.createElement('canvas');
+  sheet.width = 1024; sheet.height = 512;
+  const g = sheet.getContext('2d');
+  RACERS.forEach((type, i) => {
+    const c = SHAPES[type];
+    g.save();
+    g.translate((i % 2) * 512 + 16, (i >> 1) * 256 + 32);
+    g.scale(2, 2);
+    g.translate(120, 48); g.transform(1, 0, -0.12, 1, 0, 0); g.translate(-120, -48);
+    const paint = g.createLinearGradient(0, 16, 0, 84);
+    paint.addColorStop(0, '#454c58'); paint.addColorStop(0.45, '#262a32'); paint.addColorStop(1, '#101216');
+    g.fillStyle = paint; g.fill(new Path2D(c.b));
+    g.fillStyle = '#7f92a8'; g.fill(new Path2D(c.g));
+    g.fillStyle = '#fff'; g.fill(new Path2D(c.h));
+    g.fillStyle = '#ff1a00'; g.fill(new Path2D(c.t));
+    for (const [x, y, tyre, hub] of c.w) {
+      g.fillStyle = '#0d0f12'; g.beginPath(); g.arc(x, y, tyre, 0, 7); g.fill();
+      g.fillStyle = '#7d8795'; g.beginPath(); g.arc(x, y, hub * 0.72, 0, 7); g.fill();
+    }
+    g.restore();
+  });
+  return sheet;
+}
+
+/** The brushing: every row of pixels its own random streak, a little stronger here and weaker there, and tiled seamlessly. */
+function brushSheet() {
+  const S = 512, data = new Uint8Array(S * S), swell = new Float32Array(S);
+  for (let x = 0; x < S; x++) swell[x] = 0.5 + 0.28 * Math.sin((x / S) * 6.283 * 2 + 1) + 0.22 * Math.sin((x / S) * 6.283 * 5 + 4);
+  for (let y = 0; y < S; y++) {
+    const level = Math.random() - 0.5, from = Math.floor(Math.random() * S), fine = 0.35 + Math.random() * 0.65;
+    for (let x = 0; x < S; x++) data[y * S + x] = 128 + 180 * level * (1 - fine + fine * swell[(x + from) % S]) * 0.7;
+  }
+  return data;
+}
+
+/* ------------------------------------------------------------------ the engine */
 export function initGlass() {
-  const chromium = /Chrome\/\d/.test(navigator.userAgent);
-  if (!chromium || modest || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
-  const box = document.createElementNS(NS, 'svg');
-  box.setAttribute('width', 0);
-  box.setAttribute('height', 0);
-  box.setAttribute('aria-hidden', 'true');
-  box.style.position = 'absolute';
-  document.body.append(box);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (modest || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+  const canvas = document.createElement('canvas');
+  canvas.className = 'steel';
+  canvas.setAttribute('aria-hidden', 'true');
+  const gl = canvas.getContext('webgl2', { alpha: false, antialias: false, depth: false, stencil: false, failIfMajorPerformanceCaveat: true, powerPreference: 'high-performance' });
+  if (!gl) return;
+  document.body.prepend(canvas);
 
-  const lenses = new Map();
-  const lens = (w, h, r) => {
-    const key = `${w}x${h}x${r}`;
-    if (lenses.has(key)) return lenses.get(key);
-    const bezel = Math.min(Math.max(10, Math.min(w, h) * 0.2), 30), shift = bezel * 1.7, id = `lens-${lenses.size}`;
-    box.insertAdjacentHTML('beforeend', `<filter id="${id}" x="0" y="0" width="${w}" height="${h}" filterUnits="userSpaceOnUse" primitiveUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-      <feImage href="${lensMap(w, h, r, bezel)}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" result="map"/>
-      <feDisplacementMap in="SourceGraphic" in2="map" scale="${(shift * 2).toFixed(1)}" xChannelSelector="R" yChannelSelector="G" result="warped"/>
-      <feComponentTransfer in="warped" result="bent"><feFuncR type="linear" slope="1.1"/><feFuncG type="linear" slope="1.1"/><feFuncB type="linear" slope="1.1"/></feComponentTransfer>
-      <feGaussianBlur in="warped" stdDeviation="5" result="soft"/>
-      <feColorMatrix in="map" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 1 0 0" result="frost"/>
-      <feComposite in="soft" in2="frost" operator="in" result="middle"/>
-      <feMerge><feMergeNode in="bent"/><feMergeNode in="middle"/></feMerge>
-    </filter>`);
-    lenses.set(key, id);
-    return id;
+  let program = null, u = {}, tilesTex = null, parallel = null;
+  let ready = false, stopped = false, quality = 1, force = true;
+  let W = 0, H = 0, gw = 0, gh = 0, tiles = new Uint8Array(0);
+
+  /* ---- start, and start again if the graphics card comes back */
+  const shader = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  const texture = (unit, wrap, min) => {
+    const t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, min);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, min === gl.NEAREST ? gl.NEAREST : gl.LINEAR);
+    return t;
   };
+  const build = () => {
+    parallel = gl.getExtension('KHR_parallel_shader_compile'); // on most cards the shader builds in the background while the page goes on
+    program = gl.createProgram();
+    const vs = shader(gl.VERTEX_SHADER, VERTEX), fs = shader(gl.FRAGMENT_SHADER, FRAGMENT);
+    gl.attachShader(program, vs); gl.attachShader(program, fs);
+    gl.linkProgram(program);
+    gl.bindVertexArray(gl.createVertexArray());
 
-  const fit = (el) => {
-    const w = el.offsetWidth, h = el.offsetHeight;
-    if (!w || !h) return;
-    const r = Math.min(parseFloat(getComputedStyle(el).borderTopLeftRadius) || 0, w / 2, h / 2);
-    const value = `url(#${lens(w, h, r)}) saturate(1.8)`;
-    el.style.backdropFilter = value;
-    el.style.webkitBackdropFilter = value;
+    tilesTex = texture(0, gl.CLAMP_TO_EDGE, gl.NEAREST);
+    texture(1, gl.REPEAT, gl.LINEAR_MIPMAP_LINEAR);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, 512, 512, 0, gl.RED, gl.UNSIGNED_BYTE, brushSheet());
+    gl.generateMipmap(gl.TEXTURE_2D);
+    texture(2, gl.CLAMP_TO_EDGE, gl.LINEAR_MIPMAP_LINEAR);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, carSheet());
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+    gl.generateMipmap(gl.TEXTURE_2D);
+    gl.activeTexture(gl.TEXTURE0);
   };
-  const watch = new ResizeObserver((list) => { for (const e of list) fit(e.target); });
-  const panels = [...document.querySelectorAll(PANELS)];
-  panels.forEach((el) => watch.observe(el));
-  html.classList.add('lens');
+  const finish = () => {
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      console.warn(gl.getProgramInfoLog(program));
+      giveUp();
+      return;
+    }
+    gl.useProgram(program);
+    for (const k of ['uView', 'uScale', 'uTime', 'uScroll', 'uLight', 'uSun', 'uRect', 'uInfo', 'uCar', 'uCell', 'uCars', 'uTiles', 'uBrush', 'uSheet']) u[k] = gl.getUniformLocation(program, k);
+    gl.uniform1i(u.uTiles, 0); gl.uniform1i(u.uBrush, 1); gl.uniform1i(u.uSheet, 2);
+    ready = true;
+    size();
+    scan();
+    html.classList.add('engine');
+  };
+  const giveUp = () => {
+    ready = false;
+    html.classList.remove('engine');
+    gsap.ticker.remove(tick);
+    watch.disconnect(); added.disconnect(); fits.disconnect();
+    canvas.remove();
+  };
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ready = false; program = null; html.classList.remove('engine'); });
+  canvas.addEventListener('webglcontextrestored', () => { build(); });
 
-  // can this machine keep it up? Judged only while the page behind the panels is actually moving and on show
-  let frames = 0, from = performance.now(), last = from, slow = 0;
-  const check = (now) => {
-    const gap = now - last;
-    last = now;
-    if (document.hidden || gap > 400 || html.classList.contains('hero-cover') || html.classList.contains('play-intro')) { frames = 0; from = now; requestAnimationFrame(check); return; }
-    frames++;
-    if (now - from >= 2000) {
-      slow = (frames * 1000) / (now - from) < 36 ? slow + 1 : 0;
-      frames = 0; from = now;
-      if (slow >= 2) {
-        watch.disconnect();
-        panels.forEach((el) => { el.style.backdropFilter = ''; el.style.webkitBackdropFilter = ''; });
-        html.classList.remove('lens');
-        html.classList.add('lite');
-        box.remove();
-        return;
+  /* ---- size. Sharp screens are drawn sharper, up to a limit, and the squares follow the window */
+  const size = () => {
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    if (!W || !H || !ready) return;
+    const scale = Math.min(devicePixelRatio || 1, SHARPEST, Math.sqrt(PIXELS / (W * H))) * quality;
+    canvas.width = Math.round(W * scale); canvas.height = Math.round(H * scale);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.uniform2f(u.uView, W, H);
+    gl.uniform1f(u.uScale, canvas.width / W);
+    gw = Math.ceil(W / TILE) + 1; gh = Math.ceil(H / TILE) + 1;
+    tiles = new Uint8Array(gw * gh * 4);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, tilesTex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gw, gh, 0, gl.RGBA, gl.UNSIGNED_BYTE, tiles);
+    count = -1;
+    frame(true);
+  };
+  const fits = new ResizeObserver(size);
+  fits.observe(canvas);
+
+  /* ---- which panels are near the window, including any that turn up later */
+  let every = [], near = new Set(), list = [];
+  const rebuild = () => {
+    list = every.filter((el) => near.has(el));
+    const n = list.findIndex((el) => el.matches('.nav'));
+    if (n >= 0) list.push(...list.splice(n, 1)); // the menu bar lies over everything else
+  };
+  const watch = new IntersectionObserver((seen) => {
+    for (const e of seen) { if (e.isIntersecting) near.add(e.target); else near.delete(e.target); }
+    rebuild();
+  }, { rootMargin: '240px 0px' });
+  const scan = () => {
+    const now = [...document.querySelectorAll(PANELS)], fresh = new Set(now), known = new Set(every);
+    for (const el of every) if (!fresh.has(el)) { watch.unobserve(el); near.delete(el); }
+    for (const el of now) if (!known.has(el)) watch.observe(el);
+    every = now;
+    rebuild();
+  };
+  let again = false;
+  const added = new MutationObserver((changes) => {
+    for (const c of changes) if ([...c.addedNodes, ...c.removedNodes].some((n) => n.nodeType === 1)) { again = true; return; }
+  });
+  added.observe(document.body, { childList: true, subtree: true });
+
+  /* ---- where they are, this very frame */
+  const rects = new Float32Array(MAX * 4), infos = new Float32Array(MAX * 4), was = new Float32Array(MAX * 8);
+  let count = -1;
+  const home = document.body.classList.contains('page-home');
+  const read = () => {
+    let n = 0;
+    for (const el of list) {
+      if (n === MAX) break;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height || r.bottom < 0 || r.top > H) continue;
+      const style = getComputedStyle(el), bar = el.classList.contains('nav');
+      if (style.visibility === 'hidden') continue;
+      if (bar && home && !el.classList.contains('is-scrolled')) continue; // over the 3D car the menu bar is only its words
+      const i = n * 4;
+      if (bar) { // the bar runs off three sides of the window, so only its lower edge shows
+        rects[i] = r.left + r.width / 2; rects[i + 1] = r.top + r.height / 2 - 60; rects[i + 2] = r.width / 2 + 90; rects[i + 3] = r.height / 2 + 60;
+        infos[i] = 0; infos[i + 1] = 16; infos[i + 2] = 16; infos[i + 3] = +style.opacity;
+      } else {
+        const hw = r.width / 2, hh = r.height / 2, small = Math.min(hw, hh);
+        const radius = Math.min(parseFloat(style.borderTopLeftRadius) || 0, small);
+        const bezel = Math.min(38, Math.max(9, small * 0.48));
+        rects[i] = r.left + hw; rects[i + 1] = r.top + hh; rects[i + 2] = hw; rects[i + 3] = hh;
+        infos[i] = radius; infos[i + 1] = bezel; infos[i + 2] = Math.min(small, Math.max(radius, bezel * 2.3)); infos[i + 3] = +style.opacity;
+      }
+      n++;
+    }
+    let moved = n !== count;
+    for (let i = 0, e = n * 4; i < e && !moved; i++) moved = rects[i] !== was[i] || infos[i] !== was[MAX * 4 + i];
+    if (!moved) return false;
+    was.set(rects); was.set(infos, MAX * 4);
+    count = n;
+    // tell each square which panels touch it, later panels last
+    tiles.fill(0);
+    for (let p = 0; p < n; p++) {
+      const i = p * 4, x = rects[i], y = rects[i + 1], hw = rects[i + 2] + 2, hh = rects[i + 3] + 2;
+      const x0 = Math.max(0, Math.floor((x - hw) / TILE)), x1 = Math.min(gw - 1, Math.floor((x + hw) / TILE));
+      const y0 = Math.max(0, Math.floor((y - hh) / TILE)), y1 = Math.min(gh - 1, Math.floor((y + hh) / TILE));
+      for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) {
+        const t = (ty * gw + tx) * 4;
+        tiles[tiles[t] === 0 ? t : tiles[t + 1] === 0 ? t + 1 : tiles[t + 2] === 0 ? t + 2 : t + 3] = p + 1;
       }
     }
-    requestAnimationFrame(check);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gw, gh, gl.RGBA, gl.UNSIGNED_BYTE, tiles);
+    gl.uniform4fv(u.uRect, rects);
+    gl.uniform4fv(u.uInfo, infos);
+    return true;
   };
-  requestAnimationFrame(check);
+
+  /* ---- the soft light under the mouse */
+  let mouseX = 0, mouseY = 0, lightX = 0, lightY = 0, glow = 0, seen = false;
+  if (!reduced) {
+    addEventListener('pointermove', (e) => {
+      mouseX = e.clientX; mouseY = e.clientY;
+      if (!seen) { seen = true; lightX = mouseX; lightY = mouseY; }
+    }, { passive: true });
+  }
+  const moveLight = (dt) => {
+    if (!seen) return false;
+    const k = 1 - Math.exp(-dt * 8), dx = mouseX - lightX, dy = mouseY - lightY;
+    lightX += dx * k; lightY += dy * k;
+    glow += (1 - glow) * Math.min(1, dt * 3);
+    return Math.abs(dx) + Math.abs(dy) > 0.5 || glow < 0.99;
+  };
+
+  /* ---- the cars. Nothing, nothing, then one to four of them flat out, level, side by side, and gone */
+  const racing = [], carData = new Float32Array(16), cellData = new Float32Array(16);
+  let clock = (Date.now() / 1000) % 3600, nextRace = clock + rand(...RACE.first);
+  const launch = () => {
+    const carW = Math.max(120, Math.min(196, W * 0.102)), speed = Math.max(W / RACE.crossing, 760);
+    const lanes = [...LANES].sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 4));
+    const heading = Math.random() < 0.5 ? 1 : -1;
+    let delay = 0;
+    for (const lane of lanes) {
+      racing.push({ at: heading > 0 ? -carW : W + carW, y: lane * H, w: carW, heading, speed, delay, sprite: Math.floor(Math.random() * RACERS.length) });
+      delay += rand(0.08, 0.42); // a fraction of a second apart, never in a neat row
+    }
+    nextRace = clock + rand(...RACE.gap);
+  };
+  let onShow = 0;
+  const moveCars = (dt) => {
+    if (reduced) return false;
+    if (clock >= nextRace) launch();
+    if (!racing.length && !onShow) return false;
+    let n = 0;
+    for (let i = racing.length - 1; i >= 0; i--) {
+      const c = racing[i];
+      if (c.delay > 0) { c.delay -= dt; continue; }
+      c.at += c.heading * c.speed * dt;
+      if (c.heading > 0 ? c.at - c.w * 4 > W : c.at + c.w * 4 < 0) racing.splice(i, 1);
+    }
+    for (const c of racing) {
+      if (c.delay > 0 || n === 4) continue;
+      const i = n * 4;
+      carData[i] = c.at; carData[i + 1] = c.y; carData[i + 2] = c.w; carData[i + 3] = c.heading;
+      cellData[i] = c.sprite % 2; cellData[i + 1] = c.sprite >> 1;
+      cellData[i + 2] = Math.max(0, Math.log2(512 / (c.w * (canvas.width / W))));
+      n++;
+    }
+    gl.uniform4fv(u.uCar, carData);
+    gl.uniform4fv(u.uCell, cellData);
+    gl.uniform1i(u.uCars, n);
+    onShow = n;
+    return racing.length > 0;
+  };
+
+  /* ---- one frame */
+  let lastScroll = -1, lastTick = performance.now(), lastDraw = 0;
+  const frame = (always) => {
+    const now = performance.now(), dt = Math.min(0.05, (now - lastTick) / 1000);
+    lastTick = now;
+    if (!reduced) clock += dt;
+    const y = scrollY, cars = moveCars(dt), light = moveLight(dt);
+    let busy = read() || y !== lastScroll;
+    lastScroll = y;
+    busy = busy || cars || light;
+    if (!(always || force || busy || (!reduced && now - lastDraw >= IDLE))) return;
+    force = false;
+    lastDraw = now;
+    gl.uniform1f(u.uTime, clock);
+    gl.uniform1f(u.uScroll, reduced ? 0 : y * 0.1);
+    gl.uniform3f(u.uLight, lightX, lightY, glow);
+    const sx = -1 + (seen ? (lightX / W - 0.5) * 0.7 : 0), sy = -1 + (seen ? (lightY / H - 0.5) * 0.7 : 0), s = Math.hypot(sx, sy);
+    gl.uniform2f(u.uSun, sx / s, sy / s);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  };
+
+  /* ---- can this machine keep up? Judged only while it can be seen. First draw a little coarser, and if that is not enough, stop */
+  let frames = 0, from = lastTick, slow = 0, tickAt = lastTick;
+  const judge = (now) => {
+    const gap = now - tickAt;
+    tickAt = now;
+    if (gap > 400) { frames = 0; from = now; return; }
+    frames++;
+    if (now - from < 2000) return;
+    slow = (frames * 1000) / (now - from) < 24 ? slow + 1 : 0; // a battery saver holds a healthy machine at 30, so that isn't slow
+    frames = 0; from = now;
+    if (slow < 2) return;
+    slow = 0;
+    if (quality < 0.6) { giveUp(); return; }
+    quality *= 0.75;
+    size();
+  };
+
+  /* ---- every tick of the clock the page scrolls by, after it has scrolled */
+  const tick = () => {
+    if (!ready) {
+      if (program && !gl.isContextLost() && (!parallel || gl.getProgramParameter(program, parallel.COMPLETION_STATUS_KHR))) finish();
+      return;
+    }
+    if (again) { again = false; scan(); }
+    // stopped altogether: a hidden tab, the film, or the 3D car filling the window
+    if (document.hidden || html.classList.contains('play-intro') || html.classList.contains('hero-cover')) { stopped = true; return; }
+    if (stopped) { stopped = false; force = true; lastTick = performance.now(); from = tickAt = lastTick; frames = 0; }
+    judge(performance.now());
+    if (ready) frame(false);
+  };
+  build();
+  gsap.ticker.add(tick);
 }

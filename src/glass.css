@@ -1,8 +1,9 @@
 /* =====================================================================
    The silver showroom, and the one design every page shares.
-   The page is brushed steel in slow moving light (src/lib/bg.js), and every so often a single car races past behind everything.
-   Whatever stands on it is liquid glass (src/lib/glass.js): clear, bright along its edges, and the page really bends as it
-   passes under the rim. Every page opens the same way (.page-head), uses the same panel (see "liquid glass") and ends on
+   The page is brushed steel in slow moving light, and every so often a few cars race past behind everything. Whatever stands on
+   it is liquid glass: clear at the rim and corners, frosted in the middle, and the page really bends under the rim. All of that is
+   drawn in one go by src/lib/glass.js, which puts the class "engine" on html. Without it (phones, modest machines) the steel stands
+   still and a panel is a plain light one. Every page opens the same way (.page-head), uses the same panel (see "liquid glass") and ends on
    the same footer. On a PC, a page either fits the window exactly (.page-fit, and the home page's three screens) or, on the
    catalogue, keeps its controls on screen while the list runs on.
    ===================================================================== */
@@ -38,12 +39,6 @@
 }
 html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
 
-/* ---------------------------------------------------------------- the moving steel. Everything here is a transform on its own
-   layer, so the graphics card does the work and the page never repaints for it */
-@keyframes steel-shift { 0% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(-36.9%, -49.2%, 0); } 100% { transform: translate3d(-61.5%, -18.5%, 0); } }
-@keyframes drift-1 { to { transform: translate3d(26vmax, 18vmax, 0) scale(1.15); } }
-@keyframes drift-2 { to { transform: translate3d(-22vmax, -16vmax, 0) scale(.9); } }
-@keyframes drift-3 { to { transform: translate3d(-36vmax, 24vmax, 0) scale(1.25); } }
 @keyframes sweep { 0%, 55% { transform: translate3d(-50vw, 0, 0) rotate(12deg); } 100% { transform: translate3d(130vw, 0, 0) rotate(12deg); } }
 
 @layer base {
@@ -52,27 +47,18 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
     content: ""; position: fixed; inset: 0 0 auto; z-index: -1; height: 100vh; height: 100lvh; pointer-events: none;
     background: linear-gradient(135deg, #eef1f4 0%, #d6dce3 40%, #c0c9d3 62%, #dde2e8 100%);
   }
-  /* last, so the lines lie over the light, and over the cars as they pass */
+  /* last, so the lines lie over the light */
   body::after { content: ""; position: fixed; inset: 0 0 auto; z-index: -1; height: 100vh; height: 100lvh; pointer-events: none; background: var(--brush); }
+  html.engine body::before, html.engine body::after { display: none; }
 }
 
 @layer components {
-  .bgfx { position: fixed; left: 0; top: 0; z-index: -1; width: 100%; height: 100vh; height: 100lvh; overflow: hidden; pointer-events: none; contain: strict; }
-  .bgfx-steel { position: absolute; left: 0; top: 0; width: 260%; height: 260%; background: var(--steel); animation: steel-shift 26s ease-in-out infinite alternate; will-change: transform; }
-  .bgfx-layer { position: absolute; inset: -20%; will-change: transform; }
-  .bgfx-layer i { position: absolute; border-radius: 50%; will-change: transform; animation: drift-1 20s ease-in-out infinite alternate; }
-  .bgfx-layer i:nth-child(1) { left: 2%; top: 4%; width: 72vmax; height: 72vmax; background: radial-gradient(closest-side, rgb(255 255 255 / .6), rgb(255 255 255 / 0)); }
-  .bgfx-layer i:nth-child(2) { right: 2%; bottom: 4%; width: 64vmax; height: 64vmax; background: radial-gradient(closest-side, rgb(112 128 150 / .34), rgb(112 128 150 / 0)); animation-name: drift-2; animation-duration: 26s; }
-  .bgfx-layer i:nth-child(3) { right: 12%; top: 16%; width: 42vmax; height: 42vmax; background: radial-gradient(closest-side, rgb(232 70 92 / .16), rgb(232 70 92 / 0)); animation-name: drift-3; animation-duration: 18s; }
-  .bgfx-layer i:nth-child(4) { left: 16%; bottom: 8%; width: 50vmax; height: 50vmax; background: radial-gradient(closest-side, rgb(150 182 222 / .6), rgb(150 182 222 / 0)); animation-duration: 30s; animation-direction: alternate-reverse; }
-  .bgfx-sheen { position: absolute; left: 0; top: -20%; bottom: -20%; width: 36vw; background: linear-gradient(100deg, transparent, rgb(255 255 255 / .6), transparent); animation: sweep 11s cubic-bezier(.76, 0, .24, 1) infinite; will-change: transform; }
-  .bgfx-spot { position: absolute; left: -520px; top: -520px; width: 1040px; height: 1040px; background: radial-gradient(closest-side, rgb(255 255 255 / .75), rgb(255 255 255 / 0) 80%); opacity: 0; transition: opacity .6s; will-change: transform; }
-  .bgfx-vig { position: absolute; inset: 0; background: radial-gradient(130% 100% at 50% 40%, transparent 55%, rgb(27 36 48 / .16) 100%); }
-  /* under the 3D car nothing here can be seen, so nothing here runs */
-  :is(html.play-intro, html.hero-cover) .bgfx, :is(html.play-intro, html.hero-cover) .bg-cars { visibility: hidden; }
-  :is(html.play-intro, html.hero-cover) .bgfx * { animation-play-state: paused; }
+  /* the one canvas everything behind the page is drawn on. Under the 3D car it can't be seen, so it isn't drawn */
+  .steel { position: fixed; left: 0; top: 0; z-index: -1; display: block; width: 100%; height: 100vh; height: 100lvh; pointer-events: none; visibility: hidden; }
+  html.engine .steel { visibility: visible; }
+  :is(html.play-intro, html.hero-cover) .steel { visibility: hidden; }
 
-  /* ---------------------------------------------------------------- the 2D cars (the same drawings as the body shapes), and the one that races past */
+  /* ---------------------------------------------------------------- the 2D cars (the same drawings as the body shapes) */
   .shape { --paint: #fff; --line-ink: #1a1a2e; overflow: visible; }
   .shape .s-body { fill: var(--paint); stroke: var(--line-ink); stroke-width: 2.2; stroke-linejoin: round; }
   .shape .s-glass { fill: #bfe3ff; stroke: var(--line-ink); stroke-width: 1.5; stroke-linejoin: round; }
@@ -90,43 +76,32 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   @keyframes wheel-spin { to { rotate: 360deg; } }
   .body-opt .shape .s-body { stroke: none; }
 
-  .bg-cars { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; contain: strict; }
-  .bg-car { position: absolute; left: 0; top: 0; width: clamp(7rem, 10vw, 10.5rem); visibility: hidden; opacity: 0; will-change: transform; }
-  .bg-car .shape { --paint: #2b2f37; --line-ink: #2b2f37; position: relative; display: block; width: 100%; height: auto; transform: skewX(-7deg); }
-  .bg-car .shape .s-body { stroke: none; }
-  .bg-car .shape .s-glass { fill: #93a6bb; stroke: none; }
-  .bg-car .shape :is(.s-gap, .s-handle, .s-rail, .s-floor) { display: none; }
-  .bg-car .shape .s-head { fill: #fff; stroke: none; }
-  .bg-car .shape .s-tail { fill: var(--ferrari); stroke: none; }
-  .bg-car .shape .s-tyre { fill: #14161a; }
-  .bg-car .shape .s-hub { fill: #aab3bf; }
-  .bg-car .shape .s-spokes { fill: #14161a; }
-  /* the streak it leaves in the air */
-  .bg-car::before { content: ""; position: absolute; right: 88%; top: 46%; width: 220%; height: 26%; border-radius: 99px; background: linear-gradient(90deg, rgb(43 47 55 / 0), rgb(43 47 55 / .1) 45%, rgb(255 26 0 / .5)); filter: blur(3px); }
-  .bg-car.is-racing .wheel { animation: wheel-spin .16s linear infinite; }
-
   /* ---------------------------------------------------------------- liquid glass: one recipe for every panel on the site.
-     src/lib/glass.js adds the real refraction wherever the browser can do it (Chrome and Edge); without it the panel simply
-     carries more white, so the words on it always read */
+     With the engine a panel is only a place on the page: the glass itself is drawn underneath it, all the way to the rim, so here
+     it keeps nothing but its shadow. Without the engine it simply carries more white, so the words on it always read */
   :is(.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .panel, .garage, .form-done, .tray-inner, .contact-side, .spec, .tool, .acc) {
     position: relative; background: rgb(255 255 255 / .6); border: 0; box-shadow: var(--glass-edge), var(--glass-drop); }
-  html.lens :is(.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .panel, .garage, .form-done, .tray-inner, .contact-side, .spec, .tool) { background: var(--glass); }
+  :where(html.engine) :is(.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .garage, .contact-side, .spec, .tool, .acc) { background: none; box-shadow: var(--glass-drop); }
   @media (hover: hover) and (pointer: fine) {
-    html:not(.lite) :is(.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .panel, .garage, .form-done, .tray-inner, .contact-side, .acc) { -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
     /* the rim: light catching the edge of the glass, brightest at two opposite corners */
-    :is(.car, .finder, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .garage, .contact-side, .spec, .tool, .acc)::before,
-    .inv-filters::after {
+    html:not(.engine) :is(.car, .finder, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .garage, .contact-side, .spec, .tool, .acc)::before,
+    html:not(.engine) .inv-filters::after {
       content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; padding: 1.5px; pointer-events: none; display: block; width: auto; height: auto; margin: 0;
       background: conic-gradient(from 215deg, #fff 0deg, rgb(205 228 255 / .55) 50deg, rgb(255 255 255 / .22) 95deg, #fff 180deg, rgb(255 214 232 / .5) 235deg, rgb(255 255 255 / .22) 280deg, #fff 360deg);
       -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
     }
+    html.engine .car::before { display: none; }
   }
   .car, .finder, .calc, .wizard, .estimate, .inv-filters, .finance-intro, .fin-mini-box, .garage, .contact-side, .panel, .acc { border-radius: var(--panel-r); }
   .spec, .tool { border-radius: 16px; }
 
   /* ---------------------------------------------------------------- the menu bar and the dock. Over the 3D car the bar is only its words */
   .nav { border: 0; }
-  .nav.is-scrolled, body:not(.page-home) .nav { background: rgb(255 255 255 / .62); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); box-shadow: inset 0 -1px 0 rgb(255 255 255 / .7), 0 8px 22px -14px rgb(28 38 52 / .45); }
+  .nav.is-scrolled, body:not(.page-home) .nav { background: rgb(246 248 250 / .9); box-shadow: inset 0 -1px 0 rgb(255 255 255 / .7), 0 8px 22px -14px rgb(28 38 52 / .45); }
+  @media (hover: none) { .nav.is-scrolled, body:not(.page-home) .nav { background: rgb(255 255 255 / .62); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); } }
+  /* on the steel the bar is glass like everything else. Only once cards scroll under it does it need to be nearly solid: the words
+     and photos of the page lie above the glass, so it couldn't hide them */
+  html.engine body:not(.page-home) .nav:not(.is-scrolled), html.engine .page-home .nav.is-scrolled { background: none; box-shadow: 0 8px 22px -16px rgb(28 38 52 / .4); }
   .page-home .nav:not(.is-scrolled) { --bone: #fff; --fog: rgb(255 255 255 / .86); --accent: #fff; color: #fff; }
   .page-home .nav:not(.is-scrolled) .mark { filter: drop-shadow(0 1px 3px rgb(0 0 0 / .6)); }
   .page-home .revbar { display: none; }
@@ -140,7 +115,7 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .way-btn:first-child { color: #fff; }
   .curtain .cl-2 { background: #c7ced7; }
   .curtain .cl-3 { background: #eef1f5; }
-  .tray-inner { color: var(--bone); }
+  .tray-inner { color: var(--bone); background: rgb(246 248 250 / .92); }
   .tray-cars li { background: rgb(255 255 255 / .6); }
   .buybar { background: rgb(255 255 255 / .72); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); border-top: 0; box-shadow: var(--glass-edge); }
   .buybar, .buybar-name, .buybar-price { color: var(--bone); }
@@ -173,7 +148,7 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .hero-moves { top: auto; right: auto; left: 50%; bottom: clamp(1.5rem, 5.5vh, 3.25rem); translate: -50% 0; gap: var(--s3); transition: opacity .25s ease; }
   .hero-moves.is-away { opacity: 0; pointer-events: none; }
   .hero-moves button { min-height: 3.25rem; padding-inline: 1.5rem; border-radius: 99px; color: #fff; font-size: 1.0625rem; font-weight: 640; white-space: nowrap;
-    background: linear-gradient(140deg, rgb(255 255 255 / .28), rgb(255 255 255 / .1) 55%, rgb(255 255 255 / .18)); -webkit-backdrop-filter: blur(16px) saturate(170%); backdrop-filter: blur(16px) saturate(170%);
+    background: linear-gradient(140deg, rgb(150 156 166 / .62), rgb(66 70 78 / .56) 55%, rgb(112 118 128 / .6));
     box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), inset 0 0 0 1px rgb(255 255 255 / .16), 0 12px 26px -12px #000; transition: translate .25s var(--spring), background-color .2s; }
   .hero-moves button:hover { translate: 0 -2px; box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), inset 0 0 0 1px rgb(255 255 255 / .26), 0 12px 26px -12px #000; }
   .hero-moves button:active { translate: 0 1px; box-shadow: inset 0 1px 0 rgb(255 255 255 / .4), inset 0 0 0 1px rgb(255 255 255 / .16); }
@@ -223,6 +198,15 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
      takes the room and pointing at another opens it; on a phone they stack */
   .acc { --acc-ink: #1f2233; flex: 1; display: flex; min-height: 0; overflow: hidden; container-type: inline-size; color: var(--acc-ink); background: none; }
   .acc-item { position: relative; flex: 1 1 0; min-width: 0; overflow: hidden; background: linear-gradient(150deg, rgb(255 255 255 / .42), rgb(255 255 255 / .06) 46%, rgb(255 255 255 / .2)), var(--tone); transition: flex-grow .7s var(--ease); }
+  /* on the real glass the colour is only a tint, and it fades out towards the rim so the lens stays clear there */
+  html.engine .acc-item { background: none; }
+  html.engine .acc-item::before { --fade: linear-gradient(180deg, transparent, #000 38px, #000 calc(100% - 38px), transparent); content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(150deg, rgb(255 255 255 / .16), rgb(255 255 255 / 0) 46%, rgb(255 255 255 / .08)), var(--tone); -webkit-mask: var(--fade); mask: var(--fade); }
+  html.engine .acc-item:first-child::before { -webkit-mask: var(--fade), linear-gradient(90deg, transparent, #000 38px); mask: var(--fade), linear-gradient(90deg, transparent, #000 38px); -webkit-mask-composite: source-in; mask-composite: intersect; }
+  html.engine .acc-item:last-child::before { -webkit-mask: var(--fade), linear-gradient(270deg, transparent, #000 38px); mask: var(--fade), linear-gradient(270deg, transparent, #000 38px); -webkit-mask-composite: source-in; mask-composite: intersect; }
+  html.engine .acc-item--red { --tone: rgb(240 128 118 / .52); }
+  html.engine .acc-item--blue { --tone: rgb(146 192 240 / .52); }
+  html.engine .acc-item--yellow { --tone: rgb(246 212 114 / .52); }
+  html.engine .acc-item--green { --tone: rgb(142 214 180 / .52); }
   .acc-item + .acc-item { box-shadow: inset 1px 0 0 rgb(255 255 255 / .4); }
   .acc-item.is-open { flex-grow: 4.6; }
   .acc-item--red { --tone: rgb(240 128 118 / .86); }
@@ -364,14 +348,12 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
 
   /* ---------------------------------------------------------------- car cards */
   .car { display: flex; flex-direction: column; padding: 10px 10px var(--s4); overflow: hidden; transform: none; transform-style: flat; transition: transform .45s var(--spring), box-shadow .35s var(--ease); }
-  /* a highlight that follows the pointer across the glass */
-  .car::after { z-index: 0; background: radial-gradient(420px circle at var(--gx, 50%) var(--gy, 30%), rgb(255 255 255 / .55), transparent 62%); }
   .car > .car-media, .car > .car-info { position: relative; z-index: 1; }
   .car:focus-within { outline: none; }
   .car:has(:focus-visible) { outline: 2px solid var(--bone); outline-offset: 3px; }
-  .car.is-tilt { transform: perspective(1400px) rotateX(calc(var(--rx, 0deg) * .3)) rotateY(calc(var(--ry, 0deg) * .2)) translateY(-3px); box-shadow: var(--glass-edge), 0 2px 4px rgb(28 38 52 / .08), 0 30px 46px -22px rgb(28 38 52 / .55); }
-  .car.is-tilt :is(.car-tag, .car-tools, .car-title, .car-kicker), .car.is-tilt .car-media img { transform: none; }
-  [data-grid] .car:not(.is-tilt), [data-grid] :is(.car-media img, .car-tag) { animation: none; }
+  /* pointing at a card lifts it a little, and the glass under it goes with it */
+  @media (hover: hover) and (pointer: fine) { .car:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgb(28 38 52 / .08), 0 30px 46px -22px rgb(28 38 52 / .55); } }
+  [data-grid] .car, [data-grid] :is(.car-media img, .car-tag) { animation: none; }
   .car .car-media { aspect-ratio: 4 / 3; border-radius: 16px; box-shadow: 0 0 0 1px rgb(255 255 255 / .35), 0 6px 14px -8px rgb(28 38 52 / .5); }
   .car .car-media::before { background: none; box-shadow: none; }
   .car .car-media img { scale: 1; }
@@ -405,6 +387,7 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .car-compare[aria-pressed="true"] { background: #121317; color: #fff; box-shadow: none; }
 
   /* the catalogue's default: one long row per car */
+  [data-grid][data-view="list"] .car { content-visibility: auto; contain-intrinsic-size: auto 15rem; } /* cards off screen cost nothing */
   .grid-cars[data-view="list"] { grid-template-columns: minmax(0, 1fr); gap: var(--s4); }
   .grid-cars[data-view="list"] .car { display: grid; grid-template-columns: minmax(11rem, 33%) minmax(0, 1fr); gap: 0 var(--s5); padding: 10px var(--s5) 10px 10px; align-items: stretch; }
   .grid-cars[data-view="list"] .car-media { aspect-ratio: auto; height: auto; min-height: clamp(10.5rem, 13.5vw, 13rem); }
@@ -455,26 +438,26 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .chip { background: rgb(255 255 255 / .55); }
   .view-toggle { background: rgb(255 255 255 / .4); }
   @media (min-width: 1000px) {
-    main > .inv-layout { grid-template-columns: 19rem minmax(0, 1fr); gap: var(--s5); padding-top: calc(var(--nav-h) + var(--s3)); align-items: start; }
-    .inv-filters { position: sticky; top: calc(var(--nav-h) + var(--s3)); display: flex; flex-direction: column; height: calc(100vh - var(--nav-h) - var(--s3) * 2); height: calc(100svh - var(--nav-h) - var(--s3) * 2); max-height: 40rem; padding: var(--s3) var(--s4); overflow-y: auto; scrollbar-width: none; }
+    main > .inv-layout { grid-template-columns: 22rem minmax(0, 1fr); gap: var(--s5); padding-top: calc(var(--nav-h) + var(--s3)); align-items: start; }
+    .inv-filters { position: sticky; top: calc(var(--nav-h) + var(--s3)); display: flex; flex-direction: column; height: calc(100vh - var(--nav-h) - var(--s3) * 2); height: calc(100svh - var(--nav-h) - var(--s3) * 2); max-height: 48rem; padding: clamp(.625rem, 1.5vh, 1.125rem) var(--s5); overflow-y: auto; scrollbar-width: none; }
     .inv-filters::-webkit-scrollbar { display: none; }
     .inv-filters-head { flex: none; margin-bottom: var(--s2); }
-    .inv-filters-head h2 { font-size: 1.125rem; }
+    .inv-filters-head h2 { font-size: clamp(1.125rem, 2.3vh, 1.375rem); }
     .inv-filters-head .link { min-height: 1.75rem; font-size: .875rem; }
     .inv-filters form { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--s1); }
-    .inv-filters .field { flex: none; min-height: 2.5rem; margin: 0; background: rgb(255 255 255 / .55); padding-block: 0; }
+    .inv-filters .field { flex: none; min-height: clamp(2.5rem, 5.4vh, 3.25rem); margin: 0; background: rgb(255 255 255 / .55); padding-block: 0; }
     .inv-filters .fgroup { position: relative; flex: none; padding-block: var(--s2) 0; border-top: 1px solid var(--ink-line); }
-    .inv-filters .fgroup legend { float: none; margin-bottom: var(--s1); font-size: .875rem; line-height: 1.3; }
+    .inv-filters .fgroup legend { float: none; margin-bottom: clamp(.25rem, .8vh, .5rem); font-size: clamp(.875rem, 1.8vh, 1.0625rem); line-height: 1.3; }
     .inv-filters .body-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .3125rem; }
-    .inv-filters .body-opt > span { position: relative; justify-items: center; gap: 0; min-height: 0; padding: .3125rem .125rem .25rem; border-radius: 12px; border-color: var(--ink-line); background: rgb(255 255 255 / .35); }
-    .inv-filters .body-opt .shape { width: 2.625rem; }
-    .inv-filters .body-opt-name { font-size: .75rem; line-height: 1.2; }
+    .inv-filters .body-opt > span { position: relative; justify-items: center; gap: 0; min-height: 0; padding: clamp(.3125rem, .9vh, .625rem) .125rem clamp(.25rem, .8vh, .5rem); border-radius: 12px; border-color: var(--ink-line); background: rgb(255 255 255 / .35); }
+    .inv-filters .body-opt .shape { width: clamp(2.625rem, 6.4vh, 3.75rem); }
+    .inv-filters .body-opt-name { font-size: clamp(.75rem, 1.5vh, .875rem); line-height: 1.2; }
     .inv-filters .body-opt-n { position: absolute; right: .3125rem; top: .125rem; font-size: .625rem; }
-    .inv-filters .range2 { height: 1.625rem; }
+    .inv-filters .range2 { height: clamp(1.625rem, 3.6vh, 2.25rem); }
     .inv-filters .pill-row { flex-wrap: nowrap; gap: .3125rem; }
     .inv-filters .pill { flex: 1 1 0; min-width: 0; }
-    .inv-filters .pill > span { display: flex; width: 100%; justify-content: center; min-height: 2.125rem; padding-inline: .25rem; font-size: .8125rem; border-color: var(--ink-line); background: rgb(255 255 255 / .35); white-space: nowrap; }
-    .inv-filters .toggle { min-height: 2rem; font-size: .9375rem; }
+    .inv-filters .pill > span { display: flex; width: 100%; justify-content: center; min-height: clamp(2.125rem, 4.8vh, 2.875rem); padding-inline: .25rem; font-size: clamp(.8125rem, 1.6vh, .9375rem); border-color: var(--ink-line); background: rgb(255 255 255 / .35); white-space: nowrap; }
+    .inv-filters .toggle { min-height: 2rem; font-size: clamp(.9375rem, 1.8vh, 1.0625rem); }
     .inv-filters .fgroup--toggles { padding-top: var(--s1); }
   }
   .fgroup legend:has(.range2-out) { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); }
@@ -562,7 +545,7 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   /* ---------------------------------------------------------------- Visit us */
   .map-card { position: relative; min-height: 16rem; border-radius: var(--panel-r); box-shadow: var(--glass-drop); }
   .map-card iframe { filter: none; }
-  .map-overlay { background: rgb(255 255 255 / .88); color: var(--bone); border: 0; border-radius: 16px; padding: var(--s3) var(--s4); box-shadow: var(--glass-edge), var(--glass-drop); -webkit-backdrop-filter: var(--glass-blur); backdrop-filter: var(--glass-blur); }
+  .map-overlay { background: rgb(255 255 255 / .88); color: var(--bone); border: 0; border-radius: 16px; padding: var(--s3) var(--s4); box-shadow: var(--glass-edge), var(--glass-drop); }
   .contact-side { display: flex; flex-direction: column; justify-content: space-between; gap: var(--s3); padding: var(--panel-pad); }
   .hours th, .hours td { padding: clamp(.3rem, 1vh, .75rem) 0; font-size: clamp(1rem, 2vh, 1.125rem); border-bottom-color: var(--ink-line); }
   .hours th { font-weight: 660; }
@@ -602,6 +585,7 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .summary-monthly { margin-top: 0; font-size: .9375rem; color: var(--soft); }
   .car-page .summary .specs { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: var(--s2); background: none; border: 0; border-radius: 0; }
   .car-page .summary .spec { display: grid; align-content: center; gap: 0; min-height: 0; padding: var(--s2) var(--s3); background: var(--glass); box-shadow: var(--glass-edge), 0 8px 16px -12px rgb(28 38 52 / .4); }
+  html.engine .car-page .summary .spec { background: none; box-shadow: 0 8px 16px -12px rgb(28 38 52 / .4); }
   .car-page .summary .spec svg { display: block; width: 1.0625rem; height: 1.0625rem; margin: 0 0 2px; fill: none; stroke: var(--soft); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .car-page .summary .spec dt { position: static; order: 3; width: auto; height: auto; overflow: visible; clip-path: none; font-size: .6875rem; color: var(--fog); }
   .car-page .summary .spec dd { order: 2; font-size: .9375rem; font-weight: 680; line-height: 1.2; overflow-wrap: anywhere; }
@@ -625,6 +609,11 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .fin-mini-figure span { font-size: .875rem; }
 
   /* ---------------------------------------------------------------- short windows: everything breathes in together */
+  @media (min-width: 1000px) and (max-height: 900px) {
+    .car-page .summary { gap: .375rem; }
+    .car-page .summary .spec { padding-block: .25rem; }
+    .fin-mini-box { padding-block: var(--s2); }
+  }
   @media (min-width: 1000px) and (max-height: 800px) {
     .page-head { padding-top: calc(var(--nav-h) + var(--s2)); padding-bottom: var(--s2); }
     .page-title { font-size: clamp(1.75rem, 5.6vh, 2.5rem); }
@@ -690,7 +679,5 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bgfx-steel, .bgfx-layer i, .bgfx-sheen, .gate::after { animation: none; }
-  .bgfx-sheen { display: none; }
-  .bg-cars { display: none; }
+  .gate::after { animation: none; }
 }

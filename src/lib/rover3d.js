@@ -31,9 +31,10 @@ import { modest } from './device.js';
 import { buildBay, buildEngine, ENGINE_SIZE, MARK_AT, MARK_SIZE } from './rover-engine.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
-const SIGN_LONG = 10.87; // and where each of its eight letters starts and ends, along its length
+const SIGN_SCALE = 0.6, SIGN_Y = 4.15, SIGN_LONG = (10.87 / 0.42) * SIGN_SCALE; // the sign across the far wall, and how long it comes out at
+const END_Z = -72; // the far wall closes the hall here
+// where each of the sign's eight letters starts and ends, along its length
 const SIGN_LETTERS = [[0, 0.109], [0.123, 0.212], [0.289, 0.412], [0.428, 0.542], [0.552, 0.651], [0.661, 0.774], [0.791, 0.892], [0.903, 1]];
-const SIGN_SCALE = 0.42, SIGNS = [[-13.5, 2.45], [0.5, 3.75]]; // [along the left wall, height]: one for the hero's angle, one for the side-on run
 const WHEEL_R = 0.404; // metres, so the wheels roll at exactly the speed the car moves
 // where the car pivots in a donut: its inside front wheel, as a real one does
 const PIVOT = { x: -0.86, z: 1.5 };
@@ -117,7 +118,14 @@ function buildShowroom(surface) {
         vec3 warm = vec3(1., .965, .91);
         vec3 c;
 
-        if (n.y < -.5) {
+        if (n.z > .5 && p.z < ${(END_Z + 0.1).toFixed(1)}) {
+          // the far wall: dark, so the sign is the brightest thing on it
+          float g = texture2D(uSurface, p.xy / 6.).b;
+          float high = pow(sat(p.y / ${HALL_H}.), 2.);
+          c = vec3(.075, .078, .086) * (.8 + .34 * g) * warm * (.34 + high * .75);
+          float r = (p.y - .5) / .3;
+          c += vec3(1., .03, .045) * exp(-r * r) * .05;
+        } else if (n.y < -.5) {
           // the ceiling, with a soft pool around each strip of lights
           vec2 uv = p.xz;
           float g = texture2D(uSurface, uv / 6.).b;
@@ -166,6 +174,7 @@ function buildShowroom(surface) {
     [[WALL_X * 2 + 1, 0.4, HALL_LONG * 2], [0, HALL_H + 0.2, 0]], // the ceiling
   ];
   for (const s of [-1, 1]) boxes.push([[0.4, HALL_H, HALL_LONG * 2], [s * (WALL_X + 0.2), HALL_H / 2, 0]]);
+  boxes.push([[WALL_X * 2 + 1, HALL_H, 0.4], [0, HALL_H / 2, END_Z - 0.2]]); // the far wall
   for (let z = BAY_Z - BAY * 14; z < HALL_LONG; z += BAY) for (const s of [-1, 1]) boxes.push([[WALL_X - FACE_X, HALL_H, 1.3], [s * (WALL_X + FACE_X) / 2, HALL_H / 2, z]]);
   for (let z = -HALL_LONG; z < HALL_LONG; z += BAY / 2) boxes.push([[WALL_X * 2, 0.84, 0.5], [0, HALL_H - 0.42, z]]);
   const geo = new BoxGeometry(1, 1, 1);
@@ -236,11 +245,10 @@ function buildHallLights() {
   return { mesh, mirror, uniforms };
 }
 
-const SIGNS_ON = false; // the V8 MOTORS signs on the hall's wall are taken down for now: true puts them back
-
-/** The V8 MOTORS sign: channel letters on the wall, lit faces and dark metal sides, with light spilling onto the wall.
- *  The faces know how far along the sign they are, so light can run across the letters and one letter can catch alone. */
-function buildSigns(sign, glowMap) {
+/** The V8 MOTORS sign across the far wall: channel letters, lit faces and dark metal sides, with light spilling onto the wall
+ *  and a copy upside down in the wet floor. The faces know how far along the sign they are, so light can run across the letters
+ *  and one letter can catch alone. */
+function buildSign(sign, glowMap) {
   const face = {
     uWave: { value: -1 }, uWaveAmp: { value: 0 }, // a band of light running along the sign
     uDropA: { value: 0 }, uDropB: { value: 0 }, uDrop: { value: 0 }, // one letter, dimmed
@@ -251,9 +259,7 @@ function buildSigns(sign, glowMap) {
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying float vAlong;')
         .replace('#include <project_vertex>', `#include <project_vertex>
-          float wz = (modelMatrix * vec4(transformed, 1.)).z;
-          float mid = wz < ${((SIGNS[0][0] + SIGNS[1][0]) / 2).toFixed(2)} ? ${SIGNS[0][0].toFixed(2)} : ${SIGNS[1][0].toFixed(2)};
-          vAlong = .5 - (wz - mid) / ${(SIGN_LONG).toFixed(3)};`);
+          vAlong = .5 + (modelMatrix * vec4(transformed, 1.)).x / ${SIGN_LONG.toFixed(3)};`);
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
           varying float vAlong;
@@ -267,31 +273,22 @@ function buildSigns(sign, glowMap) {
   };
   const ivory = wire(new MeshBasicMaterial({ color: 0xfff4e4, toneMapped: false })); // lit faces: they give out light, so the film look doesn't grey them
   const red = wire(new MeshBasicMaterial({ color: 0xff1e28, toneMapped: false }));
-  const ivoryFar = wire(new MeshBasicMaterial({ color: 0xfff4e4, toneMapped: false })), redFar = wire(new MeshBasicMaterial({ color: 0xff1e28, toneMapped: false })); // the second sign is lit on its own
   const side = new MeshPhysicalMaterial({ color: 0x17181a, metalness: 0.9, roughness: 0.4 });
   const spill = new MeshBasicMaterial({ map: glowMap, color: 0xffe2c4, blending: AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 });
-  const spillFar = spill.clone();
-  const group = new Group(), mirrors = [], far = new Group();
-  const put = ([z, SIGN_Y], i) => {
-    const g = sign.clone(true);
-    g.traverse((o) => { if (o.isMesh) { const n = o.userData.was ??= o.material.name; o.material = /Red/.test(n) ? (i ? redFar : red) : /Ivory/.test(n) ? (i ? ivoryFar : ivory) : side; } });
-    g.scale.setScalar(SIGN_SCALE);
-    g.rotation.y = Math.PI / 2;
-    g.position.set(-9.72, SIGN_Y, z);
-    const m = g.clone(true);
-    m.position.y = -SIGN_Y;
-    m.scale.y = -SIGN_SCALE;
-    m.traverse((o) => { o.renderOrder = -1; });
-    const wash = new Mesh(new PlaneGeometry(17, 6), i ? spillFar : spill);
-    wash.rotation.y = Math.PI / 2;
-    wash.position.set(-9.9, SIGN_Y, z);
-    wash.renderOrder = 1;
-    (i ? far : group).add(g, wash, m);
-    mirrors.push(m, wash);
-  };
-  SIGNS.forEach(put);
-  group.add(far);
-  return { group, far, mirrors, ivory, red, spill, ivoryFar, redFar, spillFar, face };
+  const group = new Group();
+  const g = sign.clone(true);
+  g.traverse((o) => { if (o.isMesh) { const n = o.material.name; o.material = /Red/.test(n) ? red : /Ivory/.test(n) ? ivory : side; } });
+  g.scale.setScalar(SIGN_SCALE);
+  g.position.set(0, SIGN_Y, END_Z + 0.22);
+  const m = g.clone(true);
+  m.position.y = -SIGN_Y;
+  m.scale.y = -SIGN_SCALE;
+  m.traverse((o) => { o.renderOrder = -1; });
+  const wash = new Mesh(new PlaneGeometry(30, 11), spill);
+  wash.position.set(0, SIGN_Y, END_Z + 0.1);
+  wash.renderOrder = 1;
+  group.add(g, wash, m);
+  return { group, ivory, red, spill, face };
 }
 
 /** What the paint reflects: the hall itself, with softboxes over the car to draw long clean lines along the body. */
@@ -341,7 +338,7 @@ function buildFloor(tex, surface, lamp) {
   const mat = new ShaderMaterial({
     transparent: true, depthWrite: false,
     uniforms: {
-      uTex: { value: tex }, uSurface: { value: surface }, uHall: { value: 0 }, uSun: { value: 1 }, uBeam: { value: 0 }, uHigh: { value: 0 }, uRed: { value: 0 },
+      uTex: { value: tex }, uSurface: { value: surface }, uHall: { value: 0 }, uSun: { value: 0 }, uBeam: { value: 0 }, uHigh: { value: 0 }, uRed: { value: 0 },
       uRoad: { value: 0 }, uRoadGlow: { value: 0 }, uCarX: { value: 0 }, uCarZ: { value: 0 }, uYaw: { value: 0 }, uLampX: { value: lamp.x }, uRing: { value: 0 }, uSkid: { value: 0 }, uTurn: { value: 0 },
     },
     vertexShader: 'varying vec3 vP; void main(){ vP = (modelMatrix * vec4(position, 1.)).xyz; gl_Position = projectionMatrix * viewMatrix * vec4(vP, 1.); }',
@@ -604,6 +601,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   const LAMP = findLamp(car);
 
   const sky = buildSky(hallTex, 190);
+  sky.visible = false; // the hall is closed now: nothing shows past the far wall, so it isn't worth drawing a whole sphere under it
   const floor = buildFloor(hallTex, surfaceTex, LAMP);
   const hallLights = buildHallLights();
   const showroom = buildShowroom(surfaceTex);
@@ -618,8 +616,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   rim.position.set(-3, 2.2, -9);
   scene.add(key, rim);
 
-  const signs = buildSigns(signGltf.scene, glowTexture(false));
-  signs.group.visible = false;
+  const signs = buildSign(signGltf.scene, glowTexture(false));
   scene.add(signs.group);
 
   const rig = new Group(); // moves and turns the whole car; the floor light follows it
@@ -781,7 +778,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   }
 
   // ---- framing: where the car sits at each screen shape
-  let W = 1, H = 1, base = { dist: 14, sx: 0, sy: 0 }, tallScreen = false;
+  let W = 1, H = 1, base = { dist: 14, sx: 0, sy: 0 };
   const sharpen = () => renderer.setDrawingBufferSize(W, H, Math.min(dpr, Math.sqrt(MAX_PIXELS / (W * H))));
   const resize = () => {
     const box = canvas.parentElement.getBoundingClientRect();
@@ -793,7 +790,6 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     camera.aspect = aspect;
     const v = Math.tan((14 * Math.PI) / 180), h = v * aspect; // the hero is always shot at 28 degrees
     const short = H < 760 && aspect >= 1.3; // a short laptop or a landscape phone: the car steps back a little so the buttons clear it
-    tallScreen = portrait;
     const needW = portrait ? 3.1 : 3.3, needH = portrait ? 3.4 : short ? 3 : 2.75;
     base = {
       dist: Math.max(needW / h, needH / v),
@@ -809,13 +805,12 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
 
   // ---- is the pointer on the wall sign? The wall is flat, so the ray only has to reach it, and the car in front wins
   let hoverSign = false;
-  const ndc = new Vector2(), ray = new Raycaster(), onWall = new Vector3(), wall = new Plane(new Vector3(1, 0, 0), 9.72), carBox = new Box3();
+  const ndc = new Vector2(), ray = new Raycaster(), onWall = new Vector3(), wall = new Plane(new Vector3(0, 0, 1), -END_Z), carBox = new Box3();
   const overSign = (x, y) => {
-    if (!SIGNS_ON) return false;
     const box = canvas.getBoundingClientRect();
     ray.setFromCamera(ndc.set(((x - box.left) / box.width) * 2 - 1, -((y - box.top) / box.height) * 2 + 1), camera);
     if (!ray.ray.intersectPlane(wall, onWall)) return false;
-    const seen = SIGNS.some(([z, y0]) => Math.abs(onWall.z - z) < SIGN_LONG / 2 + 0.3 && Math.abs(onWall.y - y0) < 1.5);
+    const seen = Math.abs(onWall.x) < SIGN_LONG / 2 + 0.3 && Math.abs(onWall.y - SIGN_Y) < 2;
     return seen && !ray.ray.intersectsBox(carBox.setFromObject(car));
   };
 
@@ -974,19 +969,12 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     }
     const c = t - catchAt;
     signs.face.uDrop.value = (c < 0.07 || (c > 0.14 && c < 0.2) || (c > 0.34 && c < 0.38)) && hall > 0.99 ? 0.82 : 0;
-    // at rest there is one sign. The second is for the run down the hall, and lights up as the car pulls away from it
-    signs.far.visible = f < 0.985;
-    const farLit = smooth(0.985, 0.72, f) * (f > 0.72 && Math.sin(t * 61) * Math.sin(t * 37) > 0.3 ? 0.3 : 1);
     signs.face.uWave.value = s.wave ?? -1;
     signs.face.uWaveAmp.value = s.waveAmp || 0;
     const white = on * lift * Math.max(0, 1 + (s.signWhite || 0)), redLit = on * lift * Math.max(0, 1 + (s.signRed || 0));
     signs.ivory.color.setRGB(0.012 + white * 0.9, 0.011 + white * 0.82, 0.01 + white * 0.7);
     signs.red.color.setRGB(0.012 + redLit * 0.95, 0.004 + redLit * 0.03, 0.004 + redLit * 0.05);
     signs.spill.opacity = Math.min(0.8, on * (0.18 + (lift - 1) * 0.5 + (s.waveAmp || 0) * 0.08)); // the wall around it lights up when it reacts
-    signs.ivoryFar.color.copy(signs.ivory.color).multiplyScalar(farLit);
-    signs.redFar.color.copy(signs.red.color).multiplyScalar(farLit);
-    signs.spillFar.opacity = signs.spill.opacity * farLit;
-    signs.group.visible = SIGNS_ON && !(tallScreen && f > 0.02) && !CAP?.noSigns; // a phone already has the name right above it in the menu bar
     const u = floor.uniforms;
     u.uHall.value = s.hall; u.uBeam.value = s.beam; u.uHigh.value = s.high; u.uRed.value = s.red;
     u.uRing.value = (1 - s.roadGlow) * smooth(0.75, 1, s.hall);

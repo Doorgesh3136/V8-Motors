@@ -36,9 +36,9 @@ Silver steel and liquid glass, with the red of the dealership's logo for the one
 - **Type:** Archivo (self-hosted, variable width and weight), wide and tight for headlines, with one accent word per headline in Bodoni Moda italic: "Sell *your car*". Nothing on the site is smaller than 11 px.
 - **Rhythm:** one vertical gap between chapters on every page (`--sec`), one gap from heading to content (`--head-gap`), one spacing scale for everything else.
 - **Numbers:** the catalogue's car count rolls like an odometer (`src/lib/odo.js`).
-- **The background:** moving steel in plain CSS (`src/glass.css`, built by `src/lib/bg.js`): a slow gradient, drifting light, a sheen, brushed lines, a soft light that follows the mouse. All of it is transforms, so scrolling never repaints it. Every so often a single car, drawn from the same shapes as the body types, races across behind the page.
+- **The background:** polished silver with slow moving light, drawn by the same program as the glass. Every 6 to 14 seconds a group of one to four cars races across behind the page.
 - **Layout:** on a PC the home page is three screens locked to the mouse wheel; Sell, Leasing, Visit us and the car pages fit one window, footer included; the catalogue's filters are always fully on screen. Each is checked from 1366x633 to 2560x1305.
-- **Glass:** `src/lib/glass.js` draws a lens for each panel and runs it behind the panel as an SVG filter, so the page really bends at the rim (Chrome and Edge on a computer; everywhere else a plain blur). If a machine can't keep up, the lenses come off.
+- **Glass:** `src/lib/glass.js` is one canvas behind the page and one small graphics-card program that paints the steel, the racing cars and every glass panel in a single pass, so the glass really bends what is behind it. About 1 ms a frame. Touch screens and modest machines get a plain readable panel instead.
 
 ### Saved cars (`inventory.html?saved=1`)
 
@@ -106,7 +106,7 @@ The sell form validates on the page, then opens WhatsApp to V8 Motors with the m
 
 - `src/dealer.js`: dealer details (address, phones, hours, leasing partner, example rate). `src/data.js`: the stock from `src/inventory.json`, plus helpers.
 - `src/lib/templates.js`: HTML templates shared by the build and the browser (nav, dock, menu sheet, footer, cards, car pages, meta tags, structured data).
-- `src/lib/layout.js`: what every page shares (transitions, nav underline, dock, menu sheet, scrolling, toasts, forms). `src/lib/bg.js`: the background and the car that races past. `src/lib/glass.js`: the liquid glass. `src/lib/fx.js`: reveals, count-ups, the rev bar, photo swipes. `src/lib/odo.js`: the odometer numbers. `src/lib/hours.js`: opening hours and the Saturday countdown.
+- `src/lib/layout.js`: what every page shares (transitions, nav underline, dock, menu sheet, scrolling, toasts, forms). `src/lib/glass.js`: the steel, the racing cars and the liquid glass, in one pass. `src/lib/shapes.js`: the 2D car drawings. `src/lib/fx.js`: reveals, count-ups, the rev bar, photo swipes. `src/lib/odo.js`: the odometer numbers. `src/lib/hours.js`: opening hours and the Saturday countdown.
 - `vite.config.js`: a small plugin fills `<!--@...-->` placeholders, so every page ships complete HTML.
 - `scripts/prerender.mjs`: writes `cars/*.html`, `public/sitemap.xml`, `public/robots.txt` and `public/llms.txt` (generated, not committed).
 - `scripts/make-intro-lights.mjs`: draws the intro's light signature for the home page photo.

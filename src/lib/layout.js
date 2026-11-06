@@ -5,7 +5,6 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { store } from './store.js';
-import { initBackground } from './bg.js';
 import { initFx, photosArrive } from './fx.js';
 import { initGlass } from './glass.js';
 import { renderStatus } from './hours.js';
@@ -393,8 +392,16 @@ export function validateFields(fields) {
 }
 export const phoneOk = (v) => v.replace(/\D/g, '').length >= 7;
 
+/* ------------------------------------------------------------------ repeat visits: public/sw.js keeps the site's files close, so a
+   second visit starts almost at once and a new version still shows up straight away. Not on a local test server. */
+function keepFiles() {
+  if (!('serviceWorker' in navigator) || !location.hostname.endsWith('github.io')) return;
+  addEventListener('load', () => navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href).catch(() => {}), { once: true });
+}
+
 /* ------------------------------------------------------------------ boot */
 export function initLayout({ home = false, immersive = false } = {}) {
+  keepFiles();
   if ('scrollRestoration' in history) history.scrollRestoration = home ? 'manual' : 'auto';
   initCurtain();
   photosArrive();
@@ -410,7 +417,7 @@ export function initLayout({ home = false, immersive = false } = {}) {
   else if (!immersive) setTimeout(privacyNotice, home ? 2500 : 900);
   $$('form').forEach(armForm);
   wirePhotoScrub();
-  if (!immersive) { initBackground(); initGlass(); }
+  if (!immersive) initGlass();
   // on the home page, the effects (reveals, count-ups) start once the intro has handed over
   if (home && html.classList.contains('play-intro')) addEventListener('v8:intro-done', () => initFx(), { once: true });
   else initFx();
