@@ -75,7 +75,7 @@ function tiltCards() {
     c._tilt = setTimeout(() => { c.style.animation = ''; c.style.transform = ''; }, 260);
   };
   document.addEventListener('pointermove', (e) => {
-    const c = e.target.closest?.('[data-grid] .car, .rail .car, .similar .car') || null;
+    const c = e.target.closest?.('[data-grid] .car') || null;
     if (c !== card) {
       if (card) leave(card);
       card = c;

@@ -13,21 +13,15 @@ export const META = {
   },
   'inventory.html': {
     path: 'inventory.html',
-    title: `Used cars for sale in Mauritius, ${n} in stock | V8 Motors`,
-    desc: `All ${n} cars at V8 Motors in Coromandel, with real photos and prices in rupees. Filter by make, body type, price, year, fuel and gearbox.`,
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Cars', 'inventory.html']])],
-  },
-  'forecourt.html': {
-    path: 'forecourt.html',
-    title: `Walk the forecourt: all ${n} cars, full screen | V8 Motors`,
-    desc: `Every car at V8 Motors as its own short film. Swipe up for the next car, double-tap to park it in your garage, WhatsApp us in one tap.`,
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['The forecourt', 'forecourt.html']])],
+    title: `Catalogue: used cars for sale in Mauritius, ${n} in stock | V8 Motors`,
+    desc: `All ${n} cars at V8 Motors in Coromandel, with real photos and prices in rupees. Filter by body type, price, year, fuel and gearbox.`,
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Catalogue', 'inventory.html']])],
   },
   'compare.html': {
     path: 'compare.html',
     title: 'Compare cars side by side | V8 Motors',
     desc: 'Put up to three V8 Motors cars side by side: price, monthly payment, year, engine, gearbox and more.',
-    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Cars', 'inventory.html'], ['Compare', 'compare.html']])],
+    jsonld: () => [breadcrumbJsonLd([['Home', ''], ['Catalogue', 'inventory.html'], ['Compare', 'compare.html']])],
   },
   'sell.html': {
     path: 'sell.html',
@@ -56,7 +50,7 @@ export const META = {
   'terms.html': {
     path: 'terms.html',
     title: 'Terms of sale and website terms | V8 Motors',
-    desc: 'The terms that apply when you use the V8 Motors website, book a viewing or buy from us.',
+    desc: 'The terms that apply when you use the V8 Motors website or buy from us.',
     jsonld: () => [],
   },
   '404.html': {

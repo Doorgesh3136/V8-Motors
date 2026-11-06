@@ -8,7 +8,7 @@
   <link rel="preload" href="/src/fonts/bodoni-moda-latin-500-italic.woff2" as="font" type="font/woff2" crossorigin />
   <script type="module" src="/src/pages/finance.js" blocking="render"></script>
 </head>
-<body class="page-finance">
+<body class="page-finance page-fit">
   <a href="#main" class="skip-link">Skip to content</a>
   <!--@nav:finance-->
   <main id="main">
@@ -27,6 +27,7 @@
           <select data-fin-car><option value="">Choose a car</option></select>
         </label>
         <a class="fin-car" data-fin-car-card hidden></a>
+        <!--@shape:Sedan-->
       </div>
       <div class="calc">
         <div class="calc-controls">
@@ -56,24 +57,6 @@
       </div>
     </section>
 
-    <section class="wrap schedule" aria-labelledby="schedule-title">
-      <div class="schedule-head">
-        <h2 class="section-title" id="schedule-title">Balance over <em>time</em></h2>
-        <p class="section-sub">Tap or point at a year to see what you’ve paid and what’s left.</p>
-      </div>
-      <div class="chart" data-chart></div>
-    </section>
-
-    <section class="section wrap faq-wrap" aria-labelledby="faq-title">
-      <h2 class="section-title" id="faq-title">Questions people <em>ask</em></h2>
-      <div class="faq" data-faq>
-        <details><summary>Who provides the leasing?</summary><div><p>Rogers Capital. We help you put the application together and send it to them, and they decide on approval, the rate and the terms.</p></div></details>
-        <details><summary>How much deposit do I need?</summary><div><p>It depends on the car and on you; Rogers Capital sets it. A bigger deposit lowers the monthly payment and the total you pay.</p></div></details>
-        <details><summary>Can I use my current car as the deposit?</summary><div><p>Yes. We value your car and its value comes off the price, which you can use towards the deposit.</p></div></details>
-        <details><summary>What should I bring?</summary><div><p>Your national ID card and proof of address and income. Ask us on WhatsApp before you come and we’ll tell you exactly what Rogers Capital needs for your case.</p></div></details>
-        <details><summary>Are these figures a quote?</summary><div><p>No. The calculator uses an example rate so you can compare cars. Your real monthly payment comes from Rogers Capital.</p></div></details>
-      </div>
-    </section>
   </main>
   <!--@footer-->
   <!--@tabbar:finance-->

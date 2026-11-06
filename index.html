@@ -22,6 +22,8 @@
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         scrollTo(0, 0);
       }
+      // back from another page: to the place you left, not the top of the page
+      if (type === 'back_forward' && sessionStorage.getItem('v8:home-at')) document.documentElement.classList.add('returning');
     } catch (e) {}
   </script>
   <link rel="preload" as="image" href="gate/ignite-off.webp" fetchpriority="high" />
@@ -33,9 +35,7 @@
   <!--@nav:home-->
 
   <main id="main">
-    <!-- one unbroken shot while you scroll: the car pulls away, the camera comes round, and you drive through its lights -->
-    <div class="hero-pin" data-hero-pin>
-    <section class="hero" aria-labelledby="hero-title" data-chapter="Welcome">
+    <section class="hero" aria-labelledby="hero-title">
       <!-- Intro: one continuous shot, drawn live in 3D (src/lib/rover3d.js). The still is the same car, for reduced motion,
            data saver, no WebGL, or while the model loads. -->
       <div class="hero-media" data-hero-media>
@@ -46,7 +46,7 @@
         <span class="hero-flash" aria-hidden="true"></span>
       </div>
       <div class="hero-shade" aria-hidden="true"></div>
-      <p class="hero-hint" data-hero-hint hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12c2.5-3 5.6-4.5 9-4.5s6.500 1.500 9 4.500M21 12l-3.200-.6M21 12l.6-3.200M3 12c2.500 3 5.600 4.500 9 4.500"/></svg>Drag to turn it. Tap to flash the lights.</p>
+      <h1 class="sr-only" id="hero-title">V8 Motors: used cars in Coromandel, Mauritius</h1>
       <div class="hero-moves" data-hero-moves role="group" aria-label="Make the car move" hidden>
         <button type="button" data-move="spin">Spin it</button>
         <button type="button" data-move="dance">Make it dance</button>
@@ -69,163 +69,52 @@
           </button>
         </div>
       </div>
-      <div class="wrap hero-inner">
-        <h1 class="hero-title" id="hero-title" data-hero-title aria-label="Drive smarter."><span class="line" aria-hidden="true"><span>Drive</span></span> <span class="line" aria-hidden="true"><span><em class="rotor" data-rotor>smarter.</em></span></span></h1>
-        <div class="finder" role="search" aria-label="Search cars" data-finder data-hero-fade>
-          <p class="finder-title"><svg viewBox="0 0 28 24" aria-hidden="true"><path d="M3 15v-3l2.4-5.2A2 2 0 0 1 7.2 5.6h7.5M3 15h9m-6 0v2.4M1 11h2M20.5 15a5.5 5.5 0 1 0-4-1.7"/><circle cx="19" cy="9" r="5"/><path d="m23 13 4 4"/></svg>Search cars</p>
+    </section>
+
+    <!-- the first thing under the car: find one, and what you get with it -->
+    <section class="start" aria-label="Find your car">
+      <div class="wrap start-wrap">
+        <div class="finder" role="search" aria-label="Search cars" data-finder>
+          <div class="finder-head">
+            <p class="finder-title"><svg viewBox="0 0 28 24" aria-hidden="true"><path d="M3 15v-3l2.4-5.2A2 2 0 0 1 7.2 5.6h7.5M3 15h9m-6 0v2.4M1 11h2M20.500 15a5.500 5.500 0 1 0-4-1.700"/><circle cx="19" cy="9" r="5"/><path d="m23 13 4 4"/></svg>Search cars</p>
+            <p class="finder-note"><a class="hero-all" href="inventory.html">See all <!--@total--> cars</a><span class="hero-from">Prices from <strong class="tabular-nums">Rs <!--@from--></strong></span></p>
+          </div>
           <div class="finder-row">
             <label class="finder-field"><span class="sr-only">Make</span><select name="make"><option value="">Choose make</option></select></label>
             <label class="finder-field"><span class="sr-only">Model</span><select name="model"><option value="">Choose model</option></select></label>
             <label class="finder-field"><span class="sr-only">Year</span><select name="year"><option value="">Choose year</option></select></label>
             <a class="btn btn-primary finder-go" href="inventory.html" data-finder-go><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg><span data-finder-label>Search <!--@total--> cars</span></a>
-            <button type="button" class="finder-reset" data-finder-reset aria-label="Reset the search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.6-5.9L4 8.5M4 4v4.5h4.5"/></svg></button>
+            <button type="button" class="finder-reset" data-finder-reset aria-label="Reset the search"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.600-5.900L4 8.500M4 4v4.500h4.500"/></svg></button>
           </div>
           <script type="application/json" data-finder-data><!--@finder--></script>
         </div>
-        <div class="hero-foot" data-hero-fade>
-          <a class="hero-all" href="inventory.html">See all <!--@total--> cars</a>
-          <span class="hero-from">Prices from <strong class="tabular-nums">Rs <!--@from--></strong></span>
-          <span class="open-status" data-open-status>Open Monday to Saturday</span>
-        </div>
+        <div class="acc" data-acc><!--@promises--></div>
       </div>
     </section>
-    </div>
+  </main>
 
-    <section class="section arrivals" aria-labelledby="arrivals-title" data-chapter="Just in">
-      <div class="wrap">
-        <div class="section-head">
-          <div><p class="eyebrow"><b>02</b>New arrivals</p>
-          <h2 class="section-title" id="arrivals-title">Just <em>in</em></h2></div>
-        </div>
-      </div>
-      <div class="rail-wrap">
-        <ul class="rail grid-cars" data-rail tabindex="0" aria-label="The newest cars. Scroll sideways for more."><!--@arrivals--></ul>
-        <div class="wrap rail-foot">
-          <span class="rail-bar" aria-hidden="true"><i data-rail-bar></i></span>
-          <div class="rail-arrows">
-            <button type="button" data-rail-prev aria-label="Earlier cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
-            <button type="button" data-rail-next aria-label="More cars"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
-          </div>
-          <a class="btn btn-line btn-sm" href="inventory.html">See all <!--@total--> cars</a>
-        </div>
-      </div>
-    </section>
-
-    <section class="section dial-sec" aria-labelledby="dial-title" data-chapter="Budget dial">
-      <div class="wrap dial-grid">
-        <div class="dial-copy">
-          <p class="eyebrow"><b>03</b>Budget dial</p>
-          <h2 class="section-title" id="dial-title">What can you <em>spend</em> a month?</h2>
-          <p class="section-sub">Turn the dial with your thumb. Every car that fits parks itself in front of you.</p>
-        </div>
-        <div class="dial" data-dial>
-          <div class="dial-face" data-dial-face>
-            <!--@dial-->
-            <p class="dial-read"><small>Up to</small><output class="dial-val tabular-nums" data-dial-val>Rs 12,000</output><small>a month</small></p>
-            <input class="dial-input" data-dial-input type="range" min="3000" max="25000" step="500" value="12000" aria-label="Your monthly budget in rupees" />
-            <div class="dial-steps">
-              <button type="button" data-dial-step="-1" aria-label="Rs 1,000 less a month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12"/></svg></button>
-              <button type="button" data-dial-sound aria-pressed="false" aria-label="Engine sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg></button>
-              <button type="button" data-dial-step="1" aria-label="Rs 1,000 more a month"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 12h12M12 6v12"/></svg></button>
-            </div>
-          </div>
-          <p class="dial-count" aria-live="polite"><b class="tabular-nums" data-dial-n>0</b> <span data-dial-word>cars fit</span></p>
-        </div>
-        <div class="dial-side">
-          <ul class="dial-rail" data-dial-rail></ul>
-          <div class="dial-acts">
-            <a class="btn btn-primary" data-dial-walk href="forecourt.html">Walk these cars</a>
-            <a class="btn btn-line" data-dial-all href="inventory.html"><span>See all</span></a>
-          </div>
-          <p class="dial-note">An example only: 20% down over 5 years at 7.5% a year. <a class="link" href="finance.html">Rogers Capital confirms the real figure.</a></p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section deck-section" aria-labelledby="deck-title" data-chapter="Quick pick">
-      <div class="wrap deck-wrap">
-        <div class="deck-copy">
-          <p class="eyebrow"><b>04</b>Quick pick</p>
-          <h2 class="section-title deck-title" id="deck-title">Can’t decide? <em>Swipe.</em></h2>
-          <p class="section-sub">One car at a time. Right parks it in your garage, left skips it. Your garage stays on this device, ready to compare or send to us.</p>
-          <p class="deck-tally" aria-live="polite"><span class="tabular-nums" data-deck-seen>0</span> of <span class="tabular-nums" data-deck-total>0</span> seen, <span class="tabular-nums" data-deck-saved>0</span> parked. <a class="link" href="inventory.html?saved=1">Open my garage</a></p>
-        </div>
-        <div class="deck" data-deck>
-          <div class="deck-stack" data-deck-stack aria-live="polite"></div>
-          <div class="deck-actions">
-            <button type="button" class="deck-btn deck-btn--skip" data-deck-skip aria-label="Skip this car"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
-            <a class="deck-btn deck-btn--open" data-deck-open href="inventory.html" aria-label="Open this car"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></a>
-            <button type="button" class="deck-btn deck-btn--save" data-deck-save aria-label="Park this car in my garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 7.5 2.8c0 5.5-7.5 10.1-7.5 10.1Z"/></svg></button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="section bodies" aria-labelledby="bodies-title" data-chapter="Shapes">
-      <div class="wrap">
-        <div class="section-head">
-          <div><p class="eyebrow"><b>05</b>Shapes</p>
-          <h2 class="section-title" id="bodies-title">What are you driving <em>next?</em></h2></div>
-        </div>
-        <ul class="body-tiles"><!--@bodies--></ul>
-      </div>
-    </section>
-
-    <section class="section swap" aria-labelledby="swap-title" data-chapter="Part-exchange">
-      <div class="wrap swap-grid">
-        <div class="swap-copy">
-          <p class="eyebrow"><b>06</b>Part-exchange</p>
-          <h2 class="section-title" id="swap-title">Bring your car. Drive away in <em>one of ours.</em></h2>
-          <p class="section-sub">Choose a car from the forecourt and slide to roughly what yours is worth. Your car comes off the price, and the rest can be leased through Rogers Capital.</p>
-          <a class="link" href="sell.html">Get a guide price for your car</a>
-        </div>
-        <div class="swap-box" data-swap>
-          <label class="field"><span class="field-label">The car you want</span>
-            <select data-swap-car><!--@caroptions--></select></label>
-          <a class="swap-car" data-swap-card href="inventory.html"><!--@swapcard--></a>
-          <label class="slider"><span class="slider-top"><span>Your car is worth about</span><output class="tabular-nums" data-swap-trade-out>Rs 200,000</output></span>
-            <input type="range" min="0" max="1500000" step="25000" value="200000" data-swap-trade /></label>
-          <dl class="swap-sum">
-            <div><dt>Price</dt><dd class="tabular-nums" data-swap-price></dd></div>
-            <div><dt>Your car</dt><dd class="tabular-nums" data-swap-minus></dd></div>
-            <div class="swap-total"><dt>Left to pay</dt><dd class="tabular-nums" data-swap-left></dd></div>
-          </dl>
-          <p class="swap-monthly tabular-nums" aria-live="polite"><span data-swap-month></span><small>a month on lease over 5 years, example rate</small></p>
-        </div>
-      </div>
-    </section>
-
-    <section class="section makes" aria-labelledby="makes-title" data-chapter="Makes">
-      <div class="wrap">
-        <p class="eyebrow"><b>07</b>Makes</p>
-        <h2 class="sr-only" id="makes-title">Makes on the forecourt</h2>
-        <ul class="makes-grid"><!--@makes--></ul>
-      </div>
-    </section>
-
-    <section class="section sellband" aria-labelledby="sell-title" data-chapter="Saturday deals">
+  <!-- Saturday and the footer share one screen -->
+  <div class="finale">
+    <section class="sellband" aria-labelledby="sell-title">
       <div class="wrap sellband-inner">
         <div class="sellband-copy">
-          <p class="eyebrow"><b>08</b>Saturday deals</p>
+          <p class="eyebrow">Saturday deals</p>
           <h2 class="section-title" id="sell-title">Best deals every <em>Saturday.</em></h2>
-          <p class="section-sub">Come by on a Saturday, 9:00 to 16:00. Selling instead? We buy cars too, or take yours in part-exchange.</p>
-          <a class="btn btn-primary btn-lg" href="sell.html">Sell your car</a>
         </div>
         <!-- live: counts down to the next Saturday opening, or to closing while it's on -->
-        <div class="countdown" data-countdown aria-live="off">
+        <div class="countdown" data-countdown>
           <p class="countdown-label" data-cd-label>Next Saturday deals in</p>
           <div class="countdown-units">
-            <span><b class="tabular-nums" data-cd="d">0</b><small>days</small></span>
-            <span><b class="tabular-nums" data-cd="h">00</b><small>hours</small></span>
+            <span><b class="tabular-nums" data-cd="d">0</b><small data-cd-word="d">days</small></span>
+            <span><b class="tabular-nums" data-cd="h">00</b><small data-cd-word="h">hours</small></span>
             <span><b class="tabular-nums" data-cd="m">00</b><small>min</small></span>
             <span><b class="tabular-nums" data-cd="s">00</b><small>sec</small></span>
           </div>
         </div>
       </div>
     </section>
-  </main>
-
-  <!--@footer-->
+    <!--@footer-->
+  </div>
   <!--@tabbar:home-->
 </body>
 </html>

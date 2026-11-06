@@ -13,7 +13,7 @@ export function wireCardActions({ onChange } = {}) {
       const on = store.toggleSaved(s.dataset.save);
       syncStoreUI();
       bump('[data-saved-link]');
-      toast(on ? 'Parked in your garage.' : 'Taken out of your garage.', on ? { href: `${P}inventory.html?saved=1`, label: 'Open garage' } : null);
+      toast(on ? 'Saved.' : 'No longer saved.', on ? { href: `${P}inventory.html?saved=1`, label: 'See saved cars' } : null);
       onChange?.('saved');
       return;
     }

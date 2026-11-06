@@ -39,15 +39,15 @@ for (const c of CARS) {
     desc: `${name}, ${c.trim}, ${c.gearbox.toLowerCase()}${c.km != null ? `, ${km(c.km)}` : ''}. ${rs(c.price)} at V8 Motors, 59B Royal Road, Coromandel. Part-exchange and leasing available.`,
     path: `cars/${c.id}.html`,
     image: c.images[0],
-    jsonld: [carJsonLd(c), breadcrumbJsonLd([['Home', ''], ['Inventory', 'inventory.html'], [name, `cars/${c.id}.html`]])],
+    jsonld: [carJsonLd(c), breadcrumbJsonLd([['Home', ''], ['Catalogue', 'inventory.html'], [name, `cars/${c.id}.html`]])],
     P: '../',
   });
-  writeFileSync(`${dir}/${c.id}.html`, shell({ head, page: 'inventory', body: carPageHTML(c, '../'), script: 'car', P: '../', bodyClass: 'page-car' }));
+  writeFileSync(`${dir}/${c.id}.html`, shell({ head, page: 'inventory', body: carPageHTML(c, '../'), script: 'car', P: '../', bodyClass: 'page-car page-fit' }));
 }
 
 // ---------------------------------------------------------------- sitemap / robots / llms
 const today = new Date().toISOString().slice(0, 10);
-const staticPages = ['', 'inventory.html', 'forecourt.html', 'sell.html', 'finance.html', 'contact.html', 'compare.html', 'privacy.html', 'terms.html'];
+const staticPages = ['', 'inventory.html', 'sell.html', 'finance.html', 'contact.html', 'compare.html', 'privacy.html', 'terms.html'];
 const urls = [
   ...staticPages.map((p) => ({ loc: SITE + p, pri: p === '' ? '1.0' : p === 'inventory.html' ? '0.9' : '0.6' })),
   ...CARS.map((c) => ({ loc: `${SITE}cars/${c.id}.html`, pri: '0.8' })),
@@ -74,10 +74,10 @@ writeFileSync('public/llms.txt', `# V8 Motors
 
 ## Pages
 
-- [Cars for sale](${SITE}inventory.html): every car in stock, filterable by make, body, price, year, fuel and gearbox
+- [Catalogue](${SITE}inventory.html): every car in stock, filterable by body, price, year, fuel and gearbox
 - [Sell](${SITE}sell.html): rough guide price and an offer for your car, or put it towards one of ours
 - [Leasing](${SITE}finance.html): monthly payment calculator; leasing is arranged through Rogers Capital
-- [Visit us](${SITE}contact.html): address, opening hours and contact form
+- [Visit us](${SITE}contact.html): address, opening hours and how to reach us
 - [Privacy policy](${SITE}privacy.html)
 - [Terms of sale](${SITE}terms.html)
 

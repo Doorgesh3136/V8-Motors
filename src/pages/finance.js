@@ -79,58 +79,7 @@ function update() {
   const car = byId(select.value);
   const text = `Hi V8 Motors, I'd like to ask about leasing${car ? ` on the ${carName(car)}` : ''}: ${rs(price)} with ${dep}% down over ${term} months (about ${rs(m)} a month).`;
   $('[data-fin-wa]').href = `https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(text)}`;
-  drawChart(loan, rate, term, m);
 }
 Object.values(inputs).forEach((i) => i.addEventListener('input', () => { if (i === inputs.price) { select.value = ''; showCar(null); } update(); }));
-
-// ---------------------------------------------------------------- balance chart
-const chart = $('[data-chart]');
-let chartDrawn = false;
-function drawChart(loan, rate, months, pay) {
-  const r = rate / 100 / 12;
-  const years = months / 12;
-  const rows = [];
-  let bal = loan, paidInt = 0, paidPrin = 0;
-  for (let y = 1; y <= years; y++) {
-    for (let k = 0; k < 12; k++) {
-      const int = bal * r;
-      paidInt += int; paidPrin += pay - int; bal = Math.max(0, bal - (pay - int));
-    }
-    rows.push({ y, bal, paidInt, paidPrin });
-  }
-  const max = loan;
-  chart.innerHTML = `
-    <div class="bars" style="--n:${rows.length}">
-      ${rows.map((row) => `<div class="bar" tabindex="0" aria-label="End of year ${row.y}: ${rs(row.bal)} left to pay">
-        <div class="bar-col">
-          <span class="bar-paid" style="--h:${row.paidPrin / max}"></span>
-          <span class="bar-left" style="--h:${row.bal / max}"></span>
-        </div>
-        <span class="bar-y">Year ${row.y}</span>
-        <div class="bar-tip ${row.y <= rows.length / 2 ? 'is-start' : 'is-end'}" role="tooltip"><strong>End of year ${row.y}</strong>
-          <span>Left to pay <b class="tabular-nums">${rs(row.bal)}</b></span>
-          <span>Paid off <b class="tabular-nums">${rs(row.paidPrin)}</b></span>
-          <span>Interest so far <b class="tabular-nums">${rs(row.paidInt)}</b></span></div>
-      </div>`).join('')}
-    </div>
-    <ul class="chart-key"><li><i class="k-left"></i>Still owed</li><li><i class="k-paid"></i>Paid off</li></ul>`;
-  if (!reduced && !chartDrawn) gsap.from($$('.bar-left', chart), { scaleY: 0, transformOrigin: 'bottom', duration: 0.9, ease: 'expo.out', stagger: 0.04 });
-  chartDrawn = true;
-}
-
-// ---------------------------------------------------------------- FAQ with animated open/close
-$$('[data-faq] details').forEach((d) => {
-  const s = $('summary', d), body = $('div', d);
-  s.addEventListener('click', (e) => {
-    if (reduced) return;
-    e.preventDefault();
-    if (d.open) {
-      gsap.to(body, { height: 0, opacity: 0, duration: 0.4, ease: 'power3.inOut', onComplete: () => { d.open = false; gsap.set(body, { clearProps: 'all' }); } });
-    } else {
-      d.open = true;
-      gsap.from(body, { height: 0, opacity: 0, duration: 0.6, ease: 'expo.out', clearProps: 'all' });
-    }
-  });
-});
 
 update();

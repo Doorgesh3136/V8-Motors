@@ -35,8 +35,8 @@ function render(animate) {
   history.replaceState(null, '', cars.length ? `?ids=${cars.map((c) => c.id).join(',')}` : location.pathname);
   if (!cars.length) {
     root.innerHTML = `<div class="empty"><p class="empty-title">Nothing to compare yet.</p>
-      <p>Tap the scales icon on any car on the cars page to add it here. You can compare up to three.</p>
-      <a href="inventory.html" class="btn btn-primary">Browse the cars</a></div>`;
+      <p>Tap Compare on any car in the catalogue to add it here. You can compare up to three.</p>
+      <a href="inventory.html" class="btn btn-primary">Open the catalogue</a></div>`;
     return;
   }
   const slots = [...cars, ...Array(COMPARE_MAX - cars.length).fill(null)];
@@ -77,7 +77,7 @@ function render(animate) {
       }).join('')}
       <div class="cmp-row cmp-row--cta" role="row">
         <div class="cmp-key" role="rowheader"></div>
-        ${slots.map((c) => c ? `<div role="cell"><a href="cars/${c.id}.html#book" class="btn btn-primary btn-wide">Book a test drive</a></div>` : '<div role="cell"></div>').join('')}
+        ${slots.map((c) => c ? `<div role="cell"><a href="cars/${c.id}.html" class="btn btn-primary btn-wide">See this car</a></div>` : '<div role="cell"></div>').join('')}
       </div>
     </div></div>`;
   root.classList.toggle('only-diff', diff.checked);

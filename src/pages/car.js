@@ -1,9 +1,8 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$, toast, looksLikeSpam, validateFields, phoneOk, titleIn, sendMessage, P } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, toast, titleIn, P } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
-import { nextOpenDays, fmtTime } from '../lib/hours.js';
 import { byId, rs, monthly, carName, large } from '../data.js';
 import { VIDEOS } from '../videos.js';
 
@@ -17,7 +16,6 @@ if (c) {
   setupGallery();
   setupVideo();
   setupFinance();
-  setupBooking();
   setupShare();
   setupStage();
   titleIn($('.summary-title'), 0.05);
@@ -97,7 +95,6 @@ function setupGallery() {
     else if (Math.abs(dx) < 8) openLb();
   });
   $$('[data-gal-open]').forEach((b) => b.addEventListener('click', (e) => { e.stopPropagation(); openLb(); }));
-  $$('[data-walk]').forEach((b) => b.addEventListener('click', () => { show(+b.dataset.walk); openLb(); }));
   $('[data-lb-close]').addEventListener('click', () => lb.close());
   $('[data-lb-prev]')?.addEventListener('click', () => show(i - 1, -1));
   $('[data-lb-next]')?.addEventListener('click', () => show(i + 1, 1));
@@ -140,22 +137,17 @@ function setupVideo() {
   box.addEventListener('close', () => $('iframe', frame)?.remove());
 }
 
-/* ---------------------------------------------------------------- the bay: the photo leans towards your pointer, the dials sweep up */
+/* ---------------------------------------------------------------- the bay: the photo leans towards your pointer */
 function setupStage() {
-  const dials = $('[data-dials]');
-  if (dials) {
-    if (reduced) dials.classList.add('is-on');
-    else new IntersectionObserver((es, o) => { if (es[0].isIntersecting) { dials.classList.add('is-on'); o.disconnect(); } }, { threshold: 0.4 }).observe(dials);
-  }
   const slab = $('[data-gal-tilt]');
   if (!slab || reduced || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   const ry = gsap.quickTo(slab, 'rotationY', { duration: 0.7, ease: 'power3.out' });
   const rx = gsap.quickTo(slab, 'rotationX', { duration: 0.7, ease: 'power3.out' });
-  gsap.set(slab, { transformPerspective: 1500, rotationY: 3.5, rotationX: 1 });
+  gsap.set(slab, { transformPerspective: 1800 });
   addEventListener('pointermove', (e) => {
     if (scrollY > innerHeight) return;
-    ry(3.5 + (e.clientX / innerWidth - 0.5) * 5);
-    rx(1 - (e.clientY / innerHeight - 0.5) * 3.5);
+    ry((e.clientX / innerWidth - 0.5) * 3);
+    rx((0.5 - e.clientY / innerHeight) * 2);
   }, { passive: true });
 }
 
@@ -172,62 +164,6 @@ function setupFinance() {
   };
   [dep, term].forEach((x) => x.addEventListener('input', upd));
   upd();
-}
-
-/* ---------------------------------------------------------------- test drive booking */
-function setupBooking() {
-  const days = nextOpenDays(10);
-  const daysEl = $('[data-days]'), slotsEl = $('[data-slots]');
-  let day = null, slot = null;
-  daysEl.innerHTML = days.map((d, k) => `<button type="button" class="day" data-day="${k}" aria-pressed="false" aria-label="${d.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}">
-    <span class="day-w">${d.date.toLocaleDateString('en-GB', { weekday: 'short' })}</span>
-    <span class="day-d tabular-nums">${d.date.getDate()}</span>
-    <span class="day-m">${d.date.toLocaleDateString('en-GB', { month: 'short' })}</span></button>`).join('');
-  daysEl.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-day]');
-    if (!b) return;
-    day = days[+b.dataset.day]; slot = null;
-    $$('[data-day]', daysEl).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-    const [oh] = day.hours[0].split(':').map(Number);
-    const [ch] = day.hours[1].split(':').map(Number);
-    const times = [];
-    for (let h = oh + 1; h < ch; h++) times.push(`${String(h).padStart(2, '0')}:00`);
-    slotsEl.innerHTML = times.map((t, k) => {
-      const taken = false;
-      return `<button type="button" class="slot" data-slot="${t}" aria-pressed="false" ${taken ? 'disabled' : ''}>${fmtTime(t)}${taken ? '<span class="sr-only"> (booked)</span>' : ''}</button>`;
-    }).join('');
-  });
-  slotsEl.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-slot]');
-    if (!b) return;
-    slot = b.dataset.slot;
-    $$('[data-slot]', slotsEl).forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-  });
-
-  const f = $('[data-book]');
-  f.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const err = $('[data-error]', f);
-    if (!day || !slot) { err.hidden = false; err.textContent = !day ? 'Choose a day for the test drive.' : 'Choose a time on that day.'; return; }
-    err.hidden = true;
-    const bad = validateFields([
-      [f.name, f.name.value.trim() ? '' : 'Add your name.'],
-      [f.phone, phoneOk(f.phone.value) ? '' : 'Add a mobile number we can call, for example 5 123 4567.'],
-    ]);
-    if (bad) return;
-    if (looksLikeSpam(f)) { err.hidden = false; err.textContent = 'That was very quick. Please try again in a moment.'; return; }
-    const when = `${day.date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })} at ${fmtTime(slot)}`;
-    const text = `Hi V8 Motors, I'd like to view the ${carName(c)} (${rs(c.price)}) on ${when}.\nName: ${f.name.value.trim()}\nMobile: ${f.phone.value.trim()}\n${location.href}`;
-    const href = sendMessage(text);
-    const done = document.createElement('div');
-    done.className = 'form-done';
-    done.setAttribute('role', 'status');
-    done.innerHTML = `<strong>Almost done: press send in WhatsApp.</strong>
-      <p>Your request for ${when} is written for you in WhatsApp. We confirm the time in that chat.</p>
-      <a class="btn btn-primary" href="${href}" target="_blank" rel="noopener">Open WhatsApp again</a>`;
-    f.replaceWith(done);
-    done.querySelector('a').focus();
-  });
 }
 
 /* ---------------------------------------------------------------- share */

@@ -16,8 +16,8 @@ const form = $('[data-filters]');
 const RANGES = {};
 let shown = PAGE;
 
-// ---------------------------------------------------------------- filter UI (options are pre-rendered in the HTML)
-const makes = [...new Set(CARS.map((c) => c.make))].sort();
+// A make can't be picked on this page any more, but the home page search and a car page's trail still link here with one
+let wantMakes = [];
 
 // dual range sliders
 $$('[data-range]').forEach((wrap) => {
@@ -61,7 +61,7 @@ function readState() {
   const fd = new FormData(form);
   return {
     q: (fd.get('q') || '').trim(),
-    body: fd.getAll('body'), make: fd.getAll('make'), fuel: fd.getAll('fuel'), gearbox: fd.getAll('gearbox'),
+    body: fd.getAll('body'), make: wantMakes, fuel: fd.getAll('fuel'), gearbox: fd.getAll('gearbox'),
     price: RANGES.price.get(), year: RANGES.year.get(),
     saved: form.saved.checked,
     sort: $('[data-sort]').value, view: grid.dataset.view,
@@ -75,13 +75,14 @@ function writeUrl(s) {
   if (!RANGES.year.isDefault()) p.set('year', s.year.join('-'));
   if (s.saved) p.set('saved', '1');
   if (s.sort !== 'new') p.set('sort', s.sort);
-  if (s.view !== 'grid') p.set('view', s.view);
+  if (s.view !== 'list') p.set('view', s.view);
   history.replaceState(null, '', p.toString() ? `?${p}` : location.pathname);
 }
 function applyUrl() {
   const p = new URLSearchParams(location.search);
   form.q.value = p.get('q') || '';
-  ['body', 'make', 'fuel', 'gearbox'].forEach((k) => {
+  wantMakes = (p.get('make') || '').split(',').filter(Boolean);
+  ['body', 'fuel', 'gearbox'].forEach((k) => {
     const v = (p.get(k) || '').split(',').filter(Boolean);
     $$(`[name="${k}"]`, form).forEach((i) => (i.checked = v.includes(i.value)));
   });
@@ -92,7 +93,7 @@ function applyUrl() {
   RANGES.year.set(yr[0] || undefined, yr[1] || undefined);
   form.saved.checked = p.get('saved') === '1';
   $('[data-sort]').value = p.get('sort') || 'new';
-  setView(p.get('view') || 'grid', false);
+  setView(p.get('view') || 'list', false);
 }
 
 // ---------------------------------------------------------------- filtering
@@ -121,7 +122,6 @@ const cards = new Map($$('.car', grid).map((li) => [li.dataset.id, li]));
 function updateFacetCounts(s) {
   BODY_TYPES.filter((t) => $(`[data-n-body="${t}"]`)).forEach((t) => { const n = CARS.filter((c) => c.body === t && matches(c, s, 'body')).length; const el = $(`[data-n-body="${t}"]`); el.textContent = n; el.closest('.body-opt').classList.toggle('is-zero', !n); });
   FUELS.filter((f) => $(`[data-n-fuel="${f}"]`)).forEach((f) => { $(`[data-n-fuel="${f}"]`).textContent = CARS.filter((c) => c.fuel === f && matches(c, s, 'fuel')).length; });
-  makes.forEach((m) => { const n = CARS.filter((c) => c.make === m && matches(c, s, 'make')).length; const el = $(`[data-n-make="${m}"]`); el.textContent = n; el.closest('.check').classList.toggle('is-zero', !n); });
 }
 
 function renderChips(s) {
@@ -130,7 +130,7 @@ function renderChips(s) {
   ['body', 'make', 'fuel', 'gearbox'].forEach((k) => s[k].forEach((v) => chips.push([k, v, v])));
   if (!RANGES.price.isDefault()) chips.push(['price', '', `${rs(s.price[0])} to ${rs(s.price[1])}`]);
   if (!RANGES.year.isDefault()) chips.push(['year', '', `${s.year[0]} to ${s.year[1]}`]);
-  if (s.saved) chips.push(['saved', '', 'My garage']);
+  if (s.saved) chips.push(['saved', '', 'Saved']);
   $('[data-chips]').innerHTML = chips.map(([k, v, label]) =>
     `<button type="button" class="chip" data-chip="${k}" data-chip-v="${v}" aria-label="Remove filter: ${label}">${label}<span aria-hidden="true"></span></button>`).join('') +
     (chips.length > 1 ? '<button type="button" class="link chip-clear" data-reset>Clear all</button>' : '');
@@ -138,19 +138,19 @@ function renderChips(s) {
   n.hidden = !chips.length; n.textContent = chips.length;
 }
 
-/** The cars you parked, as one message to the dealer: nothing to retype, and they see what you like. */
+/** The cars you saved, as one message to the dealer: nothing to retype, and they see what you like. */
 function renderGarage(s) {
   const box = $('[data-garage]');
   const cars = store.saved().map(byId).filter(Boolean);
   box.hidden = !s.saved;
   if (!s.saved) return;
   $('[data-garage-sub]').textContent = cars.length
-    ? `${cars.length} ${cars.length === 1 ? 'car' : 'cars'} parked on this device. Send the list and we'll tell you what's still here, and when you can drive ${cars.length === 1 ? 'it' : 'them'}.`
-    : 'Empty for now. Tap the heart on any car, or double-tap one on the forecourt, and it parks here.';
-  const send = $('[data-garage-send]'), walk = $('[data-garage-walk]');
-  send.hidden = walk.hidden = !cars.length;
+    ? `${cars.length} ${cars.length === 1 ? 'car' : 'cars'} saved on this device. Send the list and we'll tell you what's still here, and when you can drive ${cars.length === 1 ? 'it' : 'them'}.`
+    : 'Nothing saved yet. Tap the heart on any car and it shows up here.';
+  const send = $('[data-garage-send]');
+  send.hidden = !cars.length;
   const lines = cars.map((c) => `- ${carName(c)}, ${rs(c.price)}`).join('\n');
-  send.href = `https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(`Hi V8 Motors, these are the cars in my garage:\n${lines}\nAre they still available, and when can I come and see them?`)}`;
+  send.href = `https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(`Hi V8 Motors, these are the cars I saved:\n${lines}\nAre they still available, and when can I come and see them?`)}`;
 }
 
 function render({ animate = true, keepShown = false } = {}) {
@@ -201,6 +201,7 @@ $('[data-more]').addEventListener('click', () => { shown += PAGE; render({ keepS
 document.addEventListener('click', (e) => {
   if (e.target.closest('[data-reset]')) {
     form.reset();
+    wantMakes = [];
     Object.values(RANGES).forEach((r) => r.set());
     render();
     return;
@@ -209,6 +210,7 @@ document.addEventListener('click', (e) => {
   if (chip) {
     const k = chip.dataset.chip, v = chip.dataset.chipV;
     if (k === 'q') form.q.value = '';
+    else if (k === 'make') wantMakes = wantMakes.filter((m) => m !== v);
     else if (k === 'price' || k === 'year') RANGES[k].set();
     else if (k === 'saved') form[k].checked = false;
     else $(`[name="${k}"][value="${CSS.escape(v)}"]`, form).checked = false;

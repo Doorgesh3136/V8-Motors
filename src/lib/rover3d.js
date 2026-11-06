@@ -1,7 +1,6 @@
 /**
- * The Range Rover, live in 3D (public/model/range-rover.glb), in a night hall rendered in Blender
- * (public/hero/hall.webp). This module is the only place three.js is used, and the home page loads it on its own,
- * so no other page pays for it.
+ * The Range Rover, live in 3D (public/model/range-rover.glb), in a showroom built here in real geometry (buildShowroom).
+ * This module is the only place three.js is used, and the home page loads it on its own, so no other page pays for it.
  *
  * It keeps no timeline of its own. The home page animates one plain object of numbers (`s`, see rover-shots.js) with
  * GSAP, on the engine recording's clock, and every frame this file draws whatever those numbers say. That is why the
@@ -9,7 +8,8 @@
  *
  * Expensive effects are faked cheaply, because this has to run on a phone:
  *   reflection   the car is drawn a second time upside down, under a floor that is see-through where it is wet
- *   the hall     one equirectangular image: the sky dome, the floor's reflections and the paint's all read from it
+ *   the hall     real boxes, lit by a shader, so it stays sharp and the walls move properly as the camera does. One
+ *                equirectangular Blender render (public/hero/hall.webp) is what the paint reflects and what shows through the far end
  *   headlights   the LEDs are real emissive parts of the model; the pools of light are painted by the floor's shader
  *                and the beams in the air are additive cones
  *
@@ -27,6 +27,7 @@ import {
 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { modest } from './device.js';
 import { buildBay, buildEngine, ENGINE_SIZE, MARK_AT, MARK_SIZE } from './rover-engine.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -52,6 +53,7 @@ const HALL = /* glsl */ `
     d = normalize(d);
     vec2 uv = vec2(atan(d.x, -d.z) / (2. * PI) + .5, asin(clamp(d.y, -1., 1.)) / PI + .5);
     vec3 c = textureLod(uTex, uv, lod).rgb;
+    c = mix(vec3(dot(c, vec3(.3, .6, .1))) * vec3(.97, .985, 1.02), c, smoothstep(.1, .3, c.r - c.g)); // grey concrete, red still red
     // the open far end was rendered to pure white: give it its sunrise back, amber at the ridge, blue higher up
     float sun = smoothstep(.72, .96, min(min(c.r, c.g), c.b));
     c = mix(c, mix(vec3(2.2, 1.15, .5), vec3(.7, .85, 1.25), smoothstep(.0, .1, d.y)), sun * uSun);
@@ -59,9 +61,9 @@ const HALL = /* glsl */ `
     return c * .42 * wave * (.25 + .75 * smoothstep(.9, 1., uHall + .08));
   }`;
 
-function buildSky(tex) {
+function buildSky(tex, radius = 70) {
   const mat = new ShaderMaterial({
-    side: BackSide, depthWrite: false,
+    side: BackSide, depthWrite: false, depthTest: false,
     uniforms: { uTex: { value: tex }, uHall: { value: 0 }, uSun: { value: 1 } },
     vertexShader: 'varying vec3 vD; void main(){ vD = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.); }',
     fragmentShader: `varying vec3 vD; ${HALL}
@@ -71,7 +73,112 @@ function buildSky(tex) {
         #include <colorspace_fragment>
       }`,
   });
-  return new Mesh(new SphereGeometry(70, 32, 16), mat);
+  const m = new Mesh(new SphereGeometry(radius, 32, 16), mat);
+  m.renderOrder = -10;
+  return m;
+}
+
+const BAY = 7, BAY_Z = 3; // a light bar every 7 metres
+const WALL_X = 11, FACE_X = 10.7, HALL_H = 8, HALL_LONG = 100; // the wall, the front of the pilasters that carry the bars
+
+/**
+ * The showroom: walls, pilasters, ceiling and its beams, all plain boxes in one draw call, and all lit by one shader that
+ * works out the light from the same bars and strips drawn by buildHallLights. Nothing is painted in, so it is sharp at any size
+ * and the room moves correctly with the camera. A second copy upside down, under the wet floor, is the reflection.
+ */
+function buildShowroom(surface) {
+  const uniforms = { uHall: { value: 0 }, uSurface: { value: surface } };
+  const mat = new ShaderMaterial({
+    uniforms, side: DoubleSide,
+    vertexShader: `
+      varying vec3 vP, vN;
+      void main(){
+        vec4 w = modelMatrix * instanceMatrix * vec4(position, 1.);
+        vP = w.xyz; vN = normal;
+        gl_Position = projectionMatrix * viewMatrix * w;
+      }`,
+    fragmentShader: `
+      varying vec3 vP, vN;
+      uniform float uHall;
+      uniform sampler2D uSurface;
+      float sat(float x){ return clamp(x, 0., 1.); }
+      // a thin line every 1 along v, faded out before it can shimmer in the distance
+      float line(float v, float w){
+        float aa = fwidth(v) * 1.2, d = abs(fract(v + .5) - .5);
+        return (1. - smoothstep(w, w + aa, d)) * sat(w * 2.5 / aa);
+      }
+      void main(){
+        vec3 p = vec3(vP.x, abs(vP.y), vP.z), n = vN;
+        vec3 eye = vec3(cameraPosition.x, vP.y < 0. ? -cameraPosition.y : cameraPosition.y, cameraPosition.z);
+        vec3 V = normalize(eye - p);
+        float dist = length(eye - p);
+        float dz = (fract((p.z - ${BAY_Z}.) / ${BAY}. + .5) - .5) * ${BAY}.; // from the nearest light bar, along the wall
+        float side = p.x < 0. ? -1. : 1.;
+        vec3 warm = vec3(1., .965, .91);
+        vec3 c;
+
+        if (n.y < -.5) {
+          // the ceiling, with a soft pool around each strip of lights
+          vec2 uv = p.xz;
+          float g = texture2D(uSurface, uv / 6.).b;
+          float dx = abs(mod(p.x + 3.1, 6.2) - 3.1);
+          float strip = exp(-dx * dx / 1.4);
+          c = vec3(.07, .073, .08) * (.8 + .4 * g) * (.05 + strip * .9);
+        } else {
+          bool front = abs(n.x) > .5, end = abs(n.z) > .5, beam = p.y > ${(HALL_H - 0.9).toFixed(1)};
+          vec2 uv = front ? p.zy : p.xy;
+          float g = texture2D(uSurface, uv / 5.).b, g2 = texture2D(uSurface, uv / 1.4).b;
+          float pilaster = front && abs(p.x) < ${(FACE_X + 0.05).toFixed(2)} ? 1. : 0.;
+          vec3 albedo = mix(vec3(.105, .108, .116), vec3(.05, .052, .058), pilaster) * (.8 + .28 * g + .12 * g2);
+          // the bars wash the wall either side of them, and the ceiling lights it from above
+          float tall = smoothstep(.1, 1.6, p.y) * smoothstep(7.2, 5.2, p.y);
+          float wash = exp(-dz * dz / 2.6) * tall;
+          float high = pow(sat(p.y / ${HALL_H}.), 3.);
+          c = albedo * warm * (.08 + wash * 1.2 + high * .6 + exp(-p.y * 1.6) * .06);
+          if (front) {
+            // large panels
+            float seam = line((p.z - ${BAY_Z}.) / 3.5 + .5, .007);
+            c *= 1. - seam * (1. - pilaster) * .4;
+            // a satin finish: each bar leaves a soft streak in the panels that moves as the camera does
+            for (int i = -1; i <= 1; i++) {
+              vec3 L = vec3(side * ${(FACE_X - 0.02).toFixed(2)}, clamp(p.y, 1., 6.2), p.z - dz + float(i) * ${BAY}.) - p;
+              float d = length(L);
+              vec3 H = normalize(L / d + V);
+              c += warm * pow(sat(dot(n, H)), 70.) * .13 * tall / (1. + d * .12);
+            }
+          }
+          if (end) c *= .55;
+          if (beam && !front) c *= .35;
+          // the red line along the wall
+          float r = (p.y - .5) / .3;
+          c += vec3(1., .03, .045) * (exp(-r * r) * (front ? .085 : .05) + exp(-p.y * 3.) * .012);
+        }
+        // the air: the far end fades into a soft haze
+        c = mix(c, vec3(.02, .022, .026), 1. - exp(-dist * .012));
+        float on = smoothstep(0., .1, uHall * 1.2 - (p.z + 78.) / 156.);
+        c *= mix(.02, 1., on) * (.25 + .75 * smoothstep(.9, 1., uHall + .08));
+        gl_FragColor = vec4(c, 1.);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }`,
+  });
+  const boxes = [
+    [[WALL_X * 2 + 1, 0.4, HALL_LONG * 2], [0, HALL_H + 0.2, 0]], // the ceiling
+  ];
+  for (const s of [-1, 1]) boxes.push([[0.4, HALL_H, HALL_LONG * 2], [s * (WALL_X + 0.2), HALL_H / 2, 0]]);
+  for (let z = BAY_Z - BAY * 14; z < HALL_LONG; z += BAY) for (const s of [-1, 1]) boxes.push([[WALL_X - FACE_X, HALL_H, 1.3], [s * (WALL_X + FACE_X) / 2, HALL_H / 2, z]]);
+  for (let z = -HALL_LONG; z < HALL_LONG; z += BAY / 2) boxes.push([[WALL_X * 2, 0.84, 0.5], [0, HALL_H - 0.42, z]]);
+  const geo = new BoxGeometry(1, 1, 1);
+  const mesh = new InstancedMesh(geo, mat, boxes.length);
+  const m = new Matrix4();
+  boxes.forEach(([size, pos], i) => { m.makeScale(...size).setPosition(...pos); mesh.setMatrixAt(i, m); });
+  mesh.frustumCulled = false;
+  const mirror = new InstancedMesh(geo, mat, boxes.length);
+  mirror.instanceMatrix = mesh.instanceMatrix;
+  mirror.scale.y = -1;
+  mirror.frustumCulled = false;
+  mirror.renderOrder = -1;
+  return { mesh, mirror, uniforms };
 }
 
 /**
@@ -103,9 +210,9 @@ function buildHallLights() {
   const WARM = [1, 0.97, 0.92], RED = [1, 0.08, 0.1];
   for (let y = -87; y < 82; y += 7) {
     for (const x of [-6.2, 0, 6.2]) items.push([[0.34, 0.07, 5.6], [x, 7.08, -(y + 3.2)], WARM]);
-    for (const s of [-1, 1]) if (s > 0 || !SIGNS.some(([z]) => Math.abs(z + y) < 7)) items.push([[0.09, 5.2, 0.2], [s * 9.88, 3.6, -y], WARM]);
+    for (const s of [-1, 1]) items.push([[0.05, 5.2, 0.16], [s * (FACE_X - 0.03), 3.6, -y], WARM]);
   }
-  for (const s of [-1, 1]) items.push([[0.05, 0.07, 180], [s * 10.97, 0.5, 0], RED]);
+  for (const s of [-1, 1]) items.push([[0.05, 0.07, 200], [s * (FACE_X - 0.03), 0.5, 0], RED]);
   const geo = new BoxGeometry(1, 1, 1);
   const cols = new Float32Array(items.length * 3);
   const mesh = new InstancedMesh(geo, mat, items.length);
@@ -117,13 +224,19 @@ function buildHallLights() {
   });
   geo.setAttribute('aCol', new InstancedBufferAttribute(cols, 3));
   mesh.frustumCulled = false;
-  const mirror = new InstancedMesh(geo, mat, items.length);
+  // a polished floor gives back about half of what falls on it
+  const seen = mat.clone();
+  seen.uniforms.uHall = uniforms.uHall;
+  seen.uniforms.uGain = { value: 0.5 };
+  const mirror = new InstancedMesh(geo, seen, items.length);
   mirror.instanceMatrix = mesh.instanceMatrix;
   mirror.scale.y = -1;
   mirror.frustumCulled = false;
   mirror.renderOrder = -1;
   return { mesh, mirror, uniforms };
 }
+
+const SIGNS_ON = false; // the V8 MOTORS signs on the hall's wall are taken down for now: true puts them back
 
 /** The V8 MOTORS sign: channel letters on the wall, lit faces and dark metal sides, with light spilling onto the wall.
  *  The faces know how far along the sign they are, so light can run across the letters and one letter can catch alone. */
@@ -154,15 +267,14 @@ function buildSigns(sign, glowMap) {
   };
   const ivory = wire(new MeshBasicMaterial({ color: 0xfff4e4, toneMapped: false })); // lit faces: they give out light, so the film look doesn't grey them
   const red = wire(new MeshBasicMaterial({ color: 0xff1e28, toneMapped: false }));
+  const ivoryFar = wire(new MeshBasicMaterial({ color: 0xfff4e4, toneMapped: false })), redFar = wire(new MeshBasicMaterial({ color: 0xff1e28, toneMapped: false })); // the second sign is lit on its own
   const side = new MeshPhysicalMaterial({ color: 0x17181a, metalness: 0.9, roughness: 0.4 });
-  sign.traverse((o) => {
-    if (!o.isMesh) return;
-    o.material = /Red/.test(o.material.name) ? red : /Ivory/.test(o.material.name) ? ivory : side;
-  });
   const spill = new MeshBasicMaterial({ map: glowMap, color: 0xffe2c4, blending: AdditiveBlending, transparent: true, depthWrite: false, opacity: 0 });
+  const spillFar = spill.clone();
   const group = new Group(), mirrors = [], far = new Group();
   const put = ([z, SIGN_Y], i) => {
     const g = sign.clone(true);
+    g.traverse((o) => { if (o.isMesh) { const n = o.userData.was ??= o.material.name; o.material = /Red/.test(n) ? (i ? redFar : red) : /Ivory/.test(n) ? (i ? ivoryFar : ivory) : side; } });
     g.scale.setScalar(SIGN_SCALE);
     g.rotation.y = Math.PI / 2;
     g.position.set(-9.72, SIGN_Y, z);
@@ -170,7 +282,7 @@ function buildSigns(sign, glowMap) {
     m.position.y = -SIGN_Y;
     m.scale.y = -SIGN_SCALE;
     m.traverse((o) => { o.renderOrder = -1; });
-    const wash = new Mesh(new PlaneGeometry(17, 6), spill);
+    const wash = new Mesh(new PlaneGeometry(17, 6), i ? spillFar : spill);
     wash.rotation.y = Math.PI / 2;
     wash.position.set(-9.9, SIGN_Y, z);
     wash.renderOrder = 1;
@@ -179,7 +291,7 @@ function buildSigns(sign, glowMap) {
   };
   SIGNS.forEach(put);
   group.add(far);
-  return { group, far, mirrors, ivory, red, spill, face };
+  return { group, far, mirrors, ivory, red, spill, ivoryFar, redFar, spillFar, face };
 }
 
 /** What the paint reflects: the hall itself, with softboxes over the car to draw long clean lines along the body. */
@@ -307,12 +419,12 @@ function buildFloor(tex, surface, lamp) {
 
         // see-through where wet, for the car's reflection; solid under the car; melting into the hall far away
         float a = mix(.6, .9, dry);
-        gl_FragColor = vec4(c, max(a, sh * .97) * smoothstep(68., 44., d));
+        gl_FragColor = vec4(c, max(a, sh * .97));
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
   });
-  const mesh = new Mesh(new CircleGeometry(68, 64), mat);
+  const mesh = new Mesh(new CircleGeometry(110, 64), mat);
   mesh.rotation.x = -Math.PI / 2;
   mesh.renderOrder = 0;
   return { mesh, uniforms: mat.uniforms };
@@ -441,8 +553,8 @@ const BONNET_OPEN = 1.43; // radians. Nearly upright, so it stands clear behind 
 
 export async function createStage({ canvas, s, input, onProgress = () => {}, onTap = () => {}, onSign = () => {}, onTooSlow = () => {}, withEngine = false }) {
   const phone = matchMedia('(pointer: coarse)').matches;
-  const modest = (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 3;
-  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false });
+  const CAP = import.meta.env.MODE === 'dbg' ? window.__capture : null; // only for rendering the phone film: see scripts/film.mjs
+  const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: !!CAP?.clear, powerPreference: 'high-performance', stencil: false });
   // drawn by the processor rather than a graphics chip (remote desktop, a blocked driver): don't even try
   const info = renderer.getContext().getExtension('WEBGL_debug_renderer_info');
   const chip = info ? renderer.getContext().getParameter(info.UNMASKED_RENDERER_WEBGL) : '';
@@ -450,11 +562,11 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1;
-  renderer.setClearColor(0x000000, 1);
+  renderer.setClearColor(0x000000, CAP?.clear ? 0 : 1);
   // how sharp: a little extra on an ordinary screen, but never past a fixed number of pixels, so a 4K monitor costs the
   // graphics card the same as a 1080p one instead of four times as much
-  const MAX_PIXELS = 4.2e6;
-  let dpr = modest ? 1 : phone ? Math.min(devicePixelRatio || 1, 1.5) : Math.min(Math.max(devicePixelRatio || 1, 1.5), 2);
+  const MAX_PIXELS = CAP ? 60e6 : 4.2e6;
+  let dpr = CAP ? CAP.dpr : modest ? 1 : phone ? Math.min(devicePixelRatio || 1, 2) : Math.min(Math.max(devicePixelRatio || 1, 1.5), 2);
   renderer.setPixelRatio(dpr);
 
   // ---- downloads
@@ -485,16 +597,17 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
 
   const scene = new Scene();
   scene.environment = buildStudio(renderer, hallTex);
-  const camera = new PerspectiveCamera(28, 1, 0.25, 160);
+  const camera = new PerspectiveCamera(28, 1, 0.25, 220);
 
   const car = gltf.scene;
   const lamps = dress(car);
   const LAMP = findLamp(car);
 
-  const sky = buildSky(hallTex);
+  const sky = buildSky(hallTex, 190);
   const floor = buildFloor(hallTex, surfaceTex, LAMP);
   const hallLights = buildHallLights();
-  scene.add(sky, floor.mesh, hallLights.mesh, hallLights.mirror);
+  const showroom = buildShowroom(surfaceTex);
+  scene.add(sky, showroom.mesh, showroom.mirror, floor.mesh, hallLights.mesh, hallLights.mirror);
   const sweepHead = { value: 2 }, sweepTail = { value: 2 };
   [...lamps.drl, ...lamps.pod].forEach((m) => sweepable(m, sweepHead));
   lamps.red.forEach((m) => sweepable(m, sweepTail));
@@ -506,6 +619,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   scene.add(key, rim);
 
   const signs = buildSigns(signGltf.scene, glowTexture(false));
+  signs.group.visible = false;
   scene.add(signs.group);
 
   const rig = new Group(); // moves and turns the whole car; the floor light follows it
@@ -584,7 +698,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
 
   // ---- the glow: only the lights, on their own, with the car in black so it hides them where it should. Blurred small
   // and added over the finished picture, so it can't disturb the edges underneath
-  const glowOn = !modest;
+  const glowOn = !modest && !CAP?.clear;
   const black = new MeshBasicMaterial({ color: 0x000000 });
   const lit = new Set([...lamps.drl, ...lamps.pod, ...lamps.red]);
   const solid = [];
@@ -639,7 +753,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
       if (m.see) m.o.visible = false;
       else if (!m.glows) m.o.material = black;
     }
-    const others = [sky, floor.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : []), ...puffs.map((p) => p.sp)];
+    const others = [sky, showroom.mesh, showroom.mirror, floor.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : []), ...puffs.map((p) => p.sp)];
     hide.length = 0;
     for (const o of others) { hide.push(o.visible); o.visible = false; }
     const env = scene.environmentIntensity;
@@ -667,7 +781,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   }
 
   // ---- framing: where the car sits at each screen shape
-  let W = 1, H = 1, base = { dist: 14, sx: 0, sy: 0 }, farAway = false;
+  let W = 1, H = 1, base = { dist: 14, sx: 0, sy: 0 }, tallScreen = false;
   const sharpen = () => renderer.setDrawingBufferSize(W, H, Math.min(dpr, Math.sqrt(MAX_PIXELS / (W * H))));
   const resize = () => {
     const box = canvas.parentElement.getBoundingClientRect();
@@ -678,14 +792,16 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     const aspect = W / H, portrait = aspect < 0.8;
     camera.aspect = aspect;
     const v = Math.tan((14 * Math.PI) / 180), h = v * aspect; // the hero is always shot at 28 degrees
-    const short = H < 760 && aspect >= 1.3; // a short laptop or a landscape phone: not enough height to stack the car over the headline, so they sit side by side
-    farAway = short || aspect < 1.3; // the sign further down the hall would sit behind the menu at these shapes
-    const needW = portrait ? 3.1 : 3.3, needH = portrait ? 3.4 : short ? 3.5 : 2.75;
+    const short = H < 760 && aspect >= 1.3; // a short laptop or a landscape phone: the car steps back a little so the buttons clear it
+    tallScreen = portrait;
+    const needW = portrait ? 3.1 : 3.3, needH = portrait ? 3.4 : short ? 3 : 2.75;
     base = {
       dist: Math.max(needW / h, needH / v),
-      sx: portrait ? 0 : short ? (aspect < 1.6 ? 0.36 : aspect > 2.6 ? 0.2 : 0.31) : aspect > 1.3 ? 0.12 : 0.05, // pushes the car away from the headline
-      sy: portrait ? -0.25 : short ? -0.05 : aspect < 1.3 ? -0.05 : -0.135,
+      sx: 0, // the hero is only the car: it stands in the middle, a little above the buttons
+      sy: portrait ? -0.08 : -0.03,
     };
+    const seen = canvas.parentElement.parentElement.clientHeight || H;
+    base.sy = (seen / 2 + base.sy * seen - H / 2) / H;
   };
   let ready = false;
   new ResizeObserver(() => { resize(); if (ready) draw(true); }).observe(canvas.parentElement);
@@ -695,6 +811,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   let hoverSign = false;
   const ndc = new Vector2(), ray = new Raycaster(), onWall = new Vector3(), wall = new Plane(new Vector3(1, 0, 0), 9.72), carBox = new Box3();
   const overSign = (x, y) => {
+    if (!SIGNS_ON) return false;
     const box = canvas.getBoundingClientRect();
     ray.setFromCamera(ndc.set(((x - box.left) / box.width) * 2 - 1, -((y - box.top) / box.height) * 2 + 1), camera);
     if (!ray.ray.intersectPlane(wall, onWall)) return false;
@@ -750,10 +867,11 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
 
   function draw(force) {
     const now = performance.now();
+    if (CAP && !CAP.go) return;
     if (contextLost || tooSlow || (!force && (!onScreen || document.hidden || s.off))) { lastT = now; return; }
     if (!force && modest && now - lastDraw < 30) return; // 30 fps on modest phones
     lastDraw = now;
-    const dt = Math.min(0.05, (now - lastT) / 1000);
+    const dt = CAP ? CAP.dt : Math.min(0.05, (now - lastT) / 1000);
     clock += dt; // only runs while frames are drawn, so nothing leaps forward after a hidden tab
     const t = clock;
 
@@ -764,7 +882,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     if (!spanAt) spanAt = now;
     spanFrames++;
     if (gap > 1500) spanBroken = true;
-    if (now - spanAt > 2000) {
+    if (now - spanAt > 2000 && !CAP) {
       const fps = (spanFrames * 1000) / (now - spanAt), broken = spanBroken;
       spanAt = now; spanFrames = 0; spanBroken = false;
       lowSpans = !broken && fps < 24 ? lowSpans + 1 : 0;
@@ -841,6 +959,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     for (const m of lamps.red) m.emissiveIntensity = s.red * 3.2;
     sky.material.uniforms.uHall.value = s.hall;
     hallLights.uniforms.uHall.value = s.hall;
+    showroom.uniforms.uHall.value = s.hall;
     // ---- the sign. It strikes up as the hall comes on, a letter catches now and then, it answers the engine and your
     // pointer, and the car's tricks can take it over through the numbers in s
     const hall = smooth(0.5, 0.8, s.hall);
@@ -855,13 +974,19 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     }
     const c = t - catchAt;
     signs.face.uDrop.value = (c < 0.07 || (c > 0.14 && c < 0.2) || (c > 0.34 && c < 0.38)) && hall > 0.99 ? 0.82 : 0;
-    signs.far.visible = !(farAway && scrollY < 20 && f > 0.98);
+    // at rest there is one sign. The second is for the run down the hall, and lights up as the car pulls away from it
+    signs.far.visible = f < 0.985;
+    const farLit = smooth(0.985, 0.72, f) * (f > 0.72 && Math.sin(t * 61) * Math.sin(t * 37) > 0.3 ? 0.3 : 1);
     signs.face.uWave.value = s.wave ?? -1;
     signs.face.uWaveAmp.value = s.waveAmp || 0;
     const white = on * lift * Math.max(0, 1 + (s.signWhite || 0)), redLit = on * lift * Math.max(0, 1 + (s.signRed || 0));
     signs.ivory.color.setRGB(0.012 + white * 0.9, 0.011 + white * 0.82, 0.01 + white * 0.7);
     signs.red.color.setRGB(0.012 + redLit * 0.95, 0.004 + redLit * 0.03, 0.004 + redLit * 0.05);
     signs.spill.opacity = Math.min(0.8, on * (0.18 + (lift - 1) * 0.5 + (s.waveAmp || 0) * 0.08)); // the wall around it lights up when it reacts
+    signs.ivoryFar.color.copy(signs.ivory.color).multiplyScalar(farLit);
+    signs.redFar.color.copy(signs.red.color).multiplyScalar(farLit);
+    signs.spillFar.opacity = signs.spill.opacity * farLit;
+    signs.group.visible = SIGNS_ON && !(tallScreen && f > 0.02) && !CAP?.noSigns; // a phone already has the name right above it in the menu bar
     const u = floor.uniforms;
     u.uHall.value = s.hall; u.uBeam.value = s.beam; u.uHigh.value = s.high; u.uRed.value = s.red;
     u.uRing.value = (1 - s.roadGlow) * smooth(0.75, 1, s.hall);

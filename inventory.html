@@ -14,11 +14,6 @@
   <!--@nav:inventory-->
 
   <main id="main">
-    <section class="page-head wrap">
-      <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Cars</span></nav>
-      <h1 class="page-title" data-title>Used cars <em>for sale</em></h1>
-      <p class="page-lede"><span class="tabular-nums" data-countup><!--@total--></span> cars on the forecourt at 59B Royal Road, Coromandel, with our own photos of each one. New stock every week.</p>
-    </section>
 
     <div class="wrap inv-layout">
       <aside class="inv-filters" data-filter-panel aria-label="Filters" data-lenis-prevent>
@@ -40,23 +35,21 @@
           </fieldset>
 
           <fieldset class="fgroup">
-            <legend>Price</legend>
+            <legend>Price <span class="range2-out tabular-nums" data-range-out="price">Any price</span></legend>
             <div class="range2" data-range="price" data-step="50000">
               <div class="range2-track"><span class="range2-fill"></span></div>
               <input type="range" aria-label="Minimum price" data-lo />
               <input type="range" aria-label="Maximum price" data-hi />
             </div>
-            <p class="range2-out tabular-nums" data-range-out="price">Any price</p>
           </fieldset>
 
           <fieldset class="fgroup">
-            <legend>Year</legend>
+            <legend>Year <span class="range2-out tabular-nums" data-range-out="year">Any year</span></legend>
             <div class="range2" data-range="year" data-step="1">
               <div class="range2-track"><span class="range2-fill"></span></div>
               <input type="range" aria-label="Earliest year" data-lo />
               <input type="range" aria-label="Latest year" data-hi />
             </div>
-            <p class="range2-out tabular-nums" data-range-out="year">Any year</p>
           </fieldset>
 
           <fieldset class="fgroup">
@@ -72,29 +65,28 @@
             </div>
           </fieldset>
 
-          <fieldset class="fgroup">
-            <legend>Make</legend>
-            <div class="make-list"><!--@opts:make--></div>
-          </fieldset>
-
           <fieldset class="fgroup fgroup--toggles">
             <legend class="sr-only">More options</legend>
-            <label class="toggle"><input type="checkbox" name="saved" /><span>My garage only</span></label>
+            <label class="toggle"><input type="checkbox" name="saved" /><span>Saved only</span></label>
           </fieldset>
         </form>
         <div class="inv-filters-apply"><button type="button" class="btn btn-primary" data-close-filters>Show <span class="tabular-nums" data-count-btn><!--@total--></span> cars</button></div>
       </aside>
 
       <section class="inv-results" id="results" aria-label="Results">
-        <!-- the garage: the cars you parked (saved). Send the whole list to the dealer in one tap. -->
+        <div class="page-head">
+          <nav class="crumbs" aria-label="Breadcrumb"><a href="./">Home</a><span aria-hidden="true">/</span><span aria-current="page">Catalogue</span></nav>
+          <h1 class="page-title" data-title>Our <em>catalogue</em></h1>
+          <p class="page-lede"><span class="tabular-nums"><!--@total--></span> cars at 59B Royal Road, Coromandel, with our own photos of each one. New stock every week.</p>
+        </div>
+        <!-- the saved cars: send the whole list to the dealer in one tap -->
         <div class="garage" data-garage hidden>
           <div>
-            <h2 class="garage-title">My <em>garage</em></h2>
+            <h2 class="garage-title">Saved <em>cars</em></h2>
             <p class="garage-sub" data-garage-sub></p>
           </div>
           <div class="garage-acts">
             <a class="btn btn-primary" data-garage-send rel="noopener">Send to V8 Motors on WhatsApp</a>
-            <a class="btn btn-line" data-garage-walk href="forecourt.html?saved=1">Walk them</a>
           </div>
         </div>
         <div class="inv-toolbar">
@@ -104,20 +96,20 @@
             <span class="field-label">Sort by</span>
             <select name="sort" data-sort>
               <option value="new">Newest arrivals</option>
-              <option value="price-asc">Price, low to high</option>
-              <option value="price-desc">Price, high to low</option>
-              <option value="year">Newest year</option>
-              <option value="year-asc">Oldest year</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="year">Year: newest first</option>
+              <option value="year-asc">Year: oldest first</option>
             </select>
           </label>
           <div class="view-toggle" role="group" aria-label="Layout">
-            <button type="button" data-view="grid" aria-pressed="true" aria-label="Grid view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button>
-            <button type="button" data-view="list" aria-pressed="false" aria-label="List view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/></svg></button>
+            <button type="button" data-view="grid" aria-pressed="false" aria-label="Grid view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></button>
+            <button type="button" data-view="list" aria-pressed="true" aria-label="List view"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16M4 12h16M4 19h16"/></svg></button>
           </div>
         </div>
         <div class="chips" data-chips role="group" aria-label="Active filters"></div>
 
-        <ul class="grid-cars" data-grid data-view="grid"><!--@grid--></ul>
+        <ul class="grid-cars" data-grid data-view="list"><!--@grid--></ul>
 
         <div class="inv-more" data-more-wrap>
           <p class="tabular-nums" data-showing></p>

@@ -2,7 +2,7 @@ import { DEALER } from '../dealer.js';
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const toMin = (t) => { const [h, m] = t.split(':'); return +h * 60 + +m; };
-export const fmtTime = (t) => { const [h, m] = t.split(':'); const H = +h; return `${H % 12 || 12}${m !== '00' ? ':' + m : ''} ${H < 12 ? 'am' : 'pm'}`; };
+export const fmtTime = (t) => { const [h, m] = t.split(':'); const H = +h; return `${H % 12 || 12}${m !== '00' ? ':' + m : ''}${H < 12 ? 'am' : 'pm'}`; };
 
 function nowInMauritius() {
   const p = new Intl.DateTimeFormat('en-GB', { timeZone: DEALER.timeZone, weekday: 'long', hour: '2-digit', minute: '2-digit', hour12: false })
@@ -31,28 +31,6 @@ export function renderStatus(el) {
   const s = openStatus();
   el.textContent = s.text;
   el.classList.toggle('is-open', s.open);
-}
-
-export function renderHours(tbody) {
-  if (!tbody) return;
-  const { today } = openStatus();
-  tbody.innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => {
-    const h = DEALER.hours[d];
-    return `<tr class="${d === today ? 'is-today' : ''}"><th scope="row">${DAYS[d]}</th>
-      <td class="${h ? '' : 'closed'} tabular-nums">${h ? `${fmtTime(h[0])} to ${fmtTime(h[1])}` : 'Closed'}</td></tr>`;
-  }).join('');
-}
-
-/** Upcoming open days (for test-drive booking). */
-export function nextOpenDays(n = 10) {
-  const out = [];
-  const d = new Date();
-  for (let i = 1; out.length < n && i < 30; i++) {
-    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() + i);
-    const h = DEALER.hours[x.getDay()];
-    if (h) out.push({ date: x, hours: h });
-  }
-  return out;
 }
 
 /**

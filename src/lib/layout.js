@@ -1,12 +1,13 @@
 import '../site.css';
 import '../flagship.css';
+import '../glass.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { store } from './store.js';
 import { initBackground } from './bg.js';
-import { initSky } from './sky.js';
 import { initFx, photosArrive } from './fx.js';
+import { initGlass } from './glass.js';
 import { renderStatus } from './hours.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -91,7 +92,7 @@ const html = document.documentElement;
    closed (a class set in <head> before first paint), then the layers open outwards. */
 export const viaCurtain = html.classList.contains('curtain-in');
 const ROUTES = {
-  'index.html': 'Home', 'inventory.html': 'Cars for sale', 'forecourt.html': 'The forecourt', 'sell.html': 'Sell', 'finance.html': 'Leasing',
+  'index.html': 'Home', 'inventory.html': 'Catalogue', 'sell.html': 'Sell', 'finance.html': 'Leasing',
   'contact.html': 'Visit us', 'compare.html': 'Compare', 'privacy.html': 'Privacy policy', 'terms.html': 'Terms of sale',
 };
 const fileOf = (url) => new URL(url, location.href).pathname.split('/').pop() || 'index.html';
@@ -218,6 +219,14 @@ function initDock() {
   place();
   requestAnimationFrame(() => bar.classList.add('is-ready'));
   addEventListener('resize', place, { passive: true });
+  // the pill moves as soon as a tab is tapped, so a page the Back button restores from memory still shows the tab you left for
+  const own = $('.tab[aria-current]', bar);
+  addEventListener('pageshow', (e) => {
+    if (!e.persisted) return;
+    $$('.tab[aria-current]', bar).forEach((x) => x.removeAttribute('aria-current'));
+    own?.setAttribute('aria-current', 'page');
+    place();
+  });
   document.fonts?.ready.then(place);
   // tapping a tab: the pill glides to it straight away, while the curtain closes over the page
   bar.addEventListener('click', (e) => {
@@ -326,16 +335,13 @@ function initScroll() {
     e.preventDefault();
     scrollToEl(t);
   });
-  // Desktop nav hides while reading down and returns on the way up.
   const nav = $('[data-nav]');
-  let last = 0;
   ScrollTrigger.create({
     start: 0, end: 'max',
     onUpdate: (s) => {
       const y = s.scroll();
       nav?.classList.toggle('is-scrolled', y > 8);
-      nav?.classList.toggle('is-hidden', y > last && y > 480);
-      last = y;
+
     },
   });
 }
@@ -404,7 +410,7 @@ export function initLayout({ home = false, immersive = false } = {}) {
   else if (!immersive) setTimeout(privacyNotice, home ? 2500 : 900);
   $$('form').forEach(armForm);
   wirePhotoScrub();
-  if (!immersive) { initBackground(); initSky({ reduced }); }
+  if (!immersive) { initBackground(); initGlass(); }
   // on the home page, the effects (reveals, count-ups) start once the intro has handed over
   if (home && html.classList.contains('play-intro')) addEventListener('v8:intro-done', () => initFx(), { once: true });
   else initFx();
