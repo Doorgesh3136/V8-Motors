@@ -106,18 +106,17 @@ function setupGallery() {
 }
 
 /* ---------------------------------------------------------------- the video: TikTok first, YouTube as the fallback.
-   The player only loads when opened, and closing it removes it, which stops the sound. See src/videos.js. */
+   Only a car with a video has the button and the player, so most pages stop at the first line here. The player only loads when
+   opened, and closing it removes it, which stops the sound. See src/videos.js. */
 function setupVideo() {
   const box = $('[data-video-box]');
   if (!box) return;
-  const frame = $('[data-video-frame]', box), soon = $('[data-video-soon]', box), swap = $('[data-video-swap]', box);
+  const frame = $('[data-video-frame]', box), swap = $('[data-video-swap]', box);
   const clip = VIDEOS[c.id] || {};
   const tiktok = clip.tiktok && `https://www.tiktok.com/player/v1/${clip.tiktok}?autoplay=1&rel=0&description=0&music_info=0`;
   const youtube = clip.youtube && `https://www.youtube-nocookie.com/embed/${clip.youtube}?autoplay=1&rel=0&playsinline=1`;
   const play = (src) => {
     $('iframe', frame)?.remove();
-    soon.hidden = !!src;
-    if (!src) return;
     const f = document.createElement('iframe');
     f.src = src;
     f.title = `Video of the ${carName(c)}`;

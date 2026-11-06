@@ -3,6 +3,7 @@
 import { CARS, DEALER, BODY_TYPES, rs, km, monthly, carName, thumb, large } from '../data.js';
 import { SHAPES } from './shapes.js';
 import { fmtTime } from './hours.js';
+import { VIDEOS } from '../videos.js';
 
 export const SITE = 'https://webluxe.github.io/V8-Motors/';
 export const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -291,6 +292,7 @@ export function honeypot() {
 export function carPageHTML(c, P = '../') {
   const name = carName(c);
   const n = c.images.length;
+  const video = VIDEOS[c.id]?.tiktok || VIDEOS[c.id]?.youtube; // the Video button and its player are only there for a car with a video
   const waText = encodeURIComponent(`Hi V8 Motors, I'm interested in the ${name} (${rs(c.price)}). Is it still available to view?`);
   // every figure we hold on the car
   const specs = [
@@ -319,7 +321,7 @@ export function carPageHTML(c, P = '../') {
           ${n > 1 ? `
           <button type="button" class="gal-arrow gal-prev" data-gal-prev aria-label="Previous photo">${ICON.arrowL}</button>
           <button type="button" class="gal-arrow gal-next" data-gal-next aria-label="Next photo">${ICON.arrowR}</button>` : ''}
-          <button type="button" class="gal-video" data-video-open>${ICON.play}<span>Video</span></button>
+          ${video ? `<button type="button" class="gal-video" data-video-open>${ICON.play}<span>Video</span></button>` : ''}
           <button type="button" class="gal-expand" data-gal-open aria-label="Open photos full screen">${ICON.expand}<span class="tabular-nums" data-gal-count>1 / ${n}</span></button>
         </div>
         ${n > 1 ? `<div class="gallery-thumbs" style="--n:${Math.min(n, 6)}">${c.thumbs.slice(0, 6).map((src, i) =>
@@ -370,16 +372,16 @@ export function carPageHTML(c, P = '../') {
   <dialog class="lightbox" data-lightbox aria-label="Photos of the ${esc(name)}">
     <img alt="" data-lb-img>
     <p class="lb-count tabular-nums" data-lb-count></p>
-    <button type="button" class="lb-video" data-video-open>${ICON.play}<span>Video</span></button>
+    ${video ? `<button type="button" class="lb-video" data-video-open>${ICON.play}<span>Video</span></button>` : ''}
     <button type="button" class="lb-close" data-lb-close aria-label="Close photos">${ICON.close}</button>
     ${n > 1 ? `<button type="button" class="lb-arrow lb-prev" data-lb-prev aria-label="Previous photo">${ICON.arrowL}</button>
     <button type="button" class="lb-arrow lb-next" data-lb-next aria-label="Next photo">${ICON.arrowR}</button>` : ''}
-  </dialog>
+  </dialog>${video ? `
   <dialog class="video-box" data-video-box aria-label="Video of the ${esc(name)}">
-    <div class="video-frame" data-video-frame style="--poster:url('${large(c, 0, P)}')"><p class="video-soon" data-video-soon>${ICON.play}<span>Video coming soon</span></p></div>
+    <div class="video-frame" data-video-frame style="--poster:url('${large(c, 0, P)}')"></div>
     <button type="button" class="video-swap" data-video-swap hidden>Not playing? Watch on YouTube</button>
     <button type="button" class="lb-close" data-video-close aria-label="Close the video">${ICON.close}</button>
-  </dialog>`;
+  </dialog>` : ''}`;
 }
 
 /* ------------------------------------------------------------------ home: what you get. One panel open at a time */
@@ -421,6 +423,11 @@ export function reachHTML() {
 
 export function inventoryGridHTML(P = '') {
   return [...CARS].sort((a, b) => b.added.localeCompare(a.added)).map((c, i) => carCard(c, P, { eager: i < 3 })).join('');
+}
+
+/* ------------------------------------------------------------------ home: Just in, the four newest cars */
+export function justInHTML(P = '') {
+  return [...CARS].sort((a, b) => b.added.localeCompare(a.added)).slice(0, 4).map((c) => carCard(c, P, { sizes: '(min-width: 1000px) 24vw, (min-width: 640px) 45vw, 46vw' })).join('');
 }
 
 /* ------------------------------------------------------------------ inventory filter options */

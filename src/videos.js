@@ -1,4 +1,4 @@
-/* The walk-around videos on the car pages. Nothing is linked yet: every car shows a "Video coming soon" frame until it has a line here.
+/* The walk-around videos on the car pages. Nothing is linked yet. A car only gets its red Video button once it has a line here.
    Add one line per car. The first part is the end of the car's web address, without .html.
      tiktok:  the long number at the end of the TikTok link
      youtube: the 11 characters after "v=" or "/shorts/" in the YouTube link

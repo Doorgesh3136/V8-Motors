@@ -1,6 +1,7 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { initLayout, reduced, $, $$, curtainOpen } from '../lib/layout.js';
+import { wireCardActions } from '../lib/card.js';
 import { saturdayDeals } from '../lib/hours.js';
 import { DARK, HERO } from '../lib/rover-shots.js';
 
@@ -20,6 +21,7 @@ const canvas = $('[data-hero-canvas]');
 const dark = $('[data-hero-dark]');
 
 const { lenis } = initLayout({ home: true });
+wireCardActions();
 startCountdown();
 initAccordion();
 
@@ -692,22 +694,23 @@ function watchHero() {
 }
 
 /* ================================================================== mouse lock
-   With a mouse the home page is three screens, and one flick of the wheel moves exactly one of them: nothing is ever left half
-   way. The arrow keys, Page Up, Page Down and the space bar do the same. Touch screens scroll as usual. The menu bar stays on
-   the first two screens and steps aside for Saturday, which fills the window. */
+   With a mouse the home page is a stack of screens, and one flick of the wheel moves exactly one of them: nothing is ever left
+   half way. The arrow keys, Page Up, Page Down and the space bar do the same. Touch screens scroll as usual. The menu bar stays
+   until the last screen, Saturday, which fills the window. */
 function lockSections() {
   if (!lenis) return;
-  const root = document.documentElement, nav = $('[data-nav]'), screens = [$('.hero'), $('.start'), $('.finale')];
+  const root = document.documentElement, nav = $('[data-nav]'), screens = $$('.hero, .start, .justin, .finale'), last = screens.length - 1;
   root.classList.add('locked');
   const stops = () => { const end = root.scrollHeight - innerHeight; return screens.map((el) => Math.min(end, el.offsetTop)); };
   const nearest = () => { const list = stops(); return list.reduce((best, y, i) => (Math.abs(y - scrollY) < Math.abs(list[best] - scrollY) ? i : best), 0); };
   let at = nearest(), busy = false, lastWheel = 0, doneAt = 0;
+  nav?.classList.toggle('is-hidden', at === last); // Back can land you straight on the last screen
   const go = (i) => {
-    i = Math.max(0, Math.min(screens.length - 1, i));
+    i = Math.max(0, Math.min(last, i));
     if (i === at || busy) return;
     busy = true;
     at = i;
-    nav?.classList.toggle('is-hidden', i === 2);
+    nav?.classList.toggle('is-hidden', i === last);
     setTimeout(() => { busy = false; }, 1600); // never stuck, whatever happens to the tab meanwhile
     lenis.scrollTo(stops()[i], {
       duration: 1, lock: true, force: true,
@@ -728,7 +731,7 @@ function lockSections() {
     if (e.ctrlKey || e.altKey || e.metaKey || e.target.closest?.('input, select, textarea')) return;
     const typing = e.target.closest?.('a, button');
     const step = { ArrowDown: 1, PageDown: 1, ArrowUp: -1, PageUp: -1 }[e.key] ?? (e.key === ' ' && !typing ? (e.shiftKey ? -1 : 1) : 0);
-    const to = e.key === 'Home' ? 0 : e.key === 'End' ? 2 : null;
+    const to = e.key === 'Home' ? 0 : e.key === 'End' ? last : null;
     if (!step && to === null) return;
     e.preventDefault();
     go(to ?? at + step);

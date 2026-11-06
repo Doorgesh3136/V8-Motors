@@ -346,7 +346,7 @@
   .gal-video, .lb-video { display: inline-flex; align-items: center; gap: .5rem; height: var(--tap); padding-inline: 1rem 1.15rem; border-radius: 99px; color: #fff; font-weight: 700; font-size: .9375rem; background: var(--red, #e0202c); box-shadow: 0 8px 18px -8px rgb(0 0 0 / .8); transition: filter .2s, scale .15s; }
   .gal-video:hover, .lb-video:hover { filter: brightness(1.12); }
   .gal-video:active, .lb-video:active { scale: .97; }
-  .gal-video svg, .lb-video svg, .video-soon svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
+  .gal-video svg, .lb-video svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
   .gal-video { position: absolute; z-index: 2; left: var(--s4); bottom: var(--s4); }
   .lb-video { position: absolute; right: calc(var(--s4) + 4rem); top: calc(var(--s4) + env(safe-area-inset-top) + .25rem); }
   .video-box { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: rgb(12 12 13 / .96); color: var(--bone); overflow: hidden; }
@@ -355,9 +355,6 @@
   .video-frame { position: relative; height: min(88dvh, 170vw); aspect-ratio: 9 / 16; overflow: hidden; border-radius: 16px; background: #000; box-shadow: 0 0 0 1px rgb(255 255 255 / .12), 0 30px 70px -20px #000; }
   .video-frame::before { content: ""; position: absolute; inset: -8%; background: var(--poster) center / cover; filter: blur(18px) brightness(.45); }
   .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-  .video-soon { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--s3); font-size: 1.25rem; font-weight: 640; text-align: center; }
-  .video-soon[hidden] { display: none; }
-  .video-soon svg { width: 3rem; height: 3rem; padding: .85rem .75rem .85rem .95rem; box-sizing: content-box; border-radius: 50%; background: rgb(255 255 255 / .14); }
   .video-swap { min-height: var(--tap); padding-inline: var(--s4); color: var(--soft); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
   .video-swap:hover { color: #fff; }
 }

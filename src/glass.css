@@ -194,6 +194,22 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
     .finder-reset { width: 2.75rem; }
   }
 
+  /* Just in, the four newest cars. On a PC it is one screen: the cards keep their photos a good shape, and on a short window the
+     photos give way so that nothing is cut off. To take it out, see the note in index.html */
+  .justin { position: relative; display: flex; padding-block: calc(var(--nav-h) + var(--s4)) var(--s5); }
+  .justin-wrap { display: flex; flex-direction: column; gap: var(--s4); }
+  .justin-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s5); }
+  .justin-head .section-title { font-size: clamp(2.25rem, min(4.2vw, 8vh), 4.5rem); }
+  @media (min-width: 1000px) and (min-height: 540px) {
+    .justin { height: 100vh; height: 100svh; }
+    .justin-wrap { width: min(100% - var(--gutter) * 2, 114rem); min-height: 0; justify-content: center; gap: clamp(var(--s3), 3vh, var(--s5)); }
+    .justin-grid { flex: 0 1 auto; min-height: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: var(--s3); }
+    .justin .car { min-height: 0; }
+    .justin .car .car-media { flex: 0 1 auto; min-height: 5rem; aspect-ratio: 5 / 4; }
+    .justin .car-info { flex: 1 0 auto; }
+    .justin .car-tag { margin-top: auto; padding-top: var(--s2); } /* a long name takes two lines, and the prices still line up */
+  }
+
   /* the four panels: tinted glass, the same as everything else, only with some colour in it. On a wide screen the open one
      takes the room and pointing at another opens it; on a phone they stack */
   .acc { --acc-ink: #1f2233; flex: 1; display: flex; min-height: 0; overflow: hidden; container-type: inline-size; color: var(--acc-ink); background: none; }

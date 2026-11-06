@@ -21,8 +21,9 @@ const TILE = 32; // the window is cut into squares this big (px), and each knows
 const PIXELS = 3.7e6, SHARPEST = 1.5; // never more than this many pixels, and never finer than this on a sharp screen
 const IDLE = 30; // ms between frames when only the steel is drifting, about 30 a second
 const RACERS = ['Coupe', 'Sedan', 'SUV', 'Convertible'];
-const LANES = [0.36, 0.47, 0.58, 0.69]; // how far down the window: below every page's heading, above its footer
-const RACE = { first: [2.5, 6], gap: [6, 14], crossing: 1.55 }; // seconds: until the first group, between groups, and to cross the window
+// seconds: until the first group, between groups, and to cross the window. top and low: how far down the window the cars stay,
+// below every page's heading and above its footer. tilt: how steep a car's path is, in degrees
+const RACE = { first: [2.5, 6], gap: [6, 14], crossing: 1.55, top: 0.3, low: 0.71, tilt: [2, 12] };
 const html = document.documentElement;
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -39,7 +40,8 @@ uniform vec3 uLight;          // the soft light under the mouse: where, and how 
 uniform vec2 uSun;            // which way the light falls on the rims, a little different as the mouse moves
 uniform vec4 uRect[${MAX}];   // panels: centre x, y, half width, half height
 uniform vec4 uInfo[${MAX}];   // corner radius, width of the lens rim, roundness of that rim, how much of the panel is showing
-uniform vec4 uCar[4];         // cars: x, y, width, heading
+uniform vec3 uCar[4];         // cars: x, y, width
+uniform vec2 uWay[4];         // and which way each one points
 uniform vec4 uCell[4];        // which picture on the sheet, and how sharp a copy of it to use
 uniform int uCars;
 uniform highp sampler2D uTiles;
@@ -79,9 +81,11 @@ float brushed(vec2 q, float blur) {
 vec4 cars(vec2 q, float frost) {
   vec4 sum = vec4(0.);
   for (int i = 0; i < uCars; i++) {
-    vec4 a = uCar[i];
-    vec2 d = q - a.xy;
-    d.x *= a.w;
+    vec3 a = uCar[i];
+    // measured from the car itself: x along the way it is pointing, y towards its wheels. The picture and the streak are both
+    // drawn from these, so the nose always points where it is going and the streak always runs straight out behind
+    vec2 o = q - a.xy, w = uWay[i];
+    vec2 d = vec2(dot(o, w), dot(o, vec2(-w.y, w.x)) * sign(w.x));
     float W = a.z, reach = W * (.14 + frost * .14);
     if (abs(d.y) > W * .46 + reach || d.x > W * .62 + reach || d.x < -W * 3.7) continue;
     float s = (-d.x - W * .3) / (W * 3.);
@@ -266,7 +270,7 @@ export function initGlass() {
       return;
     }
     gl.useProgram(program);
-    for (const k of ['uView', 'uScale', 'uTime', 'uScroll', 'uLight', 'uSun', 'uRect', 'uInfo', 'uCar', 'uCell', 'uCars', 'uTiles', 'uBrush', 'uSheet']) u[k] = gl.getUniformLocation(program, k);
+    for (const k of ['uView', 'uScale', 'uTime', 'uScroll', 'uLight', 'uSun', 'uRect', 'uInfo', 'uCar', 'uWay', 'uCell', 'uCars', 'uTiles', 'uBrush', 'uSheet']) u[k] = gl.getUniformLocation(program, k);
     gl.uniform1i(u.uTiles, 0); gl.uniform1i(u.uBrush, 1); gl.uniform1i(u.uSheet, 2);
     ready = true;
     size();
@@ -392,18 +396,40 @@ export function initGlass() {
     return Math.abs(dx) + Math.abs(dy) > 0.5 || glow < 0.99;
   };
 
-  /* ---- the cars. Nothing, nothing, then one to four of them flat out, level, side by side, and gone */
-  const racing = [], carData = new Float32Array(16), cellData = new Float32Array(16);
+  /* ---- the cars. Nothing, nothing, then one to four of them flat out and gone. Each picks its own side and its own slope, and
+     comes in anywhere along that edge, so no two groups look alike */
+  const racing = [], carData = new Float32Array(12), wayData = new Float32Array(8), cellData = new Float32Array(16);
   let clock = (Date.now() / 1000) % 3600, nextRace = clock + rand(...RACE.first);
+  // one straight run across the window, from just outside one edge to just past the other, staying between top and low the whole way
+  const route = (w, speed, delay) => {
+    const top = RACE.top * H, low = RACE.low * H, room = low - top, side = Math.random() < 0.5 ? 1 : -1;
+    const slope = Math.tan((rand(...RACE.tilt) * Math.PI) / 180) * W * (Math.random() < 0.5 ? 1 : -1);
+    const rise = Math.max(-room, Math.min(room, slope)), from = rand(top + Math.max(0, -rise), low - Math.max(0, rise));
+    const len = Math.hypot(W, rise), wx = (side * W) / len, wy = rise / len;
+    return { x: (side > 0 ? 0 : W) - wx * w, y: from - wy * w, wx, wy, run: 0, ends: len + w * 5, w, speed, delay, sprite: Math.floor(Math.random() * RACERS.length) };
+  };
+  // would these two ever be on top of each other? Their whole runs are played through, a fiftieth of a second at a time
+  const meet = (a, b) => {
+    const ran = (t, c) => Math.max(0, t - c.delay) * c.speed;
+    for (let t = 0; t < 3.5; t += 0.02) {
+      const ra = ran(t, a), rb = ran(t, b);
+      if (Math.abs(a.x + a.wx * ra - b.x - b.wx * rb) < a.w * 1.1 && Math.abs(a.y + a.wy * ra - b.y - b.wy * rb) < a.w * 0.42) return true;
+    }
+    return false;
+  };
   const launch = () => {
-    const carW = Math.max(120, Math.min(196, W * 0.102)), speed = Math.max(W / RACE.crossing, 760);
-    const lanes = [...LANES].sort(() => Math.random() - 0.5).slice(0, 1 + Math.floor(Math.random() * 4));
-    const heading = Math.random() < 0.5 ? 1 : -1;
+    const carW = Math.max(120, Math.min(196, W * 0.102)), speed = Math.max(W / RACE.crossing, 760), group = [];
     let delay = 0;
-    for (const lane of lanes) {
-      racing.push({ at: heading > 0 ? -carW : W + carW, y: lane * H, w: carW, heading, speed, delay, sprite: Math.floor(Math.random() * RACERS.length) });
+    for (let n = 1 + Math.floor(Math.random() * 4); n > 0; n--) {
+      for (let tries = 0; tries < 200; tries++) { // with three already out there a free path can take some finding
+        const car = route(carW, speed, delay);
+        if (group.some((other) => meet(car, other))) continue;
+        group.push(car);
+        break;
+      }
       delay += rand(0.08, 0.42); // a fraction of a second apart, never in a neat row
     }
+    racing.push(...group);
     nextRace = clock + rand(...RACE.gap);
   };
   let onShow = 0;
@@ -415,18 +441,20 @@ export function initGlass() {
     for (let i = racing.length - 1; i >= 0; i--) {
       const c = racing[i];
       if (c.delay > 0) { c.delay -= dt; continue; }
-      c.at += c.heading * c.speed * dt;
-      if (c.heading > 0 ? c.at - c.w * 4 > W : c.at + c.w * 4 < 0) racing.splice(i, 1);
+      c.run += c.speed * dt;
+      if (c.run > c.ends) racing.splice(i, 1);
     }
     for (const c of racing) {
       if (c.delay > 0 || n === 4) continue;
       const i = n * 4;
-      carData[i] = c.at; carData[i + 1] = c.y; carData[i + 2] = c.w; carData[i + 3] = c.heading;
+      carData[n * 3] = c.x + c.wx * c.run; carData[n * 3 + 1] = c.y + c.wy * c.run; carData[n * 3 + 2] = c.w;
+      wayData[n * 2] = c.wx; wayData[n * 2 + 1] = c.wy;
       cellData[i] = c.sprite % 2; cellData[i + 1] = c.sprite >> 1;
       cellData[i + 2] = Math.max(0, Math.log2(512 / (c.w * (canvas.width / W))));
       n++;
     }
-    gl.uniform4fv(u.uCar, carData);
+    gl.uniform3fv(u.uCar, carData);
+    gl.uniform2fv(u.uWay, wayData);
     gl.uniform4fv(u.uCell, cellData);
     gl.uniform1i(u.uCars, n);
     onShow = n;
