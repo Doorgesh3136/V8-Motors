@@ -28,6 +28,7 @@ import {
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { modest } from './device.js';
+import { HERO } from './rover-shots.js';
 import { buildBay, buildEngine, ENGINE_SIZE, MARK_AT, MARK_SIZE } from './rover-engine.js';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
@@ -81,6 +82,7 @@ function buildSky(tex, radius = 70) {
 
 const BAY = 7, BAY_Z = 3; // a light bar every 7 metres
 const WALL_X = 11, FACE_X = 10.7, HALL_H = 8, HALL_LONG = 100; // the wall, the front of the pilasters that carry the bars
+const IN_ROOM = 10; // how far off the middle of the hall the camera may go
 
 /**
  * The showroom: walls, pilasters, ceiling and its beams, all plain boxes in one draw call, and all lit by one shader that
@@ -778,7 +780,7 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   }
 
   // ---- framing: where the car sits at each screen shape
-  let W = 1, H = 1, base = { dist: 14, sx: 0, sy: 0 };
+  let W = 1, H = 1, base = { dist: 14, lens: 28, sx: 0, sy: 0 };
   const sharpen = () => renderer.setDrawingBufferSize(W, H, Math.min(dpr, Math.sqrt(MAX_PIXELS / (W * H))));
   const resize = () => {
     const box = canvas.parentElement.getBoundingClientRect();
@@ -791,8 +793,12 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     const v = Math.tan((14 * Math.PI) / 180), h = v * aspect; // the hero is always shot at 28 degrees
     const short = H < 760 && aspect >= 1.3; // a short laptop or a landscape phone: the car steps back a little so the buttons clear it
     const needW = portrait ? 3.1 : 3.3, needH = portrait ? 3.4 : short ? 3 : 2.75;
+    // a narrow screen wants the camera so far back that it would end up behind the hall's side wall, with the car out of sight.
+    // So it stops inside the room and takes a wider lens for the same picture
+    const wanted = Math.max(needW / h, needH / v), dist = Math.min(wanted, IN_ROOM / (Math.sin(HERO.az) * Math.cos(HERO.el)));
     base = {
-      dist: Math.max(needW / h, needH / v),
+      dist,
+      lens: (Math.atan((v * wanted) / dist) * 360) / Math.PI,
       sx: 0, // the hero is only the car: it stands in the middle, a little above the buttons
       sy: portrait ? -0.08 : -0.03,
     };
@@ -1020,10 +1026,10 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
 
     // ---- the camera
     const b = base;
-    camera.fov = lerp(s.lens, 28, f);
+    camera.fov = lerp(s.lens, b.lens, f);
     const d = lerp(s.near, b.dist, f) * (1 + (s.pull || 0));
     const az = s.az + lookX * 0.05 * f, el = s.el + lookY * 0.016 * f;
-    const cx = s.tx + Math.sin(az) * Math.cos(el) * d;
+    const cx = Math.min(IN_ROOM, s.tx + Math.sin(az) * Math.cos(el) * d); // the camera backing away for a trick stays in the room too
     const cz = s.tz + Math.cos(az) * Math.cos(el) * d;
     const cy = Math.max(0.14, s.ty + Math.sin(el) * d);
     camera.position.set(cx + Math.sin(t * 13) * e * e * 0.007, cy + Math.sin(t * 17.3) * e * e * 0.005, cz);

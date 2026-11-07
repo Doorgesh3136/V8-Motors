@@ -1,6 +1,7 @@
 import '../site.css';
 import '../flagship.css';
 import '../glass.css';
+import '../phone.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';

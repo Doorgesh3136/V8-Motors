@@ -282,7 +282,7 @@ async function runIntro() {
   if (!withSound) audio?.ctx.close();
   const full = stage || film; // the whole film, in 3D or as a video
   if (full) gsap.set(dark, { opacity: 0 }); // the scene is its own darkness
-  if (film) s.off = true; // the 3D car rests until the film hands over to it
+  if (film) { s.off = true; gsap.set(bars, { display: 'none' }); } // the 3D car rests until the film hands over to it, and the film fills the screen from its first frame
 
   // where the badge sits: in the sky above the car, then it flies into the menu bar
   const placeBadge = () => {
@@ -396,6 +396,8 @@ async function runIntro() {
     .add(() => flyBadge(), gone)
     .to(NAVS, { opacity: 1, duration: 0.8, ease: 'power2.out' }, gone + 0.15)
     .to({}, { duration: 0.01 }, gone + 0.95);
+  // on a phone the dock comes up where Sound and Skip are, so they leave first
+  if (innerWidth < 900) tl.to(controls, { opacity: 0, duration: 0.25 }, gone - 0.1);
 
   // the badge flies to the logo in the menu bar and hands over to it
   function flyBadge() {

@@ -1,0 +1,19 @@
+/* =====================================================================
+   Phones and tablets. The rest of the site's styles were last worked on for a PC, so what a finger needs is kept here, and
+   everything in this file sits behind a width. Nothing here reaches a PC window.
+   ===================================================================== */
+@layer components {
+  /* ---------------------------------------------------------------- the catalogue's filters: a solid sheet, shut until Filters opens it */
+  @media (max-width: 999px) {
+    .inv-filters, html.engine .inv-filters { background: var(--panel); box-shadow: 0 -18px 40px -18px rgb(28 38 52 / .55); }
+    .inv-filters { visibility: hidden; transition: translate .5s var(--ease), visibility 0s linear .5s; }
+    .inv-filters.is-open { visibility: visible; transition: translate .5s var(--ease), visibility 0s; }
+  }
+
+  /* ---------------------------------------------------------------- Saturday: a whole screen of its own, like on a PC, so that at the very
+     end of the page the top bar lies over plain red and never across the heading */
+  @media (max-width: 799px) and (orientation: portrait) {
+    .finale { min-height: 0; }
+    .sellband { flex: none; align-items: flex-start; min-height: 100vh; min-height: 100svh; padding-block: calc(var(--nav-h) + 14svh) var(--s6); }
+  }
+}

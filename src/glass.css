@@ -79,8 +79,9 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   /* ---------------------------------------------------------------- liquid glass: one recipe for every panel on the site.
      With the engine a panel is only a place on the page: the glass itself is drawn underneath it, all the way to the rim, so here
      it keeps nothing but its shadow. Without the engine it simply carries more white, so the words on it always read */
+  :is(.car, .finder, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .panel, .garage, .form-done, .tray-inner, .contact-side, .spec, .tool, .acc) { position: relative; } /* not the filters: sticky on a PC, a bottom sheet on a phone */
   :is(.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .panel, .garage, .form-done, .tray-inner, .contact-side, .spec, .tool, .acc) {
-    position: relative; background: rgb(255 255 255 / .6); border: 0; box-shadow: var(--glass-edge), var(--glass-drop); }
+    background: rgb(255 255 255 / .6); border: 0; box-shadow: var(--glass-edge), var(--glass-drop); }
   :where(html.engine) :is(.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .garage, .contact-side, .spec, .tool, .acc) { background: none; box-shadow: var(--glass-drop); }
   @media (hover: hover) and (pointer: fine) {
     /* the rim: light catching the edge of the glass, brightest at two opposite corners */
@@ -506,7 +507,7 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
 
   /* ---------------------------------------------------------------- Sell */
   .wizard { display: flex; flex-direction: column; gap: clamp(.5rem, 1.6vh, 1rem); padding: var(--panel-pad); }
-  .estimate { display: flex; flex-direction: column; gap: var(--s2); padding: var(--panel-pad); }
+  .estimate { top: auto; display: flex; flex-direction: column; gap: var(--s2); padding: var(--panel-pad); }
   .wizard-nav { margin-top: auto; }
   .wizard-bar { margin-top: calc(var(--s2) * -1); }
   .wizard-steps li { min-height: 2.25rem; }
