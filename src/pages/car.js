@@ -1,6 +1,6 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$, toast, titleIn, P } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, toast, P } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
 import { byId, rs, monthly, carName, large } from '../data.js';
@@ -18,7 +18,6 @@ if (c) {
   setupFinance();
   setupShare();
   setupStage();
-  titleIn($('.summary-title'), 0.05);
 }
 
 /* ---------------------------------------------------------------- gallery + lightbox */
@@ -55,7 +54,7 @@ function setupGallery() {
     fetchPhoto((at + 1) % n);
     fetchPhoto((at - 1 + n) % n);
     img.alt = `${carName(c)}, photo ${i + 1} of ${n}`;
-    if (lb.open) showLightbox();
+    if (lb.open) { showLightbox(); lbImg.alt = img.alt; }
     $('[data-gal-count]').textContent = `${i + 1} / ${n}`;
     $('[data-lb-count]').textContent = `${i + 1} / ${n}`;
     $$('[data-gal-thumb]').forEach((b) => b.setAttribute('aria-current', String(+b.dataset.galThumb === i)));
@@ -87,7 +86,9 @@ function setupGallery() {
   // swipe between photos; a tap opens full screen
   let sx = null;
   const main = $('.gallery-main');
-  main.addEventListener('pointerdown', (e) => (sx = e.clientX));
+  main.addEventListener('pointerdown', (e) => (sx = e.button === 0 ? e.clientX : null)); // only the main button counts, not a right-click to save
+  main.addEventListener('pointercancel', () => (sx = null));
+  main.addEventListener('pointerleave', () => (sx = null));
   main.addEventListener('pointerup', (e) => {
     if (sx === null || e.target.closest('button')) { sx = null; return; }
     const dx = e.clientX - sx; sx = null;
@@ -133,6 +134,8 @@ function setupVideo() {
   }));
   $('[data-video-close]', box).addEventListener('click', () => box.close());
   box.addEventListener('click', (e) => { if (e.target === box) box.close(); });
+  // Escape would go to the video frame once it has focus, so listen for it on the page
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && box.open) box.close(); });
   box.addEventListener('close', () => $('iframe', frame)?.remove());
 }
 

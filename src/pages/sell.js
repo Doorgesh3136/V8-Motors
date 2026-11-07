@@ -1,10 +1,9 @@
 import gsap from 'gsap';
-import { initLayout, reduced, $, $$, scrollToEl, titleIn, looksLikeSpam, validateFields, phoneOk, sendMessage } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, scrollToEl, looksLikeSpam, validateFields, phoneOk, sendMessage } from '../lib/layout.js';
 import { CARS, rs } from '../data.js';
 import { esc } from '../lib/templates.js';
 
 initLayout();
-titleIn($('[data-title]'));
 
 const f = $('[data-wizard]');
 const steps = $$('[data-wstep]');
@@ -27,11 +26,12 @@ makeSel.addEventListener('change', () => {
 
 /* ---------------------------------------------------------------- live rough guide */
 const est = { v: 0, lo: 0, hi: 0 };
-const kmValue = () => +String(f.km.value).replace(/\D/g, '');
+// a decimal point is read as one, and text with no digits counts as nothing
+const kmValue = () => { const n = Math.round(parseFloat(String(f.km.value).replace(/[,\s]/g, ''))); return Number.isFinite(n) && n > 0 ? n : 0; };
 function estimate() {
   const make = makeSel.value, year = +f.year.value, kms = kmValue();
   const now = new Date().getFullYear();
-  if (!make || !year || year < 1970 || year > now + 1 || !f.km.value) return null;
+  if (!make || !year || year < 1970 || year > now + 1 || !kmValue()) return null;
   const why = [];
   const age = Math.max(0, now - year);
   let v = MAKE_BASE[make] * Math.pow(0.86, age);
@@ -47,7 +47,7 @@ function estimate() {
 }
 function renderEstimate() {
   const e = estimate();
-  if (!e) return;
+  if (!e) { gsap.killTweensOf(est); $('[data-estimate]').textContent = 'To follow'; $('[data-estimate-range]').textContent = ''; return; }
   gsap.to(est, {
     v: e.v, lo: e.v * (1 - e.spread), hi: e.v * (1 + e.spread), duration: reduced ? 0 : 0.8, ease: 'expo.out',
     onUpdate: () => {
@@ -66,12 +66,12 @@ f.addEventListener('change', renderEstimate);
 function validate(i) {
   const now = new Date().getFullYear();
   if (i === 0) {
-    const y = +f.year.value;
+    const y = Number(f.year.value.trim());
     return validateFields([
       [f.make, f.make.value ? '' : 'Choose the make.'],
       [f.model, f.model.value.trim() ? '' : 'Add the model, for example Aqua.'],
-      [f.year, !f.year.value ? 'Add the year.' : y < 1970 || y > now + 1 ? `Enter a year between 1970 and ${now + 1}.` : ''],
-      [f.km, !f.km.value ? 'Add the mileage.' : !/^[\d,.\s]+$/.test(f.km.value.trim()) ? 'Numbers only, for example 64000.' : ''],
+      [f.year, !f.year.value ? 'Add the year.' : !Number.isInteger(y) || y < 1970 || y > now + 1 ? `Enter a year between 1970 and ${now + 1}.` : ''],
+      [f.km, !f.km.value ? 'Add the mileage.' : !kmValue() ? 'Numbers only, for example 64000.' : ''],
     ]);
   }
   if (i === 2) {
@@ -82,16 +82,20 @@ function validate(i) {
   }
   return null;
 }
+let moving = false;
 function go(to) {
+  if (moving) return; // a quick double-click must not skip a step
+  moving = true;
   const from = step, dir = to > from ? 1 : -1;
   step = to;
   const show = () => {
+    moving = false;
     steps.forEach((s, k) => (s.hidden = k !== step));
     if (!reduced) gsap.fromTo(steps[step], { opacity: 0, x: 32 * dir }, { opacity: 1, x: 0, duration: 0.5, ease: 'expo.out', clearProps: 'transform,opacity' });
     $('input:not([type=radio]):not([type=file]), select', steps[step])?.focus({ preventScroll: true });
   };
   if (reduced) show(); else gsap.to(steps[from], { opacity: 0, x: -32 * dir, duration: 0.2, onComplete: show });
-  $$('[data-step-label]').forEach((li, k) => { li.toggleAttribute('aria-current', k === step); li.classList.toggle('is-done', k < step); });
+  $$('[data-step-label]').forEach((li, k) => { li[k === step ? 'setAttribute' : 'removeAttribute']('aria-current', 'step'); li.classList.toggle('is-done', k < step); });
   $('[data-wizard-bar]').style.transform = `scaleX(${(step + 1) / steps.length})`;
   $('[data-back]').hidden = step === 0;
   $('[data-next]').textContent = NEXT[step];
@@ -117,8 +121,9 @@ function finish() {
   $$('.wizard-nav, .wizard-steps, .wizard-bar, [data-error]').forEach((x) => (x.hidden = true));
   const done = $('[data-done]');
   done.hidden = false;
-  const what = `${fd.get('year')} ${fd.get('make')} ${fd.get('model')}`;
-  const text = `Hi V8 Motors, I'd like to ${fd.get('contact') === 'exchange' ? 'exchange' : 'sell'} my ${what}.\nMileage: ${kmValue().toLocaleString('en-US')} km\nCondition: ${fd.get('condition')}\n${e ? `Website guide price: ${rs(e.v)}\n` : ''}Name: ${fd.get('name')}\nMobile: ${fd.get('phone')}${files.length ? `\nI'll send ${files.length} photo${files.length > 1 ? 's' : ''} in this chat.` : ''}`;
+  const what = `${fd.get('year')} ${fd.get('make') === 'Other' ? '' : fd.get('make') + ' '}${fd.get('model')}`;
+  const cond = fd.get('condition') === 'rough' ? 'needs work' : fd.get('condition');
+  const text = `Hi V8 Motors, I'd like to ${fd.get('contact') === 'exchange' ? 'exchange' : 'sell'} my ${what}.\nMileage: ${kmValue().toLocaleString('en-US')} km\nCondition: ${cond}\n${e ? `Website guide price: ${rs(e.v)}\n` : ''}Name: ${fd.get('name')}\nMobile: ${fd.get('phone')}${files.length ? `\nI'll send ${files.length} photo${files.length > 1 ? 's' : ''} in this chat.` : ''}`;
   const href = sendMessage(text);
   done.innerHTML = `
     <svg class="done-tick" viewBox="0 0 52 52" aria-hidden="true"><circle cx="26" cy="26" r="24"/><path d="m15 27 7 7 15-15"/></svg>
@@ -127,7 +132,7 @@ function finish() {
     <dl class="done-sum">
       <div><dt>Rough guide</dt><dd class="tabular-nums">${e ? rs(e.v) : 'To follow'}</dd></div>
       <div><dt>Mileage</dt><dd class="tabular-nums">${kmValue().toLocaleString('en-US')} km</dd></div>
-      <div><dt>Condition</dt><dd>${esc(String(fd.get('condition')).replace(/^./, (x) => x.toUpperCase()))}</dd></div>
+      <div><dt>Condition</dt><dd>${esc(String(cond).replace(/^./, (x) => x.toUpperCase()))}</dd></div>
       <div><dt>You want to</dt><dd>${fd.get('contact') === 'exchange' ? 'Exchange' : 'Sell'}</dd></div>
     </dl>
     <div class="done-actions"><a href="${href}" class="btn btn-primary" target="_blank" rel="noopener">Open WhatsApp again</a><a href="inventory.html" class="btn btn-line">Browse our cars</a></div>`;
@@ -147,10 +152,12 @@ function showFiles() {
   renderEstimate();
 }
 function addFiles(list) {
-  files = [...files, ...[...list].filter((x) => x.type.startsWith('image/'))].slice(0, 8);
+  const same = (a, b) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+  const fresh = [...list].filter((x) => x.type.startsWith('image/') && !files.some((o) => same(o, x)));
+  files = [...files, ...fresh].slice(0, 8);
   showFiles();
 }
-input.addEventListener('change', () => addFiles(input.files));
+input.addEventListener('change', () => { addFiles(input.files); input.value = ''; }); // cleared so the same photo can be picked again
 ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('is-over'); }));
 ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove('is-over')));
 drop.addEventListener('drop', (e) => { e.preventDefault(); addFiles(e.dataTransfer.files); });

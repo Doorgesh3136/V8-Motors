@@ -191,7 +191,7 @@ export function footerHTML(P = '') {
       </div>
       <div class="footer-row">
         <p>© ${new Date().getFullYear()} ${DEALER.legalName}. Leasing subject to approval by ${DEALER.leasing}.</p>
-        <p class="footer-built">Website built by <a href="https://webluxe.github.io//WebLuxe/" rel="noopener">WebLuxe</a></p>
+        <p class="footer-built">Website built by <a href="https://webluxe.github.io/WebLuxe/" rel="noopener">WebLuxe</a></p>
         <p class="footer-legal"><a href="${P}privacy.html">Privacy policy</a><a href="${P}terms.html">Terms of sale</a></p>
       </div>
       <p class="footer-credits">Stock photos by V8 Motors. 3D car from <a href="https://sketchfab.com/models/b477326cf8b041c9b1a89b1c4f4e7bdf" rel="noopener">Range Rover Sport Hybrid PHEV 2023 by victor-arrais</a>, engine from <a href="https://sketchfab.com/models/f20acef709b847eb98839b89c5ef916c" rel="noopener">V8 Hot Rod Engine by ShotaB</a>, both adapted, <a href="https://creativecommons.org/licenses/by/4.0/" rel="noopener">CC BY 4.0</a>. Engine sound from CC0 recordings by marcelweiss and Paul368 on Freesound.</p>

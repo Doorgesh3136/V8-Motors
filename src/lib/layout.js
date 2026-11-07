@@ -1,6 +1,7 @@
 import '../site.css';
 import '../flagship.css';
 import '../glass.css';
+import '../motion.css';
 import '../phone.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -18,7 +19,8 @@ export const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 export const $ = (s, r = document) => r.querySelector(s);
 export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 /** Relative prefix back to the site root ('' on root pages, '../' inside /cars/). */
-export const P = location.pathname.includes('/cars/') ? '../' : '';
+// (the not-found page has a <base> tag that already points at the root, so it needs no prefix)
+export const P = location.pathname.includes('/cars/') && !document.querySelector('base') ? '../' : '';
 export let lenis = null;
 
 /* ------------------------------------------------------------------ saved / compare state */
@@ -350,14 +352,6 @@ export function scrollToEl(el, offset = -88) {
   else el.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth' });
 }
 
-/* ------------------------------------------------------------------ page title entrance */
-export function titleIn(el, delay = 0.1) {
-  if (!el || reduced) return;
-  if (viaCurtain) delay += 0.55; // rise as the curtain opens
-  // transform + clip only: animating the font width here would re-wrap the title and shift the page
-  gsap.fromTo(el, { clipPath: 'inset(0 0 100% 0)', y: 28 }, { clipPath: 'inset(0 0 -10% 0)', y: 0, duration: 1.1, ease: 'expo.out', delay, clearProps: 'clipPath,transform' });
-}
-
 /* ------------------------------------------------------------------ forms: spam protection + validation */
 /** Honeypot field + minimum fill time. True when the submission looks automated. */
 export function looksLikeSpam(form) {
@@ -397,7 +391,7 @@ export const phoneOk = (v) => v.replace(/\D/g, '').length >= 7;
    second visit starts almost at once and a new version still shows up straight away. Not on a local test server. */
 function keepFiles() {
   if (!('serviceWorker' in navigator) || !location.hostname.endsWith('github.io')) return;
-  addEventListener('load', () => navigator.serviceWorker.register(new URL('sw.js', document.baseURI).href).catch(() => {}), { once: true });
+  addEventListener('load', () => navigator.serviceWorker.register(new URL(P + 'sw.js', document.querySelector('base') ? document.baseURI : location.href).href).catch(() => {}), { once: true });
 }
 
 /* ------------------------------------------------------------------ boot */

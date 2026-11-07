@@ -2,7 +2,7 @@
  * Small touches that work the same on phones and computers. Every animation here moves
  * only by transform and opacity, so none of it repaints the page.
  *
- * - reveal: sections and cards rise into place as they scroll into view
+ * - rise: the one entrance on the site. Headings, panels and cards rise a little and fade up, as a page opens and as they scroll into view
  * - rev bar: a thin line under the menu bar fills like a rev counter as you scroll, red near the end
  * - swipe: on phones, swipe sideways across a car's photo to flick through all its pictures
  * - count-up: numbers marked data-countup count up when they come into view
@@ -18,33 +18,70 @@ export function photosArrive() {
   document.addEventListener('error', (e) => { if (e.target.matches?.('.car-media img')) mark(e.target); }, true);
 }
 
-export function initFx({ revealSelector } = {}) {
+export function initFx() {
   revBar();
   swipePhotos();
   if (reduced) return;
-  reveal(revealSelector);
+  queueMicrotask(arrivals); // after the page's own script has finished building its content
   countUp();
 }
 
-/* ------------------------------------------------------------------ reveal on scroll */
-const REVEAL = '.section-head, .grid-cars:not([data-grid]) > li, .body-tiles > li, .makes-grid > li, .swap-copy, .swap-box, .sellband-inner, .footer-grid > *, .reveal';
-function reveal(extra) {
-  const els = $$(extra ? `${REVEAL}, ${extra}` : REVEAL);
-  // only things below the fold are hidden first; whatever is already on screen stays put
-  const fold = innerHeight * 0.92;
-  const todo = els.filter((el) => el.getBoundingClientRect().top > fold);
-  if (!todo.length || !('IntersectionObserver' in window)) return;
-  todo.forEach((el) => el.classList.add('rv'));
+/* ------------------------------------------------------------------ the entrance
+   Everything that arrives arrives the same way, in the browser's own animation engine. Nothing is hidden beforehand and nothing
+   stays on the element afterwards, so without JS the page simply shows, and it can't fight a hover, the catalogue's sorting or the layout.
+   The glass follows by itself: the canvas behind the page reads each panel's place and opacity every frame. It reads the panel's own
+   opacity only, so a glass panel has to be listed here itself, never just its parent. */
+const ARRIVE = [
+  '.page-head > *, .inv-filters, .inv-toolbar, .mini-grid > li, .wizard, .estimate, .finance-intro, .calc, .map-card, .contact-side, .cmp-car, .prose, .notfound > *', // inner pages
+  '.gallery, .summary > :not(.specs, .summary-tools), .spec, .tool, .fin-mini-box', // a car
+  '.grid-cars > .car', // catalogue rows, and Just in on the home page
+  '.finder, .acc-item, .justin-head, .sellband-copy, .countdown-label, .countdown-units > span', // the screens of the home page
+].join();
+const CURTAIN = 550; // ms until the curtain has parted far enough to see through (the same moment as curtainOpen in layout.js)
+const GLIDE = 'cubic-bezier(.16, 1, .3, 1)';
+// the Back button brings you back to something you have already seen, so it stays still
+const still = reduced || performance.getEntriesByType('navigation')[0]?.type === 'back_forward';
+const seen = new WeakSet(); // each thing arrives once
+let calmUntil = 0;
+
+/** Bring these in, one after another. The stagger stops growing after a few, so a long list never keeps anyone waiting. */
+export function rise(els, { delay = 0, gap = 35, y = 16, duration = 520 } = {}) {
+  let i = 0;
+  for (const el of els) {
+    if (seen.has(el)) continue;
+    seen.add(el);
+    if (still) continue;
+    el.animate([{ opacity: 0, translate: `0 ${y}px` }, {}], { id: 'rise', duration, delay: delay + Math.min(i++, 6) * gap, easing: GLIDE, fill: 'backwards' });
+  }
+}
+
+/** The home page's lock calls this as the wheel sets off for a screen: its content lands just as the screen does. */
+export const arrive = (screen, delay) => rise($$(ARRIVE, screen), { delay, gap: 90, duration: 640 });
+
+/** The catalogue is about to sort or filter with its own animation: anything still arriving ends now, and the cards that sort
+    into view don't get a second entrance on top. Cards that scroll into view after it go back to easing in. */
+export function calm(root) {
+  calmUntil = performance.now() + 900;
+  root.getAnimations({ subtree: true }).forEach((a) => { if (a.id === 'rise') a.finish(); });
+}
+
+function arrivals() {
+  const els = $$(ARRIVE).filter((el) => getComputedStyle(el).position !== 'fixed'); // on a phone the filters are a drawer waiting off screen, not part of the page
+  const curtain = document.documentElement.classList.contains('curtain-in');
+  // on browsers that show the page before its script has run, what is already on show is left alone: it must not vanish to come back
+  const shown = !curtain && performance.getEntriesByName('first-contentful-paint').length > 0;
+  const first = els.filter((el) => { const r = el.getBoundingClientRect(); return r.height && r.top < innerHeight && r.bottom > 0; });
+  rise(shown ? [] : first, { delay: curtain ? CURTAIN : 40 });
+  first.forEach((el) => seen.add(el));
+  if (still || !('IntersectionObserver' in window)) return;
+  // the rest as they come into view: the moment the first pixel shows, so nothing is ever seen before it fades up
   const io = new IntersectionObserver((entries) => {
-    let i = 0;
-    for (const e of entries) {
-      if (!e.isIntersecting) continue;
-      e.target.style.setProperty('--rv-d', `${Math.min(i++, 5) * 70}ms`);
-      e.target.classList.add('rv-in');
-      io.unobserve(e.target);
-    }
-  }, { rootMargin: '0px 0px -8% 0px' });
-  todo.forEach((el) => io.observe(el));
+    const now = entries.filter((e) => e.isIntersecting).map((e) => e.target);
+    now.forEach((el) => io.unobserve(el));
+    if (performance.now() < calmUntil) now.forEach((el) => seen.add(el));
+    else rise(now, { gap: 70 });
+  });
+  els.filter((el) => !seen.has(el)).forEach((el) => io.observe(el));
 }
 
 /* ------------------------------------------------------------------ rev bar */

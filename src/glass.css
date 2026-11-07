@@ -281,6 +281,10 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .sellband .eyebrow { color: #ffe3e3; margin-bottom: var(--s3); }
   .sellband .section-title { color: #fff; font-size: clamp(2.25rem, min(4.6vw, 9vh), 4.25rem); }
   .sellband .section-title em { color: #fff; }
+  /* Saturday had no way on: one clear button to the cars. It steps aside on short windows, where the countdown needs the room */
+  .sellband .btn { margin-top: var(--s4); background: #fff; color: var(--red-deep); box-shadow: none; }
+  .sellband .btn::before { background: #ffe3e3; }
+  @media (min-width: 960px) and (max-height: 700px) { .sellband .btn { display: none; } }
   .countdown { margin-top: 0; }
   .countdown-label { color: #ffe3e3; font-size: clamp(1rem, 1.3vw, 1.1875rem); font-weight: 600; }
   .countdown-units { margin-top: var(--s3); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(.375rem, 1.1vw, .875rem); }
@@ -680,6 +684,10 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
     .inv-filters .body-opt .shape { display: none; }
     .inv-filters .body-opt > span { padding-block: .25rem; }
     .inv-filters .body-opt-n { position: static; }
+    .inv-filters .field { min-height: 2.125rem; }
+    .inv-filters .fgroup { padding-block: .1875rem 0; }
+    .inv-filters .fgroup legend { margin-bottom: .125rem; }
+    .inv-filters-head { margin-bottom: 0; }
     .hours th, .hours td { padding-block: .125rem; }
     .reach { gap: 0; }
     .reach-row { grid-template-columns: 6.5rem minmax(0, 1fr); align-items: center; }
@@ -690,9 +698,6 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
     .tool { min-height: 2rem; }
     .fin-mini-box { padding-block: var(--s1); }
   }
-
-  /* reveals never leave the footer hidden: it is short now, and part of the last screen */
-  .footer-grid > .rv { opacity: 1; transform: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

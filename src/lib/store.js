@@ -1,7 +1,7 @@
 // Tiny localStorage-backed store for saved cars, compare list and recently viewed.
 const KEYS = { saved: 'v8:saved', compare: 'v8:compare', recent: 'v8:recent' };
 const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
-const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private window or full storage: carry on without saving */ } };
 
 export const COMPARE_MAX = 3;
 
@@ -27,7 +27,7 @@ export const store = {
     if (c.length >= COMPARE_MAX) return 'full';
     write(KEYS.compare, [...c, id]); emit(); return 'added';
   },
-  setCompare(ids) { write(KEYS.compare, ids.slice(0, COMPARE_MAX)); emit(); },
+  setCompare(ids) { write(KEYS.compare, [...new Set(ids)].slice(0, COMPARE_MAX)); emit(); },
 
   recent: () => read(KEYS.recent),
   pushRecent(id) { write(KEYS.recent, [id, ...read(KEYS.recent).filter((x) => x !== id)].slice(0, 8)); },

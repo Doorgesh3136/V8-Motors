@@ -1,9 +1,8 @@
 import gsap from 'gsap';
-import { initLayout, reduced, $, $$, titleIn } from '../lib/layout.js';
+import { initLayout, reduced, $, $$ } from '../lib/layout.js';
 import { CARS, DEALER, byId, rs, monthly, thumb, carName } from '../data.js';
 
 initLayout();
-titleIn($('[data-title]'));
 
 const inputs = Object.fromEntries($$('[data-fin]').map((i) => [i.dataset.fin, i]));
 const out = (k) => $(`[data-out="${k}"]`);
@@ -27,7 +26,7 @@ function showCar(c) {
   if (!c) return;
   carCard.href = `cars/${c.id}.html`;
   carCard.innerHTML = `<img src="${thumb(c)}" width="96" height="63" alt="" /><span><strong>${carName(c)}</strong><span>${c.trim}</span></span>`;
-  if (!reduced) gsap.from(carCard, { opacity: 0, y: 12, duration: 0.6, ease: 'expo.out' });
+  if (!reduced) gsap.fromTo(carCard, { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.6, ease: 'expo.out', overwrite: true });
 }
 select.addEventListener('change', () => {
   const c = byId(select.value);
@@ -77,7 +76,7 @@ function update() {
   setDonut('dep', 0, a); setDonut('loan', a, b); setDonut('int', a + b, c);
 
   const car = byId(select.value);
-  const text = `Hi V8 Motors, I'd like to ask about leasing${car ? ` on the ${carName(car)}` : ''}: ${rs(price)} with ${dep}% down over ${term} months (about ${rs(m)} a month).`;
+  const text = `Hi V8 Motors, I'd like to ask about leasing${car ? ` on the ${carName(car)}` : ''}: ${rs(price)} with ${dep}% down over ${term} months at ${rate.toFixed(1)}% a year (about ${rs(m)} a month).`;
   $('[data-fin-wa]').href = `https://wa.me/${DEALER.whatsapp}?text=${encodeURIComponent(text)}`;
 }
 Object.values(inputs).forEach((i) => i.addEventListener('input', () => { if (i === inputs.price) { select.value = ''; showCar(null); } update(); }));

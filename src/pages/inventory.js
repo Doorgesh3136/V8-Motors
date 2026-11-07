@@ -1,7 +1,8 @@
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$, scrollToEl, titleIn, syncStoreUI } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, scrollToEl, syncStoreUI } from '../lib/layout.js';
+import { calm } from '../lib/fx.js';
 import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
 import { CARS, BODY_TYPES, FUELS, DEALER, byId, rs, thumb, carName } from '../data.js';
@@ -159,6 +160,7 @@ function render({ animate = true, keepShown = false } = {}) {
   if (!keepShown) shown = PAGE;
   const list = CARS.filter((c) => matches(c, s)).sort(SORTS[s.sort]);
   const visible = list.slice(0, shown);
+  if (animate) calm(grid);
   const flip = animate && !reduced ? Flip.getState([...cards.values()]) : null;
   const vis = new Set(visible.map((c) => c.id));
   visible.forEach((c) => grid.appendChild(cards.get(c.id)));
@@ -220,6 +222,7 @@ document.addEventListener('click', (e) => {
 
 // ---------------------------------------------------------------- view toggle
 function setView(v, animate = true) {
+  if (animate) calm(grid);
   const flip = animate && !reduced ? Flip.getState($$('.car:not([hidden]), .car:not([hidden]) .car-media, .car:not([hidden]) .car-info', grid)) : null;
   grid.dataset.view = v;
   $$('.view-toggle [data-view]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === v)));
@@ -276,6 +279,5 @@ if (recent.length) {
 // ---------------------------------------------------------------- go
 applyUrl();
 render({ animate: false });
-titleIn($('[data-title]'));
 // the native form submit (Enter in the search box) is handled live instead
 form.addEventListener('submit', (e) => { e.preventDefault(); openFilters(false); });

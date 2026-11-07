@@ -13,7 +13,7 @@ const THUMBS = 'public/stock';
 
 const MAKES = { BMW: 'BMW', 'LAND ROVER': 'Land Rover', RANGE: 'Land Rover', SKODA: 'Skoda', KIA: 'Kia' };
 const MODELS = {
-  '328I': '328i', '520DSE': '520d SE', ECOSPORT: 'EcoSport', CRV: 'CR-V', I10: 'i10', 'AD VAN': 'AD Van',
+  '328I': '328i', '520DSE': '520d SE', ECOSPORT: 'EcoSport', CRV: 'CR-V', I10: 'i10', I20: 'i20', 'AD VAN': 'AD Van',
   'NP 300': 'NP300', NP300: 'NP300', CAPTURE: 'Captur', XL6: 'XL6', H100: 'H100', ROVER: 'Range Rover', 3: '3',
 };
 const BODY = { HATCHBACK: 'Hatchback', SEDAN: 'Sedan', SALOON: 'Sedan', SUV: 'SUV', PICKUP: 'Pickup', VAN: 'Van', MPV: 'MPV' };

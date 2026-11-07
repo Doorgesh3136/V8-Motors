@@ -1,12 +1,12 @@
 import gsap from 'gsap';
-import { initLayout, reduced, $, $$, titleIn } from '../lib/layout.js';
+import { initLayout, reduced, $, $$ } from '../lib/layout.js';
+import { rise } from '../lib/fx.js';
 import { wireCardActions } from '../lib/card.js';
 import { store, COMPARE_MAX } from '../lib/store.js';
 import { CARS, byId, rs, km, monthly, thumb, carName } from '../data.js';
 
 initLayout();
 wireCardActions();
-titleIn($('[data-title]'));
 
 // URL ids win over stored ones (shareable links)
 const urlIds = (new URLSearchParams(location.search).get('ids') || '').split(',').filter((id) => byId(id));
@@ -31,7 +31,9 @@ const root = $('[data-compare-root]');
 const diff = $('[data-diff]');
 
 function render(animate) {
-  const cars = store.compare().map(byId).filter(Boolean);
+  const stored = store.compare();
+  const cars = stored.map(byId).filter(Boolean);
+  if (cars.length < stored.length) store.setCompare(cars.map((c) => c.id)); // a sold car does not hold a place
   history.replaceState(null, '', cars.length ? `?ids=${cars.map((c) => c.id).join(',')}` : location.pathname);
   if (!cars.length) {
     root.innerHTML = `<div class="empty"><p class="empty-title">Nothing to compare yet.</p>
@@ -50,7 +52,7 @@ function render(animate) {
         <div class="cmp-key" role="rowheader"></div>
         ${slots.map((c) => c ? `
           <div class="cmp-car" role="columnheader">
-            <a href="cars/${c.id}.html" class="cmp-img" tabindex="-1" aria-hidden="true"><img src="${thumb(c, 0, 960)}" width="700" height="460" alt="" /></a>
+            <a href="cars/${c.id}.html" class="cmp-img" tabindex="-1" aria-hidden="true"><img src="${thumb(c, 0, 960)}" width="700" height="460" alt="" loading="lazy" decoding="async" /></a>
             <a href="cars/${c.id}.html" class="cmp-name">${carName(c)}</a>
             <p class="cmp-trim">${c.trim}</p>
             <button type="button" class="link cmp-remove" data-remove="${c.id}">Remove</button>
@@ -81,16 +83,15 @@ function render(animate) {
       </div>
     </div></div>`;
   root.classList.toggle('only-diff', diff.checked);
-  if (animate && !reduced) {
-    gsap.from('.cmp-car', { y: 30, opacity: 0, stagger: 0.08, duration: 0.9, ease: 'expo.out' });
-    gsap.from('.cmp-row:not(.cmp-row--head)', { opacity: 0, x: -10, stagger: 0.025, duration: 0.6, ease: 'expo.out', delay: 0.2 });
-  }
+  if (animate) rise($$('.cmp-car'));
   requestAnimationFrame(() => $$('.cmp-bar > span').forEach((b) => b.classList.add('is-in')));
 }
 
 root.addEventListener('click', (e) => {
   const r = e.target.closest('[data-remove]');
   if (!r) return;
+  if (r.dataset.going) return; // a second click must not put the car back
+  r.dataset.going = '1';
   const col = r.closest('.cmp-car');
   const done = () => { store.toggleCompare(r.dataset.remove); render(false); };
   if (reduced) return done();
@@ -102,4 +103,4 @@ root.addEventListener('change', (e) => {
 });
 diff.addEventListener('change', () => root.classList.toggle('only-diff', diff.checked));
 
-render(true);
+render(false); // the page's own entrance brings it in

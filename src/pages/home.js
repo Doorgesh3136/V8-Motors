@@ -2,6 +2,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { initLayout, reduced, $, $$, curtainOpen } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
+import { arrive } from '../lib/fx.js';
 import { saturdayDeals } from '../lib/hours.js';
 import { DARK, HERO } from '../lib/rover-shots.js';
 
@@ -30,7 +31,7 @@ if (playIntro) {
   // a refresh always lands at the top of the home page, wherever you were
   const top = () => { scrollTo(0, 0); lenis?.scrollTo(0, { immediate: true, force: true }); };
   top();
-  addEventListener('load', top, { once: true });
+  addEventListener('load', () => { if (document.documentElement.classList.contains('play-intro')) top(); }, { once: true }); // not once the intro is over and you have moved on
   lenis?.stop();
 }
 
@@ -41,7 +42,7 @@ if (playIntro) {
 const s = { ...(playIntro ? DARK : HERO) };
 if (import.meta.env.MODE === 'dbg') { window.__s = s; window.__gsap = gsap; }
 const useFilm = playIntro && innerWidth < 700 && innerHeight > innerWidth && !reduced && !navigator.connection?.saveData && !(import.meta.env.MODE === 'dbg' && window.__capture);
-let stage = null, modelDone = 0, onModel = () => {};
+let stage = null, tooSlow = false, modelDone = 0, onModel = () => {};
 const wantStage = !reduced && !navigator.connection?.saveData;
 // a phone fetches its film first: that has to play without a pause, and the 3D car isn't needed until it ends
 let filmFetched = () => {};
@@ -55,6 +56,7 @@ const stageReady = !wantStage ? Promise.resolve(null) : Promise.resolve(filmFirs
     onSign: signBlink,
     onTooSlow: () => { // this machine can't run the car: the photo takes over and the page carries on
       stage = null;
+      tooSlow = true;
       moving?.kill();
       document.documentElement.classList.remove('has-3d');
       $('[data-hero-moves]')?.setAttribute('hidden', '');
@@ -275,7 +277,7 @@ async function runIntro() {
   }
 
   // the button works before everything has arrived, but the film needs the car
-  const [buffer] = await Promise.all([audio ? audio.buffer : null, film ? null : Promise.race([stageReady, new Promise((r) => setTimeout(r, 25000))]), document.fonts?.ready]);
+  const [buffer] = await Promise.all([audio ? Promise.race([audio.buffer, new Promise((r) => setTimeout(r, 10000))]) : null, film ? null : Promise.race([stageReady, new Promise((r) => setTimeout(r, 25000))]), document.fonts?.ready]);
   const env = envelope(buffer);
   const withSound = choice === 'sound' && (buffer || film);
   if (withSound) dispatchEvent(new Event('v8:sound-on'));
@@ -668,7 +670,7 @@ function showMoves() {
   const box = $('[data-hero-moves]');
   if (!box) return;
   stageReady.then((st) => {
-    if (!st) return;
+    if (!st || tooSlow) return;
     box.hidden = false;
     gsap.from(box.children, { opacity: 0, y: 10, duration: 0.7, delay: 1.6, stagger: 0.08, ease: 'expo.out', clearProps: 'opacity,transform' });
     box.addEventListener('click', (e) => { const b = e.target.closest('[data-move]'); if (b) stunt(b.dataset.move); });
@@ -705,7 +707,7 @@ function lockSections() {
   root.classList.add('locked');
   const stops = () => { const end = root.scrollHeight - innerHeight; return screens.map((el) => Math.min(end, el.offsetTop)); };
   const nearest = () => { const list = stops(); return list.reduce((best, y, i) => (Math.abs(y - scrollY) < Math.abs(list[best] - scrollY) ? i : best), 0); };
-  let at = nearest(), busy = false, lastWheel = 0, doneAt = 0;
+  let at = nearest(), busy = false, lastWheel = 0, doneAt = 0, safety = 0, idle = 0;
   nav?.classList.toggle('is-hidden', at === last); // Back can land you straight on the last screen
   const go = (i) => {
     i = Math.max(0, Math.min(last, i));
@@ -713,11 +715,13 @@ function lockSections() {
     busy = true;
     at = i;
     nav?.classList.toggle('is-hidden', i === last);
-    setTimeout(() => { busy = false; }, 1600); // never stuck, whatever happens to the tab meanwhile
+    clearTimeout(safety);
+    safety = setTimeout(() => { busy = false; }, 1600); // never stuck, whatever happens to the tab meanwhile
+    arrive(screens[i], 380); // hidden from this moment, and landing with the screen
     lenis.scrollTo(stops()[i], {
       duration: 1, lock: true, force: true,
       easing: (t) => (1 - Math.cos(Math.PI * t)) / 2,
-      onComplete: () => { busy = false; doneAt = performance.now(); },
+      onComplete: () => { busy = false; clearTimeout(safety); doneAt = performance.now(); },
     });
   };
   addEventListener('wheel', (e) => {
@@ -738,8 +742,17 @@ function lockSections() {
     e.preventDefault();
     go(to ?? at + step);
   });
-  // a resized window keeps you on the screen you were on
-  addEventListener('resize', () => { lenis.scrollTo(stops()[at], { immediate: true, force: true }); }, { passive: true });
+  // if the page ends up somewhere else (Tab, Find, a jump from another page), the screen counted is the one you are on
+  addEventListener('scroll', () => {
+    clearTimeout(idle);
+    idle = setTimeout(() => {
+      if (busy) return;
+      const n = nearest();
+      if (n !== at) { at = n; nav?.classList.toggle('is-hidden', n === last); }
+    }, 200);
+  }, { passive: true });
+  // a resized window keeps you on the screen you were on (after the page has measured itself again)
+  addEventListener('resize', () => { lenis.resize?.(); requestAnimationFrame(() => lenis.scrollTo(stops()[at], { immediate: true, force: true })); }, { passive: true });
 }
 
 /* ================================================================== what you get: pointing at a panel opens it, a tap does on a touch screen */

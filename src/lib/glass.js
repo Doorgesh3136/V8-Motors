@@ -74,7 +74,7 @@ vec3 silver(vec2 p) {
 // the very fine lines. Sampled from a sheet of real noise, because rows of random streaks are what makes metal look brushed
 float brushed(vec2 q, float blur) {
   vec2 uv = vec2(q.x / 2048., (q.y + uScroll * .35) / 512.);
-  return textureLod(uBrush, uv, blur).r - .5 + (textureLod(uBrush, uv * vec2(.5, .19) + .37, blur).r - .5) * .8;
+  return textureLod(uBrush, uv, blur).r - .5 + (textureLod(uBrush, uv * vec2(.5, .45) + .37, blur).r - .5) * .25;
 }
 
 // ---- the cars. One picture per car, or a softer copy of it through the frosted part of a panel, and the streak they leave
@@ -108,7 +108,7 @@ vec3 scene(vec2 q, float frost) {
   if (uCars > 0) { vec4 k = cars(q, frost) * (1. - .42 * frost); c = c * (1. - k.a) + k.rgb; } // glass takes the edge off them, so words on it stay readable
   return c;
 }
-vec3 bare(vec2 p) { return scene(p, 0.) * (1. + brushed(p, 0.) * .055); }
+vec3 bare(vec2 p) { return scene(p, 0.) * (1. + brushed(p, 0.) * .04); }
 
 // ---- the glass. Think of a slab with a wide rounded edge: flat in the middle, curving away all round. Where it curves the light
 // bends, so what you see there comes from further in, more and more towards the very edge. Colours bend by slightly different
@@ -131,7 +131,7 @@ vec3 glass(vec2 p, int id, float d) {
     vec2 f = n * (.35 + push * .06);
     float soft = max(frost, u * .8); // where the curve stretches the page most, a car goes soft instead of breaking up
     c = vec3(scene(q + f, soft).r, scene(q, soft).g, scene(q - f, soft).b);
-    c *= 1. + brushed(q, u * .8) * .11 * (1. - frost);
+    c *= 1. + brushed(q, u * 3.) * .04 * (1. - frost); // the lines melt away on the curve, so no rings form in the rim
   } else {
     c = scene(p, frost);
     if (frost < 1.) c *= 1. + brushed(p, 0.) * .11 * (1. - frost);
@@ -283,6 +283,7 @@ export function initGlass() {
     gsap.ticker.remove(tick);
     watch.disconnect(); added.disconnect(); fits.disconnect();
     canvas.remove();
+    try { gl.getExtension('WEBGL_lose_context')?.loseContext(); } catch { /* already gone */ } // hand the graphics memory back
   };
   canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); ready = false; program = null; html.classList.remove('engine'); });
   canvas.addEventListener('webglcontextrestored', () => { build(); });
@@ -413,7 +414,7 @@ export function initGlass() {
     const ran = (t, c) => Math.max(0, t - c.delay) * c.speed;
     for (let t = 0; t < 3.5; t += 0.02) {
       const ra = ran(t, a), rb = ran(t, b);
-      if (Math.abs(a.x + a.wx * ra - b.x - b.wx * rb) < a.w * 1.1 && Math.abs(a.y + a.wy * ra - b.y - b.wy * rb) < a.w * 0.42) return true;
+      if (Math.abs(a.x + a.wx * ra - b.x - b.wx * rb) < a.w * 1.1 && Math.abs(a.y + a.wy * ra - b.y - b.wy * rb) < a.w * 0.8) return true;
     }
     return false;
   };
@@ -435,7 +436,7 @@ export function initGlass() {
   let onShow = 0;
   const moveCars = (dt) => {
     if (reduced) return false;
-    if (clock >= nextRace) launch();
+    if (clock >= nextRace && !document.body.classList.contains('page-legal')) launch(); // no cars behind plain reading text
     if (!racing.length && !onShow) return false;
     let n = 0;
     for (let i = racing.length - 1; i >= 0; i--) {
