@@ -729,7 +729,7 @@ function watchHero() {
    until the last screen, Saturday, which fills the window. */
 function lockSections() {
   if (!lenis) return;
-  const root = document.documentElement, nav = $('[data-nav]'), screens = $$('.hero, .start, .justin, .finale'), last = screens.length - 1;
+  const root = document.documentElement, nav = $('[data-nav]'), screens = $$('.hero, .start, .finale'), last = screens.length - 1;
   root.classList.add('locked');
   const stops = () => { const end = root.scrollHeight - innerHeight; return screens.map((el) => Math.min(end, el.offsetTop)); };
   const nearest = () => { const list = stops(); return list.reduce((best, y, i) => (Math.abs(y - scrollY) < Math.abs(list[best] - scrollY) ? i : best), 0); };

@@ -429,11 +429,6 @@ export function inventoryGridHTML(P = '') {
   return [...CARS].sort((a, b) => b.added.localeCompare(a.added)).map((c, i) => carCard(c, P, { eager: i < 3 })).join('');
 }
 
-/* ------------------------------------------------------------------ home: Just in, the four newest cars */
-export function justInHTML(P = '') {
-  return [...CARS].sort((a, b) => b.added.localeCompare(a.added)).slice(0, 4).map((c) => carCard(c, P, { sizes: '(min-width: 1000px) 24vw, (min-width: 640px) 45vw, 46vw' })).join('');
-}
-
 /* ------------------------------------------------------------------ inventory filter options */
 export function filterOptionsHTML(kind) {
   if (kind === 'body') return BODY_TYPES.filter((t) => CARS.some((c) => c.body === t)).map((t) => `<label class="body-opt"><input type="checkbox" name="body" value="${t}">

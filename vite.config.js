@@ -2,7 +2,7 @@ import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 import { resolve, relative, sep } from 'node:path';
 import { readdirSync, existsSync } from 'node:fs';
-import { headHTML, navHTML, footerHTML, mobileBarHTML, promisesHTML, hoursHTML, reachHTML, inventoryGridHTML, justInHTML, filterOptionsHTML, shapeSvg } from './src/lib/templates.js';
+import { headHTML, navHTML, footerHTML, mobileBarHTML, promisesHTML, hoursHTML, reachHTML, inventoryGridHTML, filterOptionsHTML, shapeSvg } from './src/lib/templates.js';
 import { META } from './src/lib/meta.js';
 import { CARS } from './src/data.js';
 
@@ -34,7 +34,6 @@ function prerender() {
           .replace(/<!--@shape:(\w+)-->/g, (_, t) => shapeSvg(t))
           .replaceAll('<!--@from-->', () => Math.min(...CARS.map((c) => c.price)).toLocaleString('en-US'))
           .replace('<!--@grid-->', () => inventoryGridHTML(P))
-          .replace('<!--@justin-->', () => justInHTML(P))
           .replace('<!--@count-->', () => String(CARS.length))
           .replace('<!--@finder-->', () => JSON.stringify(CARS.map((c) => [c.make, c.model, c.year])))
           .replace(/<!--@opts:(\w+)-->/g, (_, k) => filterOptionsHTML(k))

@@ -34,8 +34,8 @@ export function initFx() {
 const ARRIVE = [
   '.page-head > *, .inv-filters, .inv-toolbar, .mini-grid > li, .wizard, .estimate, .finance-intro, .calc, .map-card, .contact-side, .cmp-car, .prose, .notfound > *', // inner pages
   '.gallery, .summary > :not(.specs, .summary-tools), .spec, .tool, .fin-mini-box', // a car
-  '.grid-cars > .car', // catalogue rows, and Just in on the home page
-  '.finder, .acc-item, .justin-head, .sellband-copy, .countdown-label, .countdown-units > span', // the screens of the home page
+  '.grid-cars > .car', // catalogue rows
+  '.finder, .acc-item, .sellband-copy, .countdown-label, .countdown-units > span', // the screens of the home page
 ].join();
 const CURTAIN = 550; // ms until the curtain has parted far enough to see through (the same moment as curtainOpen in layout.js)
 const GLIDE = 'cubic-bezier(.16, 1, .3, 1)';

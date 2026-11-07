@@ -23,6 +23,13 @@ const TILE = 32; // the window is cut into squares this big (px), and each knows
 const PIXELS = 3.7e6, SHARPEST = 1.5; // never more than this many pixels, and never finer than this on a sharp screen
 const IDLE = 30; // ms between frames when only the steel is drifting, about 30 a second
 const RACERS = ['Coupe', 'Sedan']; // the low, long ones: the tall shapes looked silly flat out
+// each shape comes in these paints, and every car that crosses picks one of the eight at random: body top to bottom, then windows
+const PAINTS = [
+  ['#ffffff', '#e4e7eb', '#a8aeb7', '#46525f'], // white
+  ['#f0473a', '#c3141d', '#5e0a0f', '#5a6878'], // red
+  ['#454c58', '#262a32', '#101216', '#7f92a8'], // black
+  ['#4d7ec4', '#1f4a8c', '#0c1f45', '#7f92a8'], // blue
+];
 // seconds: until the first group, between groups, and to cross the window. top and low: how far down the window the cars stay,
 // below every page's heading and above its footer. tilt: how steep a car's path is, in degrees
 const RACE = { first: [2.5, 6], gap: [6, 14], crossing: 1.55, top: 0.3, low: 0.71, tilt: [1.5, 6] };
@@ -98,7 +105,7 @@ vec4 cars(vec2 q, float frost) {
     }
     vec2 uv = d / vec2(W, W * .5) + .5;
     if (min(uv.x, uv.y) > 0. && max(uv.x, uv.y) < 1.) {
-      vec4 t = textureLod(uSheet, (uv + uCell[i].xy) * .5, uCell[i].z + frost * 3.1);
+      vec4 t = textureLod(uSheet, (uv + uCell[i].xy) * vec2(.25, .5), uCell[i].z + frost * 3.1);
       sum = t + sum * (1. - t.a);
     }
   }
@@ -182,21 +189,21 @@ void main() {
 
 /* ------------------------------------------------------------------ pictures, made once */
 
-/** The sheet of cars: a dark, sleek copy of each drawing, leaning forward a touch. With its smaller copies this is also the blur. */
+/** The sheet of cars: each drawing in every paint, leaning forward a touch, four across and two down. With its smaller copies this is also the blur. */
 function carSheet() {
   const sheet = document.createElement('canvas');
-  sheet.width = 1024; sheet.height = 512;
+  sheet.width = 2048; sheet.height = 512;
   const g = sheet.getContext('2d');
-  RACERS.forEach((type, i) => {
-    const c = SHAPES[type];
+  RACERS.forEach((type, i) => PAINTS.forEach(([top, mid, low, glass], k) => {
+    const c = SHAPES[type], n = i * PAINTS.length + k;
     g.save();
-    g.translate((i % 2) * 512 + 16, (i >> 1) * 256 + 32);
+    g.translate((n % 4) * 512 + 16, (n >> 2) * 256 + 32);
     g.scale(2, 2);
     g.translate(120, 48); g.transform(1, 0, -0.12, 1, 0, 0); g.translate(-120, -48);
     const paint = g.createLinearGradient(0, 16, 0, 84);
-    paint.addColorStop(0, '#454c58'); paint.addColorStop(0.45, '#262a32'); paint.addColorStop(1, '#101216');
+    paint.addColorStop(0, top); paint.addColorStop(0.45, mid); paint.addColorStop(1, low);
     g.fillStyle = paint; g.fill(new Path2D(c.b));
-    g.fillStyle = '#7f92a8'; g.fill(new Path2D(c.g));
+    g.fillStyle = glass; g.fill(new Path2D(c.g));
     g.fillStyle = '#fff'; g.fill(new Path2D(c.h));
     g.fillStyle = '#ff1a00'; g.fill(new Path2D(c.t));
     for (const [x, y, tyre, hub] of c.w) {
@@ -204,7 +211,7 @@ function carSheet() {
       g.fillStyle = '#7d8795'; g.beginPath(); g.arc(x, y, hub * 0.72, 0, 7); g.fill();
     }
     g.restore();
-  });
+  }));
   return sheet;
 }
 
@@ -410,7 +417,7 @@ export function initGlass() {
     const slope = Math.tan((rand(...RACE.tilt) * Math.PI) / 180) * W * (Math.random() < 0.5 ? 1 : -1);
     const rise = Math.max(-room, Math.min(room, slope)), from = rand(top + Math.max(0, -rise), low - Math.max(0, rise));
     const len = Math.hypot(W, rise), wx = (side * W) / len, wy = rise / len;
-    return { x: (side > 0 ? 0 : W) - wx * w, y: from - wy * w, wx, wy, run: 0, ends: len + w * 5, w, speed, delay, sprite: Math.floor(Math.random() * RACERS.length) };
+    return { x: (side > 0 ? 0 : W) - wx * w, y: from - wy * w, wx, wy, run: 0, ends: len + w * 5, w, speed, delay, sprite: Math.floor(Math.random() * RACERS.length * PAINTS.length) };
   };
   // would these two ever be on top of each other? Their whole runs are played through, a fiftieth of a second at a time
   const meet = (a, b) => {
@@ -453,7 +460,7 @@ export function initGlass() {
       const i = n * 4;
       carData[n * 3] = c.x + c.wx * c.run; carData[n * 3 + 1] = c.y + c.wy * c.run; carData[n * 3 + 2] = c.w;
       wayData[n * 2] = c.wx; wayData[n * 2 + 1] = c.wy;
-      cellData[i] = c.sprite % 2; cellData[i + 1] = c.sprite >> 1;
+      cellData[i] = c.sprite % 4; cellData[i + 1] = c.sprite >> 2;
       cellData[i + 2] = Math.max(0, Math.log2(512 / (c.w * (canvas.width / W))));
       n++;
     }

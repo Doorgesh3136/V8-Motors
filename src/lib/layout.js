@@ -147,7 +147,8 @@ function initCurtain() {
   let leaving = false;
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
-    if (morphs || !a || leaving || !isInternal(a, e)) return;
+    if (!a || leaving || !isInternal(a, e)) return;
+    if (morphs && a.closest('.car') && isCarPage(a.href)) return; // a car's photo grows into its page instead (see initMorph)
     e.preventDefault();
     leaving = true;
     const url = new URL(a.href, location.href);
@@ -396,7 +397,7 @@ function initScroll() {
       nav?.classList.toggle('is-scrolled', y > 8);
 
     },
-    // a page that opens part way down (a link to #justin, a Back) has the bar it would have had if you'd scrolled there
+    // a page that opens part way down (a link to a section, a Back) has the bar it would have had if you'd scrolled there
     onRefresh: (s) => nav?.classList.toggle('is-scrolled', s.scroll() > 8),
   });
 }
