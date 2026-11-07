@@ -116,12 +116,13 @@
           <button type="button" class="btn btn-line" data-more>Show more cars</button>
         </div>
 
+        <!-- no dead end: when nothing matches, say what was asked for, offer to be told when one comes in, and a way back -->
         <div class="empty" data-empty hidden>
-          <p class="empty-title">No cars match these filters.</p>
-          <p>Widen the price or year range, or remove a filter. New cars arrive most weeks.</p>
+          <p class="empty-title" data-empty-title>Nothing matches that right now.</p>
+          <p>New stock comes in every week. Send us what you're after on WhatsApp and we'll message you when one arrives.</p>
           <div class="empty-actions">
-            <button type="button" class="btn btn-primary" data-reset>Clear all filters</button>
-            <a class="btn btn-line" data-wa-alert rel="noopener">Tell me when one arrives</a>
+            <a class="btn btn-primary" data-wa-alert rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 19.5l1.1-3.6A8 8 0 1 1 8.3 18.6l-3.8.9Z"/><path d="M9.2 8.6c.3-.6.6-.6.9-.6h.5c.2 0 .4 0 .6.5l.7 1.6c.1.2.1.4 0 .6l-.5.6c-.1.2-.2.4 0 .6.6 1 1.4 1.8 2.4 2.3.2.1.4.1.6-.1l.6-.7c.2-.2.4-.2.6-.1l1.6.8c.2.1.4.2.4.4 0 .3 0 1-.5 1.5-.5.5-1.6.9-2.6.6a9 9 0 0 1-5.1-4.5c-.6-1.3-.4-2.3.2-3.1Z"/></svg>Tell me when one arrives</a>
+            <button type="button" class="btn btn-line" data-reset>Clear all filters</button>
           </div>
         </div>
       </section>

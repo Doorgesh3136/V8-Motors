@@ -15,7 +15,9 @@ import { modest } from './device.js';
 import { SHAPES } from './shapes.js';
 
 // The compare tray is not here, nor the note on the map: they float over photos and words, and this canvas is behind those
-const PANELS = '.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .contact-side, .garage, .spec, .tool, .acc, .cmp-scroll, .compare .empty, .nav';
+// The panels you read from (forms, the estimate, the leasing calculator, opening hours, the specs) are near-solid instead, so the
+// words on them read perfectly, and where the browser makes the menu bar's glass itself (src/lib/lens.js) it is not drawn here
+const PANELS = '.car, .finder, .inv-filters, .garage, .tool, .cmp-scroll, .compare .empty, .nav:not(.lens .nav)';
 const MAX = 24; // the most panels drawn at once, more than a window ever shows
 const TILE = 32; // the window is cut into squares this big (px), and each knows which panels touch it, so most of it asks about none
 const PIXELS = 3.7e6, SHARPEST = 1.5; // never more than this many pixels, and never finer than this on a sharp screen

@@ -215,7 +215,10 @@ export function headHTML({ title, desc, path, image, jsonld = [], P = '' }) {
   <meta property="og:title" content="${esc(title)}" />
   <meta property="og:description" content="${esc(desc)}" />
   <meta property="og:url" content="${url}" />
-  <meta property="og:image" content="${img}" />
+  <meta property="og:image" content="${img}" />${img.includes('/share/') ? `
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="${esc(title.split(' for sale')[0])}" />` : ''}
   <meta property="og:locale" content="en_MU" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${esc(title)}" />
@@ -233,6 +236,7 @@ export function dealerJsonLd() {
   return {
     '@context': 'https://schema.org',
     '@type': 'AutoDealer',
+    '@id': `${SITE}#dealer`,
     name: 'V8 Motors',
     url: SITE,
     logo: `${SITE}brand/v8-mark.png`,
@@ -260,7 +264,7 @@ export function breadcrumbJsonLd(items) {
 export function carJsonLd(c) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'Car',
+    '@type': ['Product', 'Car'],
     name: carName(c),
     brand: { '@type': 'Brand', name: c.make },
     model: c.model,
@@ -279,7 +283,7 @@ export function carJsonLd(c) {
     offers: {
       '@type': 'Offer', price: c.price, priceCurrency: 'MUR',
       availability: 'https://schema.org/InStock',
-      seller: { '@type': 'AutoDealer', name: 'V8 Motors', url: SITE },
+      seller: { '@type': 'AutoDealer', '@id': `${SITE}#dealer`, name: 'V8 Motors', url: SITE, telephone: '+230' + DEALER.phone.replace(/\s/g, ''), address: { '@type': 'PostalAddress', streetAddress: DEALER.street, addressLocality: DEALER.locality, addressCountry: 'MU' } },
     },
   };
 }

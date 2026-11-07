@@ -166,10 +166,13 @@ function startLoader(gate) {
     gate.style.setProperty('--load', '1');
     gate.classList.add('is-ready');
   };
+  const note = $('[data-gate-note]', gate);
   const tick = () => {
     shown += (target - shown) * (reduced ? 1 : 0.1);
     if (target > 0.999 && shown > 0.995) shown = 1;
     gate.style.setProperty('--load', shown.toFixed(3));
+    // pressed before everything has arrived: say so, honestly, and how far along it is
+    if (note && gate.classList.contains('is-waiting')) note.textContent = `Warming up · ${Math.round(shown * 100)}%`;
     if (shown >= 1) return finish();
     raf = requestAnimationFrame(tick);
   };
@@ -230,13 +233,23 @@ function waitForChoice(gate, film) {
     let done = false;
     const pick = (v) => () => { if (done) return; done = true; removeEventListener('keydown', onKey); resolve(v); };
     const onKey = (e) => { if (e.key === 'Escape') pick('skip')(); };
-    $('[data-ignite]', gate).addEventListener('click', () => {
+    const startFilm = () => { if (film) { film.muted = false; film.play().catch(() => { film.muted = true; film.play().catch(() => { film.failed = true; }); }); } };
+    const button = $('[data-ignite]', gate);
+    // the button answers the moment a finger or the mouse goes down, before the click has even finished
+    button.addEventListener('pointerdown', () => gate.classList.add('is-pressed'));
+    button.addEventListener('pointercancel', () => { if (!done) gate.classList.remove('is-pressed'); });
+    button.addEventListener('click', () => {
+      performance.mark('v8:press'); // for timing the press: see how long until the first frame of the intro
+      gate.classList.add('is-pressed');
+      if (!done && matchMedia('(pointer: coarse)').matches) navigator.vibrate?.(14); // a short buzz, like a real start button, where the phone can
       // sound and picture have to be started by the tap itself
-      if (film && !done) { film.muted = false; film.play().catch(() => { film.muted = true; film.play().catch(() => { film.failed = true; }); }); }
+      if (!done) startFilm();
       pick('sound')();
     });
     addEventListener('keydown', onKey);
-    $('[data-ignite]', gate).focus({ preventScroll: true });
+    button.focus({ preventScroll: true });
+    // pressed while this code was still on its way (the page keeps that press for us): carry on from it now
+    if (window.__v8press) { performance.mark('v8:press', { startTime: window.__v8press }); startFilm(); pick('sound')(); }
   });
 }
 
@@ -253,14 +266,23 @@ async function runIntro() {
   gsap.set(badge, { opacity: 0 });
   gsap.from(gate.children, { opacity: 0, y: 16, duration: 0.9, stagger: 0.1, ease: 'expo.out', delay: 0.2 });
 
+  // everything the intro needs, gathered while the button is on screen (the car, the recording, the fonts), so that a press
+  // has nothing left to do but start. The film doesn't wait for the car: it plays as it arrives
+  let allSet = false;
+  const needs = Promise.all([
+    audio ? Promise.race([audio.buffer, new Promise((r) => setTimeout(r, 10000))]) : null,
+    film ? null : Promise.race([stageReady, new Promise((r) => setTimeout(r, 25000))]),
+    document.fonts?.ready,
+  ]).then(([buffer]) => { allSet = true; return { buffer, env: envelope(buffer) }; });
+
   const choice = await waitForChoice(gate, film);
-  loader.stop();
   // resume audio inside the tap itself (iOS and Safari require it)
   if (choice === 'sound' && audio) audio.ctx.resume();
-  await gsap.to(gate, { opacity: 0, scale: 0.96, duration: 0.3, ease: 'power2.in' });
-  gate.remove();
 
   if (choice === 'skip') {
+    loader.stop();
+    await gsap.to(gate, { opacity: 0, scale: 0.96, duration: 0.3, ease: 'power2.in' });
+    gate.remove();
     audio?.ctx.close();
     film?.remove();
     filmFetched();
@@ -276,9 +298,12 @@ async function runIntro() {
     return;
   }
 
-  // the button works before everything has arrived, but the film needs the car
-  const [buffer] = await Promise.all([audio ? Promise.race([audio.buffer, new Promise((r) => setTimeout(r, 10000))]) : null, film ? null : Promise.race([stageReady, new Promise((r) => setTimeout(r, 25000))]), document.fonts?.ready]);
-  const env = envelope(buffer);
+  // pressed early: the button stays lit and its ring shows how much is left, and the film starts the moment it's all here
+  if (!allSet) gate.classList.add('is-waiting');
+  const { buffer, env } = await needs;
+  loader.stop();
+  // the button gives way to the film as it begins, rather than the film waiting for the button to go
+  gsap.to(gate, { opacity: 0, scale: 1.03, duration: 0.45, ease: 'power2.out', onComplete: () => gate.remove() });
   const withSound = choice === 'sound' && (buffer || film);
   if (withSound) dispatchEvent(new Event('v8:sound-on'));
   if (!withSound) audio?.ctx.close();
@@ -494,6 +519,7 @@ async function runIntro() {
       if (film && (film.ended || t >= tl.duration() - 0.04)) t = tl.duration();
       if (film && t >= FILM.hand) handOver();
       tl.time(Math.min(t, tl.duration()));
+      if (!performance.getEntriesByName('v8:intro').length) performance.mark('v8:intro');
       react(t);
       if (t >= tl.duration()) { gsap.ticker.remove(tick); resolve(); }
     };

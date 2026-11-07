@@ -1,6 +1,7 @@
 // Generates one real HTML page per car (cars/<id>.html), plus sitemap.xml, robots.txt and llms.txt.
 // Runs automatically before `npm run dev` and `npm run build`.
-import { mkdirSync, writeFileSync, readdirSync, rmSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readdirSync, rmSync, existsSync, statSync } from 'node:fs';
+import sharp from 'sharp';
 import { CARS, DEALER, rs, km, carName } from '../src/data.js';
 import { SITE, headHTML, carPageHTML, carJsonLd, breadcrumbJsonLd } from '../src/lib/templates.js';
 
@@ -27,6 +28,33 @@ export function shell({ head, page, body, script, P = '', bodyClass = '' }) {
 `;
 }
 
+// ---------------------------------------------------------------- share pictures
+// WhatsApp and Facebook show a 1200 x 630 picture with a shared link, so every car gets its own: its first photo, cropped to fit,
+// with a small V8 Motors badge in the corner. Made once per car and kept until its photo changes (public/share/<id>.jpg)
+const SHARE = 'public/share';
+mkdirSync(SHARE, { recursive: true });
+const keep = new Set(CARS.map((c) => `${c.id}.jpg`));
+for (const f of readdirSync(SHARE)) if (!keep.has(f)) rmSync(`${SHARE}/${f}`); // cars that have been sold
+const mark = await sharp('public/brand/v8-mark.png').resize({ height: 46 }).png().toBuffer();
+const markW = (await sharp(mark).metadata()).width;
+const badge = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient></defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <rect x="28" y="544" width="${markW + 178}" height="60" rx="30" fill="#101114" fill-opacity=".62" stroke="#fff" stroke-opacity=".35"/>
+  <text x="${58 + markW}" y="582" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="700" fill="#fff" letter-spacing=".5">V8 Motors</text>
+</svg>`);
+let made = 0;
+for (const c of CARS) {
+  const src = ['1280', '960'].map((w) => `public/stock/${c.id}-0-${w}.webp`).find(existsSync);
+  const out = `${SHARE}/${c.id}.jpg`;
+  if (!src || (existsSync(out) && statSync(out).mtimeMs > statSync(src).mtimeMs)) continue;
+  await sharp(src).resize(1200, 630, { fit: 'cover', position: 'attention' })
+    .composite([{ input: badge }, { input: mark, left: 46, top: 551 }])
+    .jpeg({ quality: 78, mozjpeg: true, progressive: true }).toFile(out);
+  made++;
+}
+console.log(`share pictures: ${made} made, ${CARS.length - made} already there`);
+
 // ---------------------------------------------------------------- car pages
 const dir = 'cars';
 if (existsSync(dir)) for (const f of readdirSync(dir)) rmSync(`${dir}/${f}`);
@@ -38,7 +66,7 @@ for (const c of CARS) {
     title: `${name} for sale, ${rs(c.price)} | V8 Motors Mauritius`,
     desc: `${name}, ${c.trim}, ${c.gearbox.toLowerCase()}${c.km != null ? `, ${km(c.km)}` : ''}. ${rs(c.price)} at V8 Motors, 59B Royal Road, Coromandel. Part-exchange and leasing available.`,
     path: `cars/${c.id}.html`,
-    image: c.images[0],
+    image: existsSync(`${SHARE}/${c.id}.jpg`) ? `${SITE}share/${c.id}.jpg` : c.images[0],
     jsonld: [carJsonLd(c), breadcrumbJsonLd([['Home', ''], ['Catalogue', 'inventory.html'], [name, `cars/${c.id}.html`]])],
     P: '../',
   });

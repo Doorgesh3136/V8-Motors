@@ -180,7 +180,10 @@ function render({ animate = true, keepShown = false } = {}) {
   renderChips(s);
   updateFacetCounts(s);
 
-  const wa = encodeURIComponent(`Hi V8 Motors, please let me know when you have a car matching: ${$$('.chip', $('[data-chips]')).map((c) => c.textContent.trim()).join(', ') || 'my search'}.`);
+  // what was searched for, in words, for the empty state's heading and the WhatsApp message it offers
+  const asked = $$('.chip', $('[data-chips]')).map((c) => c.textContent.trim()).join(', ');
+  $('[data-empty-title]').textContent = asked ? `Nothing matches ${asked} right now.` : 'Nothing matches that right now.';
+  const wa = encodeURIComponent(`Hi V8 Motors, I'm looking for a car: ${asked || 'nothing in stock matches my search yet'}. Please tell me when one arrives.`);
   $('[data-wa-alert]').href = `https://wa.me/${DEALER.whatsapp}?text=${wa}`;
 
   if (flip) {

@@ -21,6 +21,16 @@
         document.documentElement.classList.add('play-intro');
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
         scrollTo(0, 0);
+        // the intro's own sound and engine, asked for at once on a computer (a phone plays its film instead)
+        // (the two engine models only after the page's own code, which has to arrive first for the button to work)
+        if (innerWidth >= 700) ['intro/engine.mp3', 'model/engine.glb', 'model/bay.glb'].forEach(function (f, i) {
+          var l = document.createElement('link'); l.rel = 'preload'; l.as = 'fetch'; l.href = f; l.crossOrigin = 'anonymous'; if (i) l.fetchPriority = 'low'; document.head.appendChild(l);
+        });
+        // a press that comes before the page's code has arrived is kept, not lost: the intro starts from it when it can
+        document.addEventListener('click', function (e) {
+          var b = e.target.closest && e.target.closest('[data-ignite]');
+          if (b && !window.__v8press) { window.__v8press = performance.now(); b.parentNode.parentNode.classList.add('is-pressed'); }
+        }, true);
       }
       // back from another page: to the place you left, not the top of the page
       if (type === 'back_forward' && sessionStorage.getItem('v8:home-at')) document.documentElement.classList.add('returning');
@@ -28,6 +38,10 @@
   </script>
   <link rel="preload" as="image" href="gate/ignite-off.webp" fetchpriority="high" />
   <link rel="preload" as="fetch" href="model/range-rover.glb" crossorigin="anonymous" media="(min-width: 700px)" />
+  <!-- more of what the start button waits for on a computer, asked for at once rather than after the 3D code has arrived -->
+  <link rel="preload" as="fetch" href="model/sign.glb" crossorigin="anonymous" media="(min-width: 700px)" />
+  <link rel="preload" as="image" href="hero/hall.webp" crossorigin="anonymous" media="(min-width: 700px)" />
+  <link rel="preload" as="image" href="hero/floor.webp" crossorigin="anonymous" media="(min-width: 700px)" />
   <script type="module" src="/src/pages/home.js" blocking="render"></script>
 </head>
 <body class="page-home">
@@ -68,6 +82,7 @@
             <img class="ig-layer ig-ring" src="gate/ignite-ring.webp" width="1000" height="1000" alt="" draggable="false">
             <img class="ig-layer ig-text" src="gate/ignite-text.webp" width="1000" height="1000" alt="" draggable="false">
           </button>
+          <p class="ig-note" data-gate-note aria-live="polite"></p>
         </div>
       </div>
     </section>
@@ -95,7 +110,7 @@
 
     <!-- Just in: the four newest cars. To take it out: this block, justInHTML in templates.js, its line in vite.config.js, and its
          part of src/glass.css. The mouse lock in src/pages/home.js finds the screens by itself -->
-    <section class="justin" aria-labelledby="justin-title">
+    <section class="justin" id="justin" aria-labelledby="justin-title">
       <div class="wrap justin-wrap">
         <div class="justin-head">
           <h2 class="section-title" id="justin-title">Just <em>in</em></h2>

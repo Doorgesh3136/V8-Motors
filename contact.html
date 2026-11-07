@@ -29,10 +29,17 @@
       </div>
       <div class="contact-side">
         <table class="hours" aria-label="Opening hours"><tbody><!--@hours--></tbody></table>
-        <div class="reach"><!--@reach--></div>
+        <div class="reach"><!--@reach-->
+          <div class="reach-row reach-row--about"><span class="reach-k">About us</span><button type="button" class="lede-video" data-about-open><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>Watch our video</button></div>
+        </div>
       </div>
     </section>
 
+    <!-- V8 Motors' own "About Us" video, from their YouTube channel. It only loads when opened -->
+    <dialog class="video-box" data-about-box aria-label="V8 Motors, About Us video">
+      <div class="video-frame video-frame--wide" data-about-frame></div>
+      <button type="button" class="lb-close" data-about-close aria-label="Close the video"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </dialog>
   </main>
   <!--@footer-->
   <!--@tabbar:contact-->

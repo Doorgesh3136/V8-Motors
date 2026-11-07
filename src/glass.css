@@ -615,8 +615,7 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
   .summary .summary-amount { display: block; padding: 0; font-size: clamp(1.75rem, min(2.6vw, 5vh), 2.375rem); }
   .summary-monthly { margin-top: 0; font-size: .9375rem; color: var(--soft); }
   .car-page .summary .specs { flex: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 1fr; gap: var(--s2); background: none; border: 0; border-radius: 0; }
-  .car-page .summary .spec { display: grid; align-content: center; gap: 0; min-height: 0; padding: var(--s2) var(--s3); background: var(--glass); box-shadow: var(--glass-edge), 0 8px 16px -12px rgb(28 38 52 / .4); }
-  html.engine .car-page .summary .spec { background: none; box-shadow: 0 8px 16px -12px rgb(28 38 52 / .4); }
+  .car-page .summary .spec { display: grid; align-content: center; gap: 0; min-height: 0; padding: var(--s2) var(--s3); background: var(--read); box-shadow: var(--read-edge); }
   .car-page .summary .spec svg { display: block; width: 1.0625rem; height: 1.0625rem; margin: 0 0 2px; fill: none; stroke: var(--soft); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
   .car-page .summary .spec dt { position: static; order: 3; width: auto; height: auto; overflow: visible; clip-path: none; font-size: .6875rem; color: var(--fog); }
   .car-page .summary .spec dd { order: 2; font-size: .9375rem; font-weight: 680; line-height: 1.2; overflow-wrap: anywhere; }
@@ -712,4 +711,73 @@ html { background: #d3d9e0; scrollbar-color: #9aa3ae #d3d9e0; }
 
 @media (prefers-reduced-motion: reduce) {
   .gate::after { animation: none; }
+}
+
+/* ---- Visit us: a quiet link to V8 Motors' own About us video, and the wide player it opens */
+@layer components {
+  .lede-video { display: inline-flex; align-items: center; gap: .35em; padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer; }
+  .lede-video svg { width: 1.05em; height: 1.05em; fill: var(--red); }
+  .lede-video:hover { text-decoration-thickness: 2px; }
+  .video-frame--wide { height: auto; width: min(92vw, 150dvh); aspect-ratio: 16 / 9; }
+}
+@media (min-width: 900px) {
+  /* on Visit us the video sits beside WhatsApp, so the page still fits the window */
+  .contact-side .reach:has(.reach-row--about) { grid-template-columns: max-content max-content; column-gap: var(--s6); }
+  .contact-side .reach-row--phones, .contact-side .reach-row:has(a[href^="mailto"]) { grid-column: 1 / -1; }
+  .contact-side .reach-row:has(a[href^="mailto"]) { order: 1; }
+  .reach-row--about .lede-video { min-height: clamp(1.625rem, 3.6vh, 2.25rem); font-size: clamp(1rem, 2.1vh, 1.1875rem); }
+}
+
+/* ---------------------------------------------------------------- reading surfaces
+   The panels you read from or fill in (the sell form, the estimate, the leasing calculator, opening hours, the specs) are near-solid
+   white with one crisp edge, the same everywhere, so their words read perfectly whatever drifts past behind them. Glass is kept
+   for what floats: the cards, the search and filters, the menu bar and the buttons on photos */
+@layer components {
+  :root {
+    --read: linear-gradient(180deg, rgb(255 255 255 / .95), rgb(248 250 252 / .93));
+    --read-edge: inset 0 1px 0 #fff, 0 0 0 1px rgb(24 32 44 / .09), 0 1px 2px rgb(28 38 52 / .08), 0 16px 34px -20px rgb(28 38 52 / .4);
+  }
+  html :is(.calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .contact-side, .spec, .acc, .panel, .form-done), html .summary .spec { background: var(--read); box-shadow: var(--read-edge); }
+  html:not(.engine) :is(.calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .contact-side, .spec, .acc)::before { display: none; }
+}
+
+/* ---------------------------------------------------------------- liquid glass in front of photos (src/lib/lens.js)
+   Only where the browser can bend what is behind an element (Chrome and Edge on a PC); --lens is the filter made for its size */
+@layer components {
+  html.lens .nav.is-scrolled, html.lens body:not(.page-home) .nav {
+    background: linear-gradient(180deg, rgb(255 255 255 / .52), rgb(244 247 250 / .4));
+    -webkit-backdrop-filter: var(--lens); backdrop-filter: var(--lens);
+    box-shadow: inset 0 -1px 0 rgb(255 255 255 / .9), 0 1px 0 rgb(24 32 44 / .07), 0 10px 24px -16px rgb(28 38 52 / .42);
+  }
+  html.lens :is(.car-photos, .gal-arrow, .gal-expand, .gal-video) {
+    background: rgb(22 24 28 / .2); color: #fff; text-shadow: 0 1px 2px rgb(0 0 0 / .5);
+    -webkit-backdrop-filter: var(--lens); backdrop-filter: var(--lens);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / .38), inset 0 1px 0 rgb(255 255 255 / .6), 0 4px 12px -4px rgb(0 0 0 / .45);
+  }
+  html.lens :is(.gal-arrow, .gal-expand, .gal-video):hover { background: rgb(22 24 28 / .36); }
+  /* Save, where it sits on the photo (the catalogue's list puts it beside Compare instead) */
+  html.lens :not([data-view="list"]) > .car > .car-tools .save {
+    background: rgb(255 255 255 / .28);
+    -webkit-backdrop-filter: var(--lens); backdrop-filter: var(--lens);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / .6), inset 0 1px 0 #fff, 0 4px 12px -4px rgb(0 0 0 / .45);
+  }
+  html.lens :not([data-view="list"]) > .car > .car-tools .save:hover { background: rgb(255 255 255 / .5); }
+}
+
+/* ---------------------------------------------------------------- smooth page changes (see initMorph in src/lib/layout.js)
+   The browser carries the change itself: a soft cross-fade, and the car's photo growing from its card into the car page */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  ::view-transition-group(root) { animation-duration: .36s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); }
+  ::view-transition-group(car-photo) { z-index: 10; animation-duration: .56s; animation-timing-function: cubic-bezier(.22, .8, .2, 1); }
+  ::view-transition-image-pair(car-photo) { overflow: hidden; border-radius: 16px; }
+  ::view-transition-old(car-photo), ::view-transition-new(car-photo) { width: 100%; height: 100%; object-fit: cover; animation-duration: .56s; }
+}
+
+/* ---- the catalogue when nothing matches: a calm, solid card rather than a dashed hole, with the way forward first */
+@layer components {
+  [data-empty].empty { border: 0; border-radius: var(--panel-r); background: var(--read); box-shadow: var(--read-edge); padding: clamp(1.75rem, 4vw, 3rem) var(--s5); }
+  [data-empty] .empty-title { font-size: clamp(1.25rem, 1.6vw, 1.5rem); text-wrap: balance; }
+  [data-empty] p:not(.empty-title) { max-width: 34rem; margin-inline: auto; text-wrap: pretty; }
+  [data-empty] .btn svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; margin-right: .45rem; }
 }

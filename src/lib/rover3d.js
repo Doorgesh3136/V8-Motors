@@ -294,7 +294,19 @@ function buildSign(sign, glowMap) {
 }
 
 /** What the paint reflects: the hall itself, with softboxes over the car to draw long clean lines along the body. */
-function buildStudio(renderer, tex) {
+/** A moment for the page to answer a press or draw a frame between the heavy steps of building the scene. */
+const breathe = () => new Promise((ok) => setTimeout(ok, 0));
+/** Build the paints of a scene on the graphics card without holding up the page, where the browser can (most can). */
+const compileAside = (renderer, scene, camera) => (renderer.compileAsync ? renderer.compileAsync(scene, camera).catch(() => renderer.compile(scene, camera)) : Promise.resolve(renderer.compile(scene, camera)));
+
+/** Send a scene's pictures to the graphics card one at a time, with a breath between, instead of all in its first frame. */
+async function uploadAside(renderer, root) {
+  const seen = new Set();
+  root.traverse((o) => [o.material].flat().forEach((m) => m && Object.values(m).forEach((v) => v?.isTexture && seen.add(v))));
+  for (const t of seen) { renderer.initTexture(t); await breathe(); }
+}
+
+async function buildStudio(renderer, tex) {
   const room = new Scene();
   const sky = buildSky(tex);
   sky.material.uniforms.uHall.value = 1;
@@ -311,6 +323,8 @@ function buildStudio(renderer, tex) {
   box(16, 0.7, [10, 3.2, 0], 0xdfeeff, 5.5);
   box(5, 1.2, [7, 4, 9], 0xffffff, 2.5);
   box(14, 2.4, [0, 4.5, -12], 0xffffff, 3.2);
+  // the graphics card builds the room's paints alongside, so the page stays free to answer a press while it does
+  await compileAside(renderer, room, new PerspectiveCamera());
   const pm = new PMREMGenerator(renderer);
   const out = pm.fromScene(room, 0.02).texture;
   pm.dispose();
@@ -571,22 +585,29 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   renderer.setPixelRatio(dpr);
 
   // ---- downloads
+  // the models are unpacked off to the side, by helpers, so the page stays free to answer the start button meanwhile
+  if (typeof Worker !== 'undefined') MeshoptDecoder.useWorkers?.(2);
   let doneModel = 0, doneTex = 0;
   const report = () => onProgress(doneModel * 0.78 + Math.min(1, doneTex) * 0.22);
   const load = (file, setup) => new Promise((ok, bad) => new TextureLoader().load(asset(file), (t) => { setup(t); doneTex += 0.5; report(); ok(t); }, undefined, bad));
+  const hallLoad = load('hero/hall.webp', (t) => {
+    t.colorSpace = SRGBColorSpace;
+    t.wrapS = RepeatWrapping;
+    t.minFilter = LinearMipmapLinearFilter;
+    t.magFilter = LinearFilter;
+    t.generateMipmaps = true;
+  });
+  // the light the car is lit by only needs the hall photo, which is small: it is made while the car is still on its way,
+  // so that heavy step is long done by the time anyone presses start
+  const studio = hallLoad.then(async (t) => { renderer.initTexture(t); await breathe(); return buildStudio(renderer, t); });
+  studio.catch(() => {});
   const [gltf, signGltf, hallTex, surfaceTex, engineGltf, bayGltf] = await Promise.all([
     new Promise((ok, bad) => {
       new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/range-rover.glb'), ok,
         (e) => { if (e.total) { doneModel = e.loaded / e.total; report(); } }, bad);
     }),
     new Promise((ok, bad) => { new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/sign.glb'), ok, undefined, bad); }),
-    load('hero/hall.webp', (t) => {
-      t.colorSpace = SRGBColorSpace;
-      t.wrapS = RepeatWrapping;
-      t.minFilter = LinearMipmapLinearFilter;
-      t.magFilter = LinearFilter;
-      t.generateMipmaps = true;
-    }),
+    hallLoad,
     load('hero/floor.webp', (t) => {
       t.wrapS = t.wrapT = RepeatWrapping;
       t.anisotropy = 8;
@@ -595,9 +616,11 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     withEngine ? new Promise((ok) => { new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).load(asset('model/bay.glb'), ok, undefined, () => ok(null)); }) : null,
   ]);
   onProgress(1);
+  MeshoptDecoder.useWorkers?.(0); // done with them
 
   const scene = new Scene();
-  scene.environment = buildStudio(renderer, hallTex);
+  scene.environment = await studio;
+  await breathe();
   const camera = new PerspectiveCamera(28, 1, 0.25, 220);
 
   const car = gltf.scene;
@@ -748,25 +771,33 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     quad.render(renderer);
   };
   const hide = [];
-  function drawGlow() {
-    // the lights alone, everything else black
-    for (const m of solid) {
-      if (m.see) m.o.visible = false;
-      else if (!m.glows) m.o.material = black;
+  // the scene as the glow pass sees it: the lights alone, everything else black
+  let glowOthers = null, glowEnv = 1;
+  function glowLook(on) {
+    if (on) {
+      for (const m of solid) {
+        if (m.see) m.o.visible = false;
+        else if (!m.glows) m.o.material = black;
+      }
+      glowOthers = [sky, showroom.mesh, showroom.mirror, floor.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : []), ...puffs.map((p) => p.sp)];
+      hide.length = 0;
+      for (const o of glowOthers) { hide.push(o.visible); o.visible = false; }
+      glowEnv = scene.environmentIntensity;
+      scene.environmentIntensity = 0;
+      hallLights.uniforms.uGain.value = 3;
+    } else {
+      hallLights.uniforms.uGain.value = 1;
+      scene.environmentIntensity = glowEnv;
+      glowOthers.forEach((o, i) => { o.visible = hide[i]; });
+      for (const m of solid) { m.o.visible = true; m.o.material = m.mat; }
     }
-    const others = [sky, showroom.mesh, showroom.mirror, floor.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : []), ...puffs.map((p) => p.sp)];
-    hide.length = 0;
-    for (const o of others) { hide.push(o.visible); o.visible = false; }
-    const env = scene.environmentIntensity;
-    scene.environmentIntensity = 0;
-    hallLights.uniforms.uGain.value = 3;
+  }
+  function drawGlow() {
+    glowLook(true);
     renderer.setRenderTarget(glowA);
     renderer.clear();
     renderer.render(scene, camera);
-    hallLights.uniforms.uGain.value = 1;
-    scene.environmentIntensity = env;
-    others.forEach((o, i) => { o.visible = hide[i]; });
-    for (const m of solid) { m.o.visible = true; m.o.material = m.mat; }
+    glowLook(false);
     // blur it small, twice, and add it on top
     blurPass(glowA, glowB, 1, 0);
     blurPass(glowB, glowC, 0, 1);
@@ -1063,12 +1094,25 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   }
 
   if (import.meta.env.MODE === 'dbg') window.__dbg = { THREE: { Color, MeshBasicMaterial, DoubleSide }, scene, car, rig, s, renderer, camera, draw, hide: [sky, floor.mesh, hallLights.mesh, hallLights.mirror, signs.group, dust, ...beamMeshes, ...heads.flatMap((h) => [h.glow, h.streak]), ...tails, ...(mirror ? [mirror] : [])] };
-  renderer.compile(scene, camera);
+  // every paint in the scene, the engine's too (shown shrunk to nothing), is built by the graphics card in the background
+  // rather than all at once on the page's own thread: that froze the start button for most of a second
+  if (engine) { engine.group.visible = true; engine.group.scale.setScalar(1e-4); }
+  await compileAside(renderer, scene, camera);
+  if (glowOn) { // and the glow pass's own: the scene in black, and the blur
+    glowLook(true);
+    if (glowA) renderer.setRenderTarget(glowA); // paints are built for where they are drawn: the glow goes to its own picture
+    await compileAside(renderer, scene, camera);
+    renderer.setRenderTarget(null);
+    glowLook(false);
+    const plane = new PlaneGeometry(2, 2), passes = new Scene().add(new Mesh(plane, blur), new Mesh(plane, add));
+    await compileAside(renderer, passes, camera);
+    plane.dispose();
+  }
+  await uploadAside(renderer, scene);
   if (bay?.map) renderer.initTexture(bay.map); // its one picture goes to the graphics card now, not mid-film
+  await breathe();
   // hand the engine to the graphics card now, shrunk to nothing, so it doesn't stall the film the moment it first appears
   if (engine) {
-    engine.group.visible = true;
-    engine.group.scale.setScalar(1e-4);
     renderer.setRenderTarget(null);
     renderer.render(scene, camera);
     if (glowOn) drawGlow(); // the glow pass draws it too, with shaders of its own
@@ -1087,11 +1131,11 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
     contextLost = true;
     lostTimer = setTimeout(() => document.documentElement.classList.remove('has-3d'), 4000);
   });
-  canvas.addEventListener('webglcontextrestored', () => {
+  canvas.addEventListener('webglcontextrestored', async () => {
     clearTimeout(lostTimer);
-    contextLost = false;
     const old = scene.environment;
-    scene.environment = buildStudio(renderer, hallTex);
+    scene.environment = await buildStudio(renderer, hallTex);
+    contextLost = false;
     old?.dispose();
     sizeGlow();
     draw(true);

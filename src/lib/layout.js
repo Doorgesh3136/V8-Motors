@@ -9,6 +9,7 @@ import Lenis from 'lenis';
 import { store } from './store.js';
 import { initFx, photosArrive } from './fx.js';
 import { initGlass } from './glass.js';
+import { initLens } from './lens.js';
 import { renderStatus } from './hours.js';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -142,11 +143,11 @@ function initCurtain() {
   addEventListener('pointerover', warm, { passive: true });
   addEventListener('touchstart', warm, { passive: true });
 
-  // leaving: close, then go
+  // leaving: close, then go. Where the browser can change pages smoothly by itself (see initMorph), it does that instead
   let leaving = false;
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
-    if (!a || leaving || !isInternal(a, e)) return;
+    if (morphs || !a || leaving || !isInternal(a, e)) return;
     e.preventDefault();
     leaving = true;
     const url = new URL(a.href, location.href);
@@ -169,6 +170,54 @@ function initCurtain() {
     c.classList.remove('is-active');
     html.classList.remove('curtain-in');
     gsap.set([...L, ...R, mid], { clearProps: 'all' });
+  });
+}
+
+/* ---------------------------------------------------------------- smooth page changes
+   In browsers that can carry a page change through themselves (Chrome and Edge, with cross-document View Transitions), a car's
+   photo grows from its card into the car page's big photo, and shrinks back into its card on Back. Everything else cross-fades
+   softly. Only the one photo is named, at the last moment before the page changes, so nothing else is caught up in it.
+   Other browsers, and anyone who asks for less motion, keep the curtain above (or a plain page change). */
+const morphs = !reduced && 'onpagereveal' in window && CSS.supports?.('view-transition-name: a');
+const PHOTO = 'car-photo';
+const isCarPage = (url) => !!url && /\/cars\/[^/]+\.html$/.test(new URL(url, location.href).pathname);
+// the card photo of the car at that address, on this page: the one on screen, as a car can have a card in more than one list
+const cardPhoto = (url) => {
+  const want = new URL(url, location.href).pathname;
+  let best = null, bestScore = 0;
+  for (const a of document.querySelectorAll('.car a.car-media[href]')) {
+    if (new URL(a.href).pathname !== want) continue;
+    const r = a.getBoundingClientRect();
+    const score = r.width * r.height > 0 ? 1 + (r.bottom > 0 && r.top < innerHeight ? 1 : 0) : 0;
+    if (score > bestScore) { best = a.querySelector('img'); bestScore = score; }
+  }
+  return best;
+};
+function initMorph() {
+  if (!morphs) return;
+  // a catalogue card off screen skips drawing (content-visibility), and on a fresh page so does every card for the first frame,
+  // which is the one the browser photographs: the named card is drawn regardless, until the change is over
+  const name = (el) => { if (el) { el.style.viewTransitionName = PHOTO; el.closest('.car')?.style.setProperty('content-visibility', 'visible'); } return el; };
+  const clear = () => {
+    document.querySelectorAll('img[style*="view-transition-name"]').forEach((el) => { el.style.viewTransitionName = ''; });
+    document.querySelectorAll('.car[style*="content-visibility"]').forEach((el) => el.style.removeProperty('content-visibility'));
+  };
+  // leaving: name the photo that is about to grow (or shrink back)
+  addEventListener('pageswap', (e) => {
+    clear();
+    const to = e.activation?.entry?.url;
+    if (!e.viewTransition || !to) return;
+    if (isCarPage(location.href) && !isCarPage(to)) name($('[data-gal-img]'));
+    else if (isCarPage(to)) name(cardPhoto(to));
+  });
+  // arriving: name the photo it grows into, then let go of the name once it has
+  addEventListener('pagereveal', (e) => {
+    clear();
+    const from = navigation?.activation?.from?.url;
+    if (!e.viewTransition || !from) return;
+    const el = isCarPage(location.href) ? (isCarPage(from) ? null : $('[data-gal-img]')) : cardPhoto(from);
+    if (!name(el)) return;
+    e.viewTransition.finished.finally(clear);
   });
 }
 
@@ -347,6 +396,8 @@ function initScroll() {
       nav?.classList.toggle('is-scrolled', y > 8);
 
     },
+    // a page that opens part way down (a link to #justin, a Back) has the bar it would have had if you'd scrolled there
+    onRefresh: (s) => nav?.classList.toggle('is-scrolled', s.scroll() > 8),
   });
 }
 export function scrollToEl(el, offset = -88) {
@@ -401,6 +452,8 @@ export function initLayout({ home = false, immersive = false } = {}) {
   keepFiles();
   if ('scrollRestoration' in history) history.scrollRestoration = home ? 'manual' : 'auto';
   initCurtain();
+  initMorph();
+  initLens();
   photosArrive();
   initNavInk();
   initDock();
