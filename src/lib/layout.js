@@ -148,7 +148,6 @@ function initCurtain() {
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a[href]');
     if (!a || leaving || !isInternal(a, e)) return;
-    if (morphs && a.closest('.car') && isCarPage(a.href)) return; // a car's photo grows into its page instead (see initMorph)
     e.preventDefault();
     leaving = true;
     const url = new URL(a.href, location.href);
