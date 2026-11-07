@@ -314,6 +314,8 @@ function buildStudio(renderer, tex) {
   const pm = new PMREMGenerator(renderer);
   const out = pm.fromScene(room, 0.02).texture;
   pm.dispose();
+  // the little room was only needed for that one picture, so its shapes and paints go straight back (the hall photo stays: it is shared)
+  room.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
   return out;
 }
 
@@ -1088,7 +1090,9 @@ export async function createStage({ canvas, s, input, onProgress = () => {}, onT
   canvas.addEventListener('webglcontextrestored', () => {
     clearTimeout(lostTimer);
     contextLost = false;
+    const old = scene.environment;
     scene.environment = buildStudio(renderer, hallTex);
+    old?.dispose();
     sizeGlow();
     draw(true);
     document.documentElement.classList.add('has-3d');

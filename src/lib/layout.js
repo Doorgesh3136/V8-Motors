@@ -22,6 +22,8 @@ export const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 // (the not-found page has a <base> tag that already points at the root, so it needs no prefix)
 export const P = location.pathname.includes('/cars/') && !document.querySelector('base') ? '../' : '';
 export let lenis = null;
+/** Storage can be switched off (blocked site data), and then even reading it throws: that counts as empty, and the page carries on. */
+export const stash = (fn) => { try { return fn(); } catch { return null; } };
 
 /* ------------------------------------------------------------------ saved / compare state */
 export function syncStoreUI() {
@@ -57,7 +59,7 @@ export function toast(msg, action) {
    The site only uses localStorage for saved cars and this notice, and no tracking, so this
    is a notice rather than a consent wall. It sits in a corner and never blocks the page. */
 function privacyNotice() {
-  if (localStorage.getItem('v8:notice')) return;
+  if (stash(() => localStorage.getItem('v8:notice'))) return;
   const n = document.createElement('div');
   n.className = 'notice';
   n.setAttribute('role', 'region');
@@ -67,7 +69,7 @@ function privacyNotice() {
   let timer = 0;
   const close = () => {
     clearTimeout(timer);
-    localStorage.setItem('v8:notice', '1');
+    stash(() => localStorage.setItem('v8:notice', '1'));
     n.classList.remove('is-on');
     setTimeout(() => n.remove(), 500);
   };
@@ -112,15 +114,15 @@ function initCurtain() {
 
   // arriving: open
   if (viaCurtain) {
-    label.textContent = sessionStorage.getItem('v8:curtain') || '';
-    sessionStorage.removeItem('v8:curtain');
+    label.textContent = stash(() => sessionStorage.getItem('v8:curtain')) || '';
+    stash(() => sessionStorage.removeItem('v8:curtain'));
     gsap.timeline({ onComplete: () => { html.classList.remove('curtain-in'); gsap.set([...L, ...R, mid], { clearProps: 'all' }); resolveOpen(); } })
       .to(mid, { opacity: 0, y: -14, duration: 0.25, ease: 'power2.in' }, 0.05)
       .to([...L].reverse(), { xPercent: -101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15)
       .to([...R].reverse(), { xPercent: 101, duration: 0.8, ease: 'expo.inOut', stagger: 0.06 }, 0.15);
     setTimeout(resolveOpen, 550); // let the page start its own entrance while the curtain is still opening
   } else {
-    sessionStorage.removeItem('v8:curtain');
+    stash(() => sessionStorage.removeItem('v8:curtain'));
     resolveOpen();
   }
   if (reduced) return;
@@ -154,7 +156,7 @@ function initCurtain() {
       : ROUTES[file] || 'V8 Motors';
     label.textContent = name;
     c.classList.add('is-active');
-    gsap.timeline({ onComplete: () => { sessionStorage.setItem('v8:curtain', name); location.assign(url.href); } })
+    gsap.timeline({ onComplete: () => { stash(() => sessionStorage.setItem('v8:curtain', name)); location.assign(url.href); } })
       .fromTo(L, { xPercent: -101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
       .fromTo(R, { xPercent: 101 }, { xPercent: 0, duration: 0.6, ease: 'power3.inOut', stagger: 0.075 }, 0)
       .fromTo(mid, { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out' }, 0.5)

@@ -15,15 +15,15 @@ import { modest } from './device.js';
 import { SHAPES } from './shapes.js';
 
 // The compare tray is not here, nor the note on the map: they float over photos and words, and this canvas is behind those
-const PANELS = '.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .contact-side, .garage, .spec, .tool, .acc, .nav';
+const PANELS = '.car, .finder, .inv-filters, .calc, .wizard, .estimate, .finance-intro, .fin-mini-box, .contact-side, .garage, .spec, .tool, .acc, .cmp-scroll, .compare .empty, .nav';
 const MAX = 24; // the most panels drawn at once, more than a window ever shows
 const TILE = 32; // the window is cut into squares this big (px), and each knows which panels touch it, so most of it asks about none
 const PIXELS = 3.7e6, SHARPEST = 1.5; // never more than this many pixels, and never finer than this on a sharp screen
 const IDLE = 30; // ms between frames when only the steel is drifting, about 30 a second
-const RACERS = ['Coupe', 'Sedan', 'SUV', 'Convertible'];
+const RACERS = ['Coupe', 'Sedan']; // the low, long ones: the tall shapes looked silly flat out
 // seconds: until the first group, between groups, and to cross the window. top and low: how far down the window the cars stay,
 // below every page's heading and above its footer. tilt: how steep a car's path is, in degrees
-const RACE = { first: [2.5, 6], gap: [6, 14], crossing: 1.55, top: 0.3, low: 0.71, tilt: [2, 12] };
+const RACE = { first: [2.5, 6], gap: [6, 14], crossing: 1.55, top: 0.3, low: 0.71, tilt: [1.5, 6] };
 const html = document.documentElement;
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -56,16 +56,15 @@ float bands(vec2 p) {
   float w = sin(v.y * 1.7 - v.x * .6 + uTime * .043) * .34;
   float wide = sin(a * 3.4 + w * 2.2 + uTime * .051);
   float mid = sin(a * 8.3 - w * 3.1 - uTime * .083 + 1.7);
-  float s = .5 + .4 * wide + .17 * mid;
+  float s = .5 + .33 * wide + .14 * mid; // stays inside 0 to 1, so the light never sits in flat shelves
   // a slow bright reflection wandering across it
   float g = a - 1.6 - 1.4 * sin(uTime * .037);
   return clamp(s + .2 * exp(-g * g * 14.), 0., 1.);
 }
 vec3 silver(vec2 p) {
   float s = bands(p);
-  s = s * s * (3. - 2. * s);
-  vec3 c = mix(vec3(.675, .705, .745), vec3(.815, .835, .86), smoothstep(0., .55, s));
-  c = mix(c, vec3(.945, .952, .962), smoothstep(.5, 1., s));
+  // one long roll from light to dark, with no flat stretches
+  vec3 c = mix(vec3(.72, .745, .78), vec3(.94, .947, .958), smoothstep(-.1, 1.1, s));
   vec2 m = (p - uLight.xy) / 400.;
   c += uLight.z * .075 * exp(-dot(m, m));
   vec2 e = p / uView - .5;
@@ -103,51 +102,53 @@ vec4 cars(vec2 q, float frost) {
   }
   return sum;
 }
-vec3 scene(vec2 q, float frost) {
-  vec3 c = silver(q);
-  if (uCars > 0) { vec4 k = cars(q, frost) * (1. - .42 * frost); c = c * (1. - k.a) + k.rgb; } // glass takes the edge off them, so words on it stay readable
+// the cars laid over whatever steel is there. Glass takes the edge off them, so words on it stay readable
+vec3 over(vec3 c, vec2 q, float frost) {
+  if (uCars > 0) { vec4 k = cars(q, frost) * (1. - .42 * frost); c = c * (1. - k.a) + k.rgb; }
   return c;
 }
+vec3 scene(vec2 q, float frost) { return over(silver(q), q, frost); }
 vec3 bare(vec2 p) { return scene(p, 0.) * (1. + brushed(p, 0.) * .04); }
 
-// ---- the glass. Think of a slab with a wide rounded edge: flat in the middle, curving away all round. Where it curves the light
-// bends, so what you see there comes from further in, more and more towards the very edge. Colours bend by slightly different
-// amounts, which is the faint fringe. The corners curve the most, so they stay the clearest
+// ---- the glass. Think of a clear slab with a narrow rounded edge: flat in the middle, curving away all round. Where it curves the
+// light bends, so what you see there comes from further in, more and more towards the very edge, and the lines behind visibly bow.
+// Through the flat middle the steel shows almost as it is, only a little softer and cooler. Colours bend by slightly different
+// amounts on the curve, which is the faint fringe. The corners curve the most, so they stay the clearest
 vec3 glass(vec2 p, int id, float d) {
   vec4 box = uRect[id], info = uInfo[id];
   float bezel = info.y, R = info.z;
   vec2 rel = p - box.xy;
-  // distance in from a rounder version of the panel, so the curve runs smoothly past each corner without a crease
+  // distance in from the panel's own outline, so the curve runs smoothly past each corner without a crease
   vec2 k = abs(rel) - (box.zw - R), kp = max(k, 0.);
   float len = length(kp), edge = len + min(max(k.x, k.y), 0.) - R;
   vec2 n = sign(rel) * (len > .01 ? kp / len : (k.x > k.y ? vec2(1., 0.) : vec2(0., 1.)));
   float u = clamp(1. + edge / bezel, 0., 1.), u2 = u * u;
-  float frost = smoothstep(bezel * .42, bezel * 1.7, -edge);
+  float corner = smoothstep(0., .5, min(kp.x, kp.y) / max(R, 1.)); // 1 right in a corner, 0 along a straight side
   vec3 c;
+  vec2 q = p;
   if (u > 0.) {
-    float push = bezel * .5 * u2; // no steeper than this, or the page would fold over itself and show upside down
+    // steep near the rim, like a real rounded edge: the outer part shows what lies further in, squeezed and turned over
+    float push = bezel * 1.1 * u2 * sqrt(u);
     // the second half bows the page towards the middle of the panel, so lines running along a panel still curve at its ends
-    vec2 q = p - n * push - rel / box.zw * bezel * .7 * u2;
-    vec2 f = n * (.35 + push * .06);
-    float soft = max(frost, u * .8); // where the curve stretches the page most, a car goes soft instead of breaking up
-    c = vec3(scene(q + f, soft).r, scene(q, soft).g, scene(q - f, soft).b);
-    c *= 1. + brushed(q, u * 3.) * .04 * (1. - frost); // the lines melt away on the curve, so no rings form in the rim
-  } else {
-    c = scene(p, frost);
-    if (frost < 1.) c *= 1. + brushed(p, 0.) * .11 * (1. - frost);
-  }
+    q = p - n * push - rel / box.zw * bezel * .8 * u2;
+    vec2 f = n * u * (.5 + push * .1);
+    c = vec3(silver(q + f).r, silver(q).g, silver(q - f).b);
+  } else c = silver(p);
+  // the fine lines show through, a touch softer than on the bare steel, so the bending can be seen without them getting loud
+  c *= 1. + brushed(q, .4 + u * 1.2) * .08;
+  // only the steel bends. A car passing under the rim moves just a little and goes soft, so it stays whole instead of breaking up
+  c = over(c, mix(p, q, .15), .35 + .4 * u);
 
-  // the frosted middle: just enough white for dark words to read easily, none of it at the rim
-  c = mix(c, vec3(.95, .958, .968), .02 + .38 * frost);
+  // a light frost and the faintest cool tint: enough for dark words to read, less on the rim and least of all in the corners
+  c = mix(c, vec3(.935, .95, .972), .15 * (1. - .55 * u) * (1. - .5 * corner));
+  c *= vec3(.986, .993, 1.006);
 
-  float a = dot(n, uSun), lit = a * a * a * a * a * a;
-  float inset = -d;
-  // a soft shadow inside the edge, on the side away from the light, and the glow of light gathered on the other
-  c *= 1. - .1 * exp(-inset / (bezel * .3)) * (.5 - .5 * a);
-  c += vec3(.95, .97, 1.) * (.1 * u2 * lit + .07 * u2 * u2 * max(a, 0.));
-  // the bright thin edge, brightest at top left and bottom right, split very slightly into colours
-  vec3 e = (vec3(inset) - vec3(.8, 1.1, 1.4)) / .85;
-  c += exp(-e * e) * (.1 + .85 * lit);
+  // light gathered just inside the lit edge, fading round the curve
+  float a = dot(n, uSun), lit = max(a, 0.), back = max(-a, 0.);
+  c += vec3(.96, .98, 1.) * (.03 + .09 * lit * lit) * u2 * u2;
+  // one crisp bright rim, about a pixel wide: brightest where the light falls at top left, fainter round the curve and opposite
+  float inset = -d, e = (inset - .7) / .5;
+  c = mix(c, vec3(1.), exp(-e * e) * clamp(.45 + .55 * lit * lit + .3 * back * back * back, 0., .97));
   return c;
 }
 
@@ -348,13 +349,13 @@ export function initGlass() {
       const i = n * 4;
       if (bar) { // the bar runs off three sides of the window, so only its lower edge shows
         rects[i] = r.left + r.width / 2; rects[i + 1] = r.top + r.height / 2 - 60; rects[i + 2] = r.width / 2 + 90; rects[i + 3] = r.height / 2 + 60;
-        infos[i] = 0; infos[i + 1] = 16; infos[i + 2] = 16; infos[i + 3] = +style.opacity;
+        infos[i] = 0; infos[i + 1] = 10; infos[i + 2] = 10; // a thin rim, so the bar is one clean tone infos[i + 3] = +style.opacity;
       } else {
         const hw = r.width / 2, hh = r.height / 2, small = Math.min(hw, hh);
         const radius = Math.min(parseFloat(style.borderTopLeftRadius) || 0, small);
-        const bezel = Math.min(38, Math.max(9, small * 0.48));
+        const bezel = Math.min(20, Math.max(8, small * 0.22)); // a narrow curve: the bending is all at the rim
         rects[i] = r.left + hw; rects[i + 1] = r.top + hh; rects[i + 2] = hw; rects[i + 3] = hh;
-        infos[i] = radius; infos[i + 1] = bezel; infos[i + 2] = Math.min(small, Math.max(radius, bezel * 2.3)); infos[i + 3] = +style.opacity;
+        infos[i] = radius; infos[i + 1] = bezel; infos[i + 2] = Math.min(small, Math.max(radius, bezel)); infos[i + 3] = +style.opacity;
       }
       n++;
     }

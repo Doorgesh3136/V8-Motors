@@ -154,6 +154,7 @@
   }
   .nav.is-scrolled, body:not(.page-home) .nav { background: var(--ink); border-bottom-color: var(--line); }
   .nav.is-hidden { translate: 0 -100%; }
+  .nav.is-hidden:focus-within { translate: 0 0; } /* a keyboard user tabbing into the hidden bar sees where they are */
   .nav-links { display: none; gap: var(--s5); }
   .nav-links a { position: relative; display: inline-flex; align-items: center; min-height: var(--tap); color: var(--fog); font-weight: 600; transition: color .2s; }
   .nav-links a:hover, .nav-links a[aria-current] { color: var(--bone); }

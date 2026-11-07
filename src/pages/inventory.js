@@ -7,6 +7,8 @@ import { wireCardActions } from '../lib/card.js';
 import { store } from '../lib/store.js';
 import { CARS, BODY_TYPES, FUELS, DEALER, byId, rs, thumb, carName } from '../data.js';
 import { odo } from '../lib/odo.js';
+// words from the address bar are only ever shown as text
+const esc = (v) => String(v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
 gsap.registerPlugin(Flip);
 initLayout();
@@ -93,8 +95,8 @@ function applyUrl() {
   const yr = (p.get('year') || '').split('-').map(Number);
   RANGES.year.set(yr[0] || undefined, yr[1] || undefined);
   form.saved.checked = p.get('saved') === '1';
-  $('[data-sort]').value = p.get('sort') || 'new';
-  setView(p.get('view') || 'list', false);
+  $('[data-sort]').value = SORTS[p.get('sort')] ? p.get('sort') : 'new'; // an unknown sort or view in the address falls back to the usual one
+  setView(p.get('view') === 'grid' ? 'grid' : 'list', false);
 }
 
 // ---------------------------------------------------------------- filtering
@@ -133,7 +135,7 @@ function renderChips(s) {
   if (!RANGES.year.isDefault()) chips.push(['year', '', `${s.year[0]} to ${s.year[1]}`]);
   if (s.saved) chips.push(['saved', '', 'Saved']);
   $('[data-chips]').innerHTML = chips.map(([k, v, label]) =>
-    `<button type="button" class="chip" data-chip="${k}" data-chip-v="${v}" aria-label="Remove filter: ${label}">${label}<span aria-hidden="true"></span></button>`).join('') +
+    `<button type="button" class="chip" data-chip="${k}" data-chip-v="${esc(v)}" aria-label="Remove filter: ${esc(label)}">${esc(label)}<span aria-hidden="true"></span></button>`).join('') +
     (chips.length > 1 ? '<button type="button" class="link chip-clear" data-reset>Clear all</button>' : '');
   const n = $('[data-active-n]');
   n.hidden = !chips.length; n.textContent = chips.length;
@@ -234,6 +236,8 @@ $$('.view-toggle [data-view]').forEach((b) => b.addEventListener('click', () => 
 const panel = $('[data-filter-panel]');
 const scrim = $('[data-scrim]');
 function openFilters(on) {
+  // closing with the keyboard focus inside it hands the focus back to the button that opened it
+  if (!on && panel.classList.contains('is-open') && panel.contains(document.activeElement)) $('[data-open-filters]').focus({ preventScroll: true });
   panel.classList.toggle('is-open', on);
   scrim.hidden = !on;
   document.body.classList.toggle('no-scroll', on);

@@ -1,6 +1,6 @@
 // Tiny localStorage-backed store for saved cars, compare list and recently viewed.
 const KEYS = { saved: 'v8:saved', compare: 'v8:compare', recent: 'v8:recent' };
-const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) || []; } catch { return []; } };
+const read = (k) => { try { const v = JSON.parse(localStorage.getItem(k)); return Array.isArray(v) ? v : []; } catch { return []; } }; // anything but a list (an old or broken entry) counts as empty
 const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* private window or full storage: carry on without saving */ } };
 
 export const COMPARE_MAX = 3;

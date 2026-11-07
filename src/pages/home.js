@@ -1,6 +1,6 @@
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initLayout, reduced, $, $$, curtainOpen } from '../lib/layout.js';
+import { initLayout, reduced, $, $$, curtainOpen, stash } from '../lib/layout.js';
 import { wireCardActions } from '../lib/card.js';
 import { arrive } from '../lib/fx.js';
 import { saturdayDeals } from '../lib/hours.js';
@@ -95,11 +95,11 @@ function keepPlace() {
   let at = -1e6;
   addEventListener('scroll', () => { at = scrollY - top(); }, { passive: true });
   addEventListener('pagehide', () => {
-    if (at > -innerHeight * 0.25) sessionStorage.setItem(KEY, Math.round(Math.max(0, at)));
-    else sessionStorage.removeItem(KEY);
+    if (at > -innerHeight * 0.25) stash(() => sessionStorage.setItem(KEY, Math.round(Math.max(0, at))));
+    else stash(() => sessionStorage.removeItem(KEY));
   });
   if (!document.documentElement.classList.contains('returning')) return;
-  const y = top() + (+sessionStorage.getItem(KEY) || 0);
+  const y = top() + (+stash(() => sessionStorage.getItem(KEY)) || 0);
   if (lenis) { lenis.resize(); lenis.scrollTo(y, { immediate: true, force: true }); } else scrollTo({ top: y, behavior: 'instant' });
   document.documentElement.classList.add('returned');
 }
